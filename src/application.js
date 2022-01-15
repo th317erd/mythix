@@ -86,8 +86,13 @@ class Application {
   }
 
   loadConfig(configPath) {
-    const config = require(configPath);
-    return wrapConfig(config);
+    try {
+      const config = require(configPath);
+      return wrapConfig(config);
+    } catch (error) {
+      console.error(`Error while trying to load application configuration ${configPath}: `, error);
+      throw error;
+    }
   }
 
   loadModels(modelsPath) {
@@ -100,9 +105,13 @@ class Application {
 
       try {
         var modelGenerator = require(modelFile);
+        if (modelGenerator['default'] && typeof modelGenerator['default'] === 'function')
+          modelGenerator = modelGenerator['default'];
+
         Object.assign(models, modelGenerator(args));
       } catch (error) {
         this.getLogger().error(`Error while loading model ${modelFile}: `, error);
+        throw error;
       }
     }
 

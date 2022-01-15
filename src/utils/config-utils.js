@@ -1,3 +1,5 @@
+const Nife = require('nife');
+
 function getConfigKey(CONFIG, key) {
   return key.replace(/\{([^\}]+)\}/g, (m, name) => {
     if (!CONFIG.hasOwnProperty(name))

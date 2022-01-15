@@ -1,7 +1,6 @@
 const Nife        = require('nife');
-const { ENV }     = require('../config');
 const Inflection  = require('inflection');
-const { Model }   = require('model');
+const { Model }   = require('./model');
 
 function relationHelper(type) {
   return function(target, _options) {
@@ -129,7 +128,7 @@ function defineModel(modelName, definer, _parent) {
     Klass.fields = cleanModelFields(Klass);
 
     var tableName = Inflection.pluralize(modelName);
-    tableName = (`${ENV('DB_TABLE_PREFIX', '')}${Nife.camelCaseToSnakeCase(tableName)}`).toLowerCase();
+    tableName = (`${app.getConfigValue('DB_TABLE_PREFIX', '')}${Nife.camelCaseToSnakeCase(tableName)}`).toLowerCase();
 
     Klass.init(Klass.fields, {
       underscored:      true,
