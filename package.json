@@ -1,0 +1,28 @@
+{
+  "name": "mythix",
+  "version": "1.0.0",
+  "description": "Mythix is a NodeJS web-app framework",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node ./node_modules/.bin/jasmine"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/th317erd/mythix.git"
+  },
+  "keywords": [],
+  "author": "Wyatt Greenway",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/th317erd/mythix/issues"
+  },
+  "homepage": "https://github.com/th317erd/mythix#readme",
+  "devDependencies": {
+    "jasmine": "^4.0.2"
+  },
+  "dependencies": {
+    "inflection": "^1.13.1",
+    "nife": "^1.1.0",
+    "sequelize": "^6.13.0"
+  }
+}
