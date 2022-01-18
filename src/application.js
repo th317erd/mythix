@@ -26,6 +26,7 @@ class Application {
       logger:           {
         rootPath: ROOT_PATH,
       },
+      routeParserTypes: undefined,
     }, _opts);
 
     Object.defineProperties(this, {
@@ -207,8 +208,14 @@ class Application {
     throw new Error('Error: child application expected to implement "getRoutes" method');
   }
 
-  buildRoutes(server, routes) {
+  getCustomRouteParserTypes() {
+    var options = this.getOptions();
+    return options.routeParserTypes;
+  }
 
+  buildRoutes(server, routes) {
+    var customParserTypes = this.getCustomRouteParserTypes(server, routes);
+    return buildRoutes(routes, customParserTypes);
   }
 
   getConfigValue(key, defaultValue) {
@@ -284,7 +291,8 @@ class Application {
     var controllers = await this.loadControllers(options.controllersPath, this.server);
     Object.assign(this.controllers, controllers);
 
-    await this.buildRoutes(this.server, this.getRoutes());
+    var routes = await this.buildRoutes(this.server, this.getRoutes());
+    this.server.setRoutes(routes);
 
     this.isStarted = true;
   }

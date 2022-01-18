@@ -61,7 +61,7 @@ describe('controller-utils', function() {
   });
 
   describe('buildRoutes', function() {
-    fit('should be able to compile routes', function() {
+    it('should be able to compile routes', function() {
       var allRoutes = ControllerUtils.buildRoutes({
         'api': {
           'v1': {

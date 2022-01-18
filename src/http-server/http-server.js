@@ -30,6 +30,12 @@ class HTTPServer {
         configurable: true,
         value:        opts,
       },
+      'routes': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        null,
+      },
     });
   }
 
@@ -59,6 +65,10 @@ class HTTPServer {
       key:  keyContent,
       cert: certContent,
     };
+  }
+
+  setRoutes(routes) {
+    this.routes = routes;
   }
 
   async start() {

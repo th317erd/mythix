@@ -365,8 +365,10 @@ function buildRoutes(_routes, customParserTypes) {
   var routes = compileRoutes(_routes, customParserTypes);
 
   return routes.map((route) => {
+    // Filter out priority key
     var route = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(priority)$/), {}, route);
 
+    // Inject route matchers
     route.matcher = buildRouteMatcher(route.path, customParserTypes);
     route.acceptMatcher = buildAcceptMatcher(route.accept);
 
