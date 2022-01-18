@@ -110,7 +110,7 @@ function defineModel(modelName, definer, _parent) {
     return finalIndexes;
   }
 
-  return function({ app, Sequelize, connection }) {
+  return function({ application, Sequelize, connection }) {
     const Klass = definer({
       Parent:   (_parent) ? _parent : Model,
       Type:     Sequelize.DataTypes,
@@ -118,7 +118,7 @@ function defineModel(modelName, definer, _parent) {
       Sequelize,
       connection,
       modelName,
-      app,
+      app: application,
     });
 
     Klass.fields = compileModelFields(Klass);
@@ -128,7 +128,7 @@ function defineModel(modelName, definer, _parent) {
     Klass.fields = cleanModelFields(Klass);
 
     var tableName = Inflection.pluralize(modelName);
-    tableName = (`${app.getConfigValue('DB_TABLE_PREFIX', '')}${Nife.camelCaseToSnakeCase(tableName)}`).toLowerCase();
+    tableName = (`${application.getConfigValue('DB_TABLE_PREFIX', '')}${Nife.camelCaseToSnakeCase(tableName)}`).toLowerCase();
 
     Klass.init(Klass.fields, {
       underscored:      true,

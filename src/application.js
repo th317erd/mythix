@@ -1,9 +1,12 @@
 const Path                    = require('path');
-const FileSystem              = require('fs');
 const { Sequelize }           = require('sequelize');
-const { wrapConfig }          = require('./utils');
 const { Logger }              = require('./logger');
+const { HTTPServer }          = require('./http-server');
 const { buildModelRelations } = require('./models/model-utils');
+const {
+  wrapConfig,
+  fileNameWithoutExtension,
+} = require('./utils');
 
 class Application {
   static APP_NAME = 'mythix';
@@ -12,6 +15,7 @@ class Application {
     var ROOT_PATH = (_opts && _opts.rootPath) ? _opts.rootPath : Path.resolve(__dirname);
 
     var opts = Object.assign({
+      appName:          this.constructor.APP_NAME,
       rootPath:         ROOT_PATH,
       configPath:       Path.resolve(ROOT_PATH, 'config'),
       migrationsPath:   Path.resolve(ROOT_PATH, 'migrations'),
@@ -44,16 +48,34 @@ class Application {
         value:        false,
       },
       'options': {
-        writable:     true,
+        writable:     false,
         enumerable:   false,
         configurable: true,
         value:        opts,
+      },
+      'controllers': {
+        writable:     false,
+        enumerable:   false,
+        configurable: true,
+        value:        {},
+      },
+      'models': {
+        writable:     false,
+        enumerable:   false,
+        configurable: true,
+        value:        {},
+      },
+      'server': {
+        writable:     false,
+        enumerable:   false,
+        configurable: true,
+        value:        null,
       },
     });
 
     Object.defineProperties(this, {
       'config': {
-        writable:     true,
+        writable:     false,
         enumerable:   false,
         configurable: true,
         value:        this.loadConfig(opts.configPath),
@@ -90,15 +112,29 @@ class Application {
       const config = require(configPath);
       return wrapConfig(config);
     } catch (error) {
-      console.error(`Error while trying to load application configuration ${configPath}: `, error);
+      this.getLogger().error(`Error while trying to load application configuration ${configPath}: `, error);
       throw error;
     }
   }
 
-  loadModels(modelsPath) {
-    var modelFiles  = FileSystem.readdirSync(modelsPath).filter((fileName) => !fileName.match(/^_/)).map((fileName) => Path.resolve(modelsPath, fileName));
+  getModelFilePaths(modelsPath) {
+    return walkDir(modelsPath, {
+      filter: (fullFileName, fileName) => {
+        if (fileName.match(/^_/))
+          return false;
+
+        if (!fileNameWithoutExtension(fileName).match(/-model$/))
+          return false;
+
+        return true;
+      }
+    });
+  }
+
+  loadModels(modelsPath, dbConfig) {
+    var modelFiles  = this.getModelFilePaths(modelsPath);
     var models      = {};
-    var args        = { app: this, Sequelize, connection: this.dbConnection };
+    var args        = { application: this, Sequelize, connection: this.dbConnection, dbConfig };
 
     for (var i = 0, il = modelFiles.length; i < il; i++) {
       var modelFile = modelFiles[i];
@@ -120,6 +156,61 @@ class Application {
     return models;
   }
 
+  getModel(name) {
+    var models = this.models;
+    return models[name];
+  }
+
+  getControllerFilePaths(controllersPath) {
+    return walkDir(controllersPath, {
+      filter: (fullFileName, fileName) => {
+        if (fileName.match(/^_/))
+          return false;
+
+        if (!fileNameWithoutExtension(fileName).match(/-controller$/))
+          return false;
+
+        return true;
+      }
+    });
+  }
+
+  loadControllers(controllersPath, server) {
+    var controllerFiles = this.getControllerFilePaths(controllersPath);
+    var controllers     = {};
+    var args            = { application: this, server };
+
+    for (var i = 0, il = controllerFiles.length; i < il; i++) {
+      var controllerFile = controllerFiles[i];
+
+      try {
+        var controllerGenerator = require(controllerFile);
+        if (controllerGenerator['default'] && typeof controllerGenerator['default'] === 'function')
+          controllerGenerator = controllerGenerator['default'];
+
+        Object.assign(controllers, controllerGenerator(args));
+      } catch (error) {
+        this.getLogger().error(`Error while loading model ${controllerFile}: `, error);
+        throw error;
+      }
+    }
+
+    return controllers;
+  }
+
+  getController(name) {
+    var controllers = this.controllers;
+    return controllers[name];
+  }
+
+  getRoutes() {
+    throw new Error('Error: child application expected to implement "getRoutes" method');
+  }
+
+  buildRoutes(server, routes) {
+
+  }
+
   getConfigValue(key, defaultValue) {
     return this.config.ENV(key, defaultValue);
   }
@@ -129,13 +220,15 @@ class Application {
   }
 
   getLogger() {
+    if (!this.logger)
+      return console;
+
     return this.logger;
   }
 
-  async connectToDatabase() {
-    var databaseConfig  = this.getConfigValue('DATABASES.{ENVIRONMENT}');
+  async connectToDatabase(databaseConfig) {
     if (!databaseConfig) {
-      this.getLogger().error(`Error: database connection for "${this.getConfigValue('ENVIRONMENT')}" not defined`);
+      this.getLogger().error(`Error: database connection options not defined`);
       return;
     }
 
@@ -145,17 +238,53 @@ class Application {
     try {
       await sequelize.authenticate();
 
-      this.dbConnection = sequelize;
-
       this.getLogger().log(`Connection to ${dbConnectionString} has been established successfully!`);
+
+      return sequelize;
     } catch (error) {
       this.getLogger().error(`Unable to connect to database ${dbConnectionString}:`, error);
       await this.stop();
     }
   }
 
+  async createHTTPServer(options) {
+    var server = new HTTPServer(options);
+
+    await server.start();
+
+    return server;
+  }
+
   async start() {
-    await this.connectToDatabase();
+    var options = this.getOptions();
+
+    var databaseConfig = this.getConfigValue('DATABASE.{ENVIRONMENT}');
+    if (!databaseConfig)
+      databaseConfig = this.getConfigValue('DATABASE');
+
+    if (!databaseConfig) {
+      this.getLogger().error(`Error: database connection for "${this.getConfigValue('ENVIRONMENT')}" not defined`);
+      return;
+    }
+
+    if (Nife.isEmpty(databaseConfig.tablePrefix))
+      databaseConfig.tablePrefix = `${options.appName}_`;
+
+    this.dbConnection = await this.connectToDatabase(databaseConfig);
+
+    var httpServerConfig = this.getConfigValue('SERVER.{ENVIRONMENT}');
+    if (!httpServerConfig)
+      httpServerConfig = this.getConfigValue('SERVER');
+
+    this.server = await this.createHTTPServer(httpServerConfig);
+
+    var models = await this.loadModels(options.modelsPath, databaseConfig);
+    Object.assign(this.models, models);
+
+    var controllers = await this.loadControllers(options.controllersPath, this.server);
+    Object.assign(this.controllers, controllers);
+
+    await this.buildRoutes(this.server, this.getRoutes());
 
     this.isStarted = true;
   }
@@ -165,6 +294,9 @@ class Application {
 
     this.isStopping = true;
     this.isStarted = false;
+
+    if (this.server)
+      await this.server.stop();
 
     if (this.dbConnection)
       await this.dbConnection.close();

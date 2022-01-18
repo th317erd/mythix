@@ -21,6 +21,8 @@
     "jasmine": "^4.0.2"
   },
   "dependencies": {
+    "express": "^4.17.2",
+    "express-busboy": "^8.0.0",
     "inflection": "^1.13.1",
     "nife": "^1.1.0",
     "sequelize": "^6.13.0"
