@@ -21,6 +21,7 @@
     "jasmine": "^4.0.2"
   },
   "dependencies": {
+    "chokidar": "^3.5.3",
     "express": "^4.17.2",
     "express-busboy": "^8.0.0",
     "inflection": "^1.13.1",

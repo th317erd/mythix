@@ -1,11 +1,25 @@
+const Nife = require('nife');
+
 class ControllerBase {
-  constructor(application, logger) {
+  constructor(application, logger, request, response) {
     Object.defineProperties(this, {
       'application': {
         writable:     false,
         enumberable:  false,
         configurable: true,
         value:        application,
+      },
+      'request': {
+        writable:     false,
+        enumberable:  false,
+        configurable: true,
+        value:        request,
+      },
+      'response': {
+        writable:     false,
+        enumberable:  false,
+        configurable: true,
+        value:        response,
       },
       'logger': {
         writable:     true,
@@ -33,6 +47,29 @@ class ControllerBase {
   getModel(name) {
     var application = this.application;
     return application.getModel(name);
+  }
+
+  async handleIncomingRequest(request, response, { route, controller, controllerMethod, controllerInstance, startTime, params }) {
+    return await this[controllerMethod].call(this, params, request.query || {}, request.body);
+  }
+
+  async handleOutgoingResponse(_controllerResult, request, response, { route, controller, controllerMethod, controllerInstance, startTime, params }) {
+    var controllerResult  = _controllerResult;
+    var contentType       = Nife.get(request, 'headers.content-type');
+
+    if (!('' + contentType).match(/application\/json/i)) {
+      if (controllerResult == null)
+        controllerResult = '';
+
+      response.status(200).send(('' + controllerResult));
+
+      return;
+    }
+
+    if (controllerResult == null)
+      controllerResult = {};
+
+    response.status(200).send(JSON.stringify(controllerResult));
   }
 }
 

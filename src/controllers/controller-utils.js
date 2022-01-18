@@ -333,6 +333,7 @@ function compileRoutes(routes, customParserTypes, _context) {
     routeName,
     path,
     alreadyVisited,
+    depth,
   } = context;
 
   if (!alreadyVisited)
@@ -342,6 +343,9 @@ function compileRoutes(routes, customParserTypes, _context) {
     return [];
 
   alreadyVisited.set(routes, true);
+
+  if (!depth)
+    depth = 0;
 
   if (Nife.isEmpty(routeName))
     routeName = '/';
@@ -355,13 +359,15 @@ function compileRoutes(routes, customParserTypes, _context) {
   path = path.replace(/\/{2,}/g, '/');
 
   var keys = Object.keys(routes);
+  var basePriority = 1000000 - (depth * 1000);
+
   for (var i = 0, il = keys.length; i < il; i++) {
     var key   = keys[i];
     var route = routes[key];
 
     if (route && Nife.isNotEmpty(route.controller)) {
       var newPath = (isArray) ? path : `${path}/${key}`;
-      addRoute(theseRoutes, route, newPath, i);
+      addRoute(theseRoutes, route, newPath, basePriority + i);
     }
 
     if (ROUTE_PROPERTIES.indexOf(key) >= 0)
@@ -369,15 +375,16 @@ function compileRoutes(routes, customParserTypes, _context) {
 
     var thisRouteName = (isArray) ? routeName : key;
     if (Nife.instanceOf(route, 'object', 'array')) {
-      var subRoutes = sortRoutes(compileRoutes(route, customParserTypes, {
+      var subRoutes = compileRoutes(route, customParserTypes, {
         routeName:  thisRouteName,
         path:       path,
         priority:   i,
+        depth:      depth + 1,
         alreadyVisited,
-      })).map((route, index) => {
-        route.priority = 0 - index;
-        return route;
       });
+
+      if (!subRoutes || !subRoutes.length)
+        continue;
 
       theseRoutes = [].concat(subRoutes, theseRoutes);
     }

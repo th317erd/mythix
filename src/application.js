@@ -1,6 +1,7 @@
 const Nife                    = require('nife');
 const Path                    = require('path');
 const { Sequelize }           = require('sequelize');
+const chokidar                = require('chokidar');
 const { Logger }              = require('./logger');
 const { HTTPServer }          = require('./http-server');
 const { buildModelRelations } = require('./models/model-utils');
@@ -10,6 +11,7 @@ const {
   fileNameWithoutExtension,
   walkDir,
 } = require('./utils');
+
 
 class Application {
   static APP_NAME = 'mythix';
@@ -32,11 +34,18 @@ class Application {
       httpServer: {
         routeParserTypes: undefined,
         middleware:       null,
-      }
+      },
+      autoReload:         (process.env.NODE_ENV || 'development') === 'development',
     }, _opts);
 
     Object.defineProperties(this, {
       'dbConnection': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        null,
+      },
+      'dbConfig': {
         writable:     true,
         enumerable:   false,
         configurable: true,
@@ -61,18 +70,24 @@ class Application {
         value:        opts,
       },
       'controllers': {
-        writable:     false,
+        writable:     true,
         enumerable:   false,
         configurable: true,
         value:        {},
       },
       'models': {
-        writable:     false,
+        writable:     true,
         enumerable:   false,
         configurable: true,
         value:        {},
       },
       'server': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        null,
+      },
+      'fileWatcher': {
         writable:     true,
         enumerable:   false,
         configurable: true,
@@ -104,6 +119,114 @@ class Application {
     this.bindToProcessSignals();
   }
 
+  async autoReload(_set, shuttingDown) {
+    var options = this.getOptions();
+    if (arguments.length === 0)
+      return options.autoReload;
+
+    var set = !!_set;
+
+    if (!shuttingDown)
+      options.autoReload = set;
+
+    if (this.fileWatcher)
+      await this.fileWatcher.close();
+
+    if (shuttingDown)
+      return;
+
+    if (set) {
+      var getFileScope = (path) => {
+        if (path.substring(0, options.controllersPath.length) === options.controllersPath)
+          return 'controllers';
+
+        if (path.substring(0, options.modelsPath.length) === options.modelsPath)
+          return 'models';
+
+        return 'default';
+      };
+
+      const filesChanged = (eventName, path) => {
+        if (filesChangedTimeout)
+          clearTimeout(filesChangedTimeout);
+
+        var scopeName = getFileScope(path);
+        var scope     = filesChangedQueue[scopeName];
+        if (!scope)
+          scope = filesChangedQueue[scopeName] = {};
+
+        scope[path] = eventName;
+
+        filesChangedTimeout = setTimeout(() => {
+          this.watchedFilesChanged(Object.assign({}, filesChangedQueue));
+
+          filesChangedTimeout = null;
+          filesChangedQueue = {};
+        }, 500);
+      };
+
+      var filesChangedQueue = {};
+      var filesChangedTimeout;
+
+      this.fileWatcher = chokidar.watch([ options.modelsPath, options.controllersPath ], {
+        persistent:     true,
+        followSymlinks: true,
+        usePolling:     false,
+        ignoreInitial:  true,
+        interval:       200,
+        binaryInterval: 500,
+        depth:          10,
+      });
+
+      this.fileWatcher.on('all', filesChanged);
+    }
+  }
+
+  async watchedFilesChanged(files) {
+    const flushRequireCache = (path) => {
+      try {
+        delete require.cache[require.resolve(path)];
+      } catch (error) {}
+    };
+
+    const flushRequireCacheForFiles = (type, files) => {
+      for (var i = 0, il = files.length; i < il; i++) {
+        var fileName = files[i];
+        flushRequireCache(fileName);
+
+        this.getLogger().info(`Loading ${type} ${fileName}...`);
+      }
+    }
+
+    var options = this.getOptions();
+
+    var controllerScope = files['controllers'];
+    if (controllerScope && this.server) {
+      var fileNames = Object.keys(controllerScope);
+      flushRequireCacheForFiles('controller', fileNames);
+
+      try {
+        var controllers = await this.loadControllers(options.controllersPath, this.server);
+        this.controllers = controllers;
+      } catch (error) {
+        this.getLogger().error('Error while attempting to reload controllers', error);
+      }
+    }
+
+    var modelScope = files['models'];
+    if (modelScope && this.dbConfig) {
+      var fileNames = Object.keys(modelScope);
+      flushRequireCacheForFiles('model', fileNames);
+
+      try {
+        var models = await this.loadModels(options.modelsPath, this.dbConfig);
+        this.models = models;
+      } catch (error) {
+        this.getLogger().error('Error while attempting to reload models', error);
+      }
+    }
+  }
+
   bindToProcessSignals() {
     process.on('SIGINT',  this.stop.bind(this));
     process.on('SIGTERM', this.stop.bind(this));
@@ -112,6 +235,11 @@ class Application {
 
   getOptions() {
     return this.options;
+  }
+
+  getApplicationName() {
+    var options = this.getOptions();
+    return options.appName;
   }
 
   loadConfig(configPath) {
@@ -160,6 +288,15 @@ class Application {
 
     buildModelRelations(models);
 
+    Object.defineProperties(models, {
+      '_files': {
+        writable:     true,
+        enumberable:  false,
+        configurable: true,
+        value:        modelFiles,
+      },
+    });
+
     return models;
   }
 
@@ -201,6 +338,15 @@ class Application {
         throw error;
       }
     }
+
+    Object.defineProperties(controllers, {
+      '_files': {
+        writable:     true,
+        enumberable:  false,
+        configurable: true,
+        value:        controllerFiles,
+      },
+    });
 
     return controllers;
   }
@@ -291,9 +437,10 @@ class Application {
     }
 
     if (Nife.isEmpty(databaseConfig.tablePrefix))
-      databaseConfig.tablePrefix = `${options.appName}_`;
+      databaseConfig.tablePrefix = `${this.getApplicationName()}_`;
 
     this.dbConnection = await this.connectToDatabase(databaseConfig);
+    this.dbConfig = databaseConfig;
 
     var httpServerConfig = this.getConfigValue('SERVER.{ENVIRONMENT}');
     if (!httpServerConfig)
@@ -302,13 +449,15 @@ class Application {
     this.server = await this.createHTTPServer(this, Nife.extend(true, {}, options.httpServer || {}, httpServerConfig || {}));
 
     var models = await this.loadModels(options.modelsPath, databaseConfig);
-    Object.assign(this.models, models);
+    this.models = models;
 
     var controllers = await this.loadControllers(options.controllersPath, this.server);
-    Object.assign(this.controllers, controllers);
+    this.controllers = controllers;
 
     var routes = await this.buildRoutes(this.server, this.getRoutes());
     this.server.setRoutes(routes);
+
+    await this.autoReload(options.autoReload, false);
 
     this.isStarted = true;
   }
@@ -318,6 +467,8 @@ class Application {
 
     this.isStopping = true;
     this.isStarted = false;
+
+    await this.autoReload(false, true);
 
     if (this.server)
       await this.server.stop();

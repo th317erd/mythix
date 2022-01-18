@@ -1,8 +1,11 @@
-const Nife        = require('nife');
-const FileSystem  = require('fs');
-const HTTP        = require('http');
-const HTTPS       = require('https');
-const Express     = require('express');
+const OS            = require('os');
+const Path          = require('path');
+const FileSystem    = require('fs');
+const HTTP          = require('http');
+const HTTPS         = require('https');
+const Nife          = require('nife');
+const Express       = require('express');
+const ExpressBusBoy = require('express-busboy');
 
 const {
   HTTPBaseError,
@@ -17,10 +20,19 @@ const {
 
 class HTTPServer {
   constructor(application, _opts) {
-    var opts = Object.assign({
+    var appName = application.getApplicationName();
+
+    var uploadPath = Path.resolve(OS.tmpdir(), 'appName', ('' + process.pid));
+
+    var opts = Nife.extend(true, {
       host:   'localhost',
       port:   '8000',
       https:  false,
+      uploads: {
+        upload:       true,
+        path:         uploadPath,
+        allowedPath:  /./i,
+      },
     });
 
     Object.defineProperties(this, {
@@ -97,7 +109,7 @@ class HTTPServer {
     var middlewareIndex = 0;
     const next = () => {
       if (middlewareIndex >= middleware.length)
-        return;
+        return rootNext();
 
       var middlewareFunc = middleware[middlewareIndex++];
       return middlewareFunc.call(this, request, response, next);
@@ -173,8 +185,11 @@ class HTTPServer {
     return logger.clone({ formatter: (output) => `{${ipAddress}} - [#${requestID} ${loggerMethod} ${loggerURL}]: ${output}`});
   }
 
-  async sendRequestToController(request, response, { route, controller, controllerMethod, controllerInstance, startTime }) {
-    return await controllerInstance[controllerMethod].call(controllerInstance, request, response);
+  sendRequestToController(...args) {
+    var context             = args[2];
+    var controllerInstance  = context.controllerInstance;
+
+    return controllerInstance.handleIncomingRequest.apply(controllerInstance, args);
   }
 
   async baseRouter(request, response, next) {
@@ -188,7 +203,7 @@ class HTTPServer {
 
       var { route, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
 
-      request.params = params;
+      request.params = params || {};
 
       var controller = this.getRouteController(route.controller, route, params, request);
       var {
@@ -202,19 +217,21 @@ class HTTPServer {
       if (Nife.isEmpty(controllerMethod))
         controllerMethod = (request.method || 'get').toLowerCase();
 
-      var controllerInstance = new controller(application, logger || application.getLogger());
+      var controllerInstance = new controller(application, logger || application.getLogger(), request, response);
 
-      await this.sendRequestToController(
-        request,
-        response,
-        {
-          route,
-          controller,
-          controllerMethod,
-          controllerInstance,
-          startTime
-        }
-      );
+      var context = {
+        params: request.params,
+        route,
+        controller,
+        controllerMethod,
+        controllerInstance,
+        startTime,
+      };
+
+      var controllerResult = await this.sendRequestToController(request, response, context);
+
+      if (!response.finished)
+        await controllerInstance.handleOutgoingResponse(controllerResult, request, response, context);
 
       var statusCode  = response.statusCode || 200;
       var requestTime = Nife.now() - startTime;
@@ -252,9 +269,17 @@ class HTTPServer {
     response.status(statusCode || 500).send(message || statusCodeToMessage(statusCode) || 'Internal Server Error');
   }
 
+  createExpressApplication(options) {
+    var app = Express();
+
+    ExpressBusBoy.extend(app, options.uploads);
+
+    return app;
+  }
+
   async start() {
     var options = this.getOptions();
-    var app     = Express();
+    var app     = this.createExpressApplication(options);
     var server;
 
     app.use(this.baseMiddleware.bind(this));

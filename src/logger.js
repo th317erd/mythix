@@ -6,10 +6,8 @@ const LEVEL_WARN    = 2;
 const LEVEL_INFO    = 3;
 const LEVEL_DEBUG   = 4;
 
-const RUNNING_PATH = Path.resolve(__dirname, '..', '..', '..');
-
 function errorStackToString(rootPath, error) {
-  return error.stack.split(/\n+/).slice(1).filter((trace) => (trace.indexOf(rootPath) >= 0)).map((part) => part.replace(/^\s+at\s+/, '').replace(RUNNING_PATH, '.')).reverse().join(' -> ');
+  return ('\n -> [trace start]\n -> ' + error.stack.split(/\n+/).slice(1).map((part) => `${part.replace(/^\s+at\s+/, '')}\n`).reverse().join(' -> ')).trimEnd() + ' [top level]';
 }
 
 function writeToWriterObject(writer, type, _output) {
@@ -29,10 +27,15 @@ function logToWriter(type, ..._args) {
   var args = (_args.map((_arg) => {
     var arg = _arg;
 
-    if (arg instanceof Error)
-      arg = `${arg.name}: ${arg.message}: ${errorStackToString(this._rootPath, arg)}`;
-    else if (arg && typeof arg.valueOf() === 'function')
+    if (arg instanceof Error) {
+      var formattedStack = (typeof this._errorStackFormatter === 'function')
+                              ? this._errorStackFormatter.call(this, this._rootPath, arg)
+                              : errorStackToString.call(this, this._rootPath, arg);
+
+      arg = `${arg.name}: ${arg.message}: ${formattedStack}`;
+    } else if (arg && typeof arg.valueOf() === 'function') {
       arg = arg.valueOf();
+    }
 
     if (arg === true)
       return 'true';
@@ -63,9 +66,10 @@ function logToWriter(type, ..._args) {
 class Logger {
   constructor(_opts) {
     var opts = Object.assign({
-      level:    LEVEL_ERROR,
-      writer:   null,
-      rootPath: process.cwd(),
+      level:                LEVEL_INFO,
+      writer:               null,
+      rootPath:             process.cwd(),
+      errorStackFormatter:  null,
     }, _opts || {}, {
       pid:      process.pid,
     });
@@ -118,6 +122,12 @@ class Logger {
         enumerable:   false,
         configurable: false,
         value:        opts.rootPath,
+      },
+      '_errorStackFormatter': {
+        writable:     false,
+        enumerable:   false,
+        configurable: false,
+        value:        opts.errorStackFormatter,
       },
     });
   }
