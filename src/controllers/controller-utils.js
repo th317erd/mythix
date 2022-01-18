@@ -28,11 +28,24 @@ const ROUTE_PROPERTIES = [
   'priority',
 ];
 
-function buildAcceptMatcher(_accept) {
-  var accept = _accept;
-  if (accept === '*') {
-    var matchFunc = function acceptAllContentTypes(contentType) {
-      return true;
+function buildPatternMatcher(_patterns, _opts) {
+  var opts          = _opts || {};
+  var patterns      = _patterns;
+  var sanitizeFunc  = opts.sanitize;
+  var strict        = opts.strict;
+  var flags         = (Nife.instanceOf(opts.flags, 'string') && Nife.isNotEmpty(opts.flags)) ? opts.flags : 'i';
+
+  if (Nife.instanceOf(patterns, 'array'))
+    patterns = Nife.uniq(patterns);
+
+  if (patterns === '*' || (Nife.instanceOf(patterns, 'array') && patterns.indexOf('*') >= 0) || patterns instanceof RegExp) {
+    var matchRE = (patterns instanceof RegExp) ? patterns : /.*/i;
+
+    var matchFunc = function patternMatcher(value) {
+      if (!value || !Nife.instanceOf(value, 'string'))
+        return true;
+
+      return !!value.match(matchRE);
     };
 
     Object.defineProperties(matchFunc, {
@@ -40,7 +53,7 @@ function buildAcceptMatcher(_accept) {
         writable:     false,
         enumberable:  false,
         configurable: false,
-        value:        /.*/i,
+        value:        matchRE,
       },
       'directPatterns': {
         writable:     false,
@@ -53,23 +66,27 @@ function buildAcceptMatcher(_accept) {
     return matchFunc;
   }
 
-  if (!(accept instanceof Array))
-    accept = [ accept ];
+  if (!Nife.instanceOf(patterns, 'array'))
+    patterns = [ patterns ];
 
   var parts           = [];
   var directPatterns  = [];
 
-  for (var i = 0, il = accept.length; i < il; i++) {
-    var part = accept[i];
+  for (var i = 0, il = patterns.length; i < il; i++) {
+    var part = patterns[i];
 
     if (part instanceof RegExp) {
       directPatterns.push(part);
       continue;
     }
 
-    part = part.replace(/\*/g, '@@@WILD_MATCH@@@');
-    part = regexpEscape(part);
-    part = part.replace(/@@@WILD_MATCH@@@/g, '.*?');
+    if (typeof sanitizeFunc === 'function') {
+      part = sanitizeFunc(part);
+    } else {
+      part = part.replace(/\*/g, '@@@WILD_MATCH@@@');
+      part = regexpEscape(part);
+      part = part.replace(/@@@WILD_MATCH@@@/g, '.*?');
+    }
 
     parts.push(part);
   }
@@ -77,16 +94,16 @@ function buildAcceptMatcher(_accept) {
   var matchRE;
 
   if (parts && parts.length)
-    matchRE = new RegExp(`(${parts.join('|')})`, 'i');
+    matchRE = new RegExp((strict) ? `^(${parts.join('|')})$` : `(${parts.join('|')})`, flags);
 
-  var matchFunc = function acceptContentType(contentType) {
-    if (!contentType)
+  var matchFunc = function patternMatcher(value) {
+    if (!value || !Nife.instanceOf(value, 'string'))
       return false;
 
     if (directPatterns && directPatterns.length) {
       for (var i = 0, il = directPatterns.length; i < il; i++) {
         var pattern = directPatterns[i];
-        if (contentType.match(pattern))
+        if (value.match(pattern))
           return true;
       }
     }
@@ -94,7 +111,7 @@ function buildAcceptMatcher(_accept) {
     if (!matchRE)
       return false;
 
-    return !!contentType.match(matchRE);
+    return !!value.match(matchRE);
   };
 
   Object.defineProperties(matchFunc, {
@@ -115,7 +132,15 @@ function buildAcceptMatcher(_accept) {
   return matchFunc;
 }
 
-function buildRouteMatcher(routeName, customParserTypes) {
+function buildMethodMatcher(methods) {
+  return buildPatternMatcher(methods, { strict: true });
+}
+
+function buildContentTypeMatcher(contentTypePatterns) {
+  return buildPatternMatcher(contentTypePatterns);
+}
+
+function buildPathMatcher(routeName, customParserTypes) {
   var params      = [];
   var parts       = [];
   var lastOffset  = 0;
@@ -369,16 +394,19 @@ function buildRoutes(_routes, customParserTypes) {
     var route = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(priority)$/), {}, route);
 
     // Inject route matchers
-    route.matcher = buildRouteMatcher(route.path, customParserTypes);
-    route.acceptMatcher = buildAcceptMatcher(route.accept);
+    route.methodMatcher       = buildMethodMatcher(route.methods || '*');
+    route.contentTypeMatcher  = buildContentTypeMatcher(route.accept || '*');
+    route.pathMatcher         = buildPathMatcher(route.path, customParserTypes);
 
     return route;
   });
 }
 
 module.exports = {
-  buildAcceptMatcher,
-  buildRouteMatcher,
+  buildPatternMatcher,
+  buildMethodMatcher,
+  buildContentTypeMatcher,
+  buildPathMatcher,
   buildRoutes,
   defineController,
 };

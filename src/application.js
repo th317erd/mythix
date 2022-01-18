@@ -1,11 +1,14 @@
+const Nife                    = require('nife');
 const Path                    = require('path');
 const { Sequelize }           = require('sequelize');
 const { Logger }              = require('./logger');
 const { HTTPServer }          = require('./http-server');
 const { buildModelRelations } = require('./models/model-utils');
+const { buildRoutes }         = require('./controllers/controller-utils');
 const {
   wrapConfig,
   fileNameWithoutExtension,
+  walkDir,
 } = require('./utils');
 
 class Application {
@@ -14,7 +17,7 @@ class Application {
   constructor(_opts) {
     var ROOT_PATH = (_opts && _opts.rootPath) ? _opts.rootPath : Path.resolve(__dirname);
 
-    var opts = Object.assign({
+    var opts = Nife.extend(true, {
       appName:          this.constructor.APP_NAME,
       rootPath:         ROOT_PATH,
       configPath:       Path.resolve(ROOT_PATH, 'config'),
@@ -26,7 +29,10 @@ class Application {
       logger:           {
         rootPath: ROOT_PATH,
       },
-      routeParserTypes: undefined,
+      httpServer: {
+        routeParserTypes: undefined,
+        middleware:       null,
+      }
     }, _opts);
 
     Object.defineProperties(this, {
@@ -67,7 +73,7 @@ class Application {
         value:        {},
       },
       'server': {
-        writable:     false,
+        writable:     true,
         enumerable:   false,
         configurable: true,
         value:        null,
@@ -200,8 +206,18 @@ class Application {
   }
 
   getController(name) {
-    var controllers = this.controllers;
-    return controllers[name];
+    var controllers     = this.controllers;
+    var controllerName  = name.replace(/(.*?)\b\w+$/, '$1');
+    var methodName      = name.substring(controllerName.length);
+    if (!methodName)
+      methodName = undefined;
+
+    controllerName = controllerName.replace(/\W+$/g, '');
+
+    return {
+      controller:       Nife.get(controllers, controllerName),
+      controllerMethod: methodName,
+    };
   }
 
   getRoutes() {
@@ -283,7 +299,7 @@ class Application {
     if (!httpServerConfig)
       httpServerConfig = this.getConfigValue('SERVER');
 
-    this.server = await this.createHTTPServer(httpServerConfig);
+    this.server = await this.createHTTPServer(this, Nife.extend(true, {}, options.httpServer || {}, httpServerConfig || {}));
 
     var models = await this.loadModels(options.modelsPath, databaseConfig);
     Object.assign(this.models, models);
