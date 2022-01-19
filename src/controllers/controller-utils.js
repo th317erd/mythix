@@ -1,9 +1,5 @@
 const Nife                = require('nife');
 const { ControllerBase }  = require('./controller-base');
-const {
-  coerceValue,
-  regexpEscape,
-} = require('../utils/misc-utils');
 
 function defineController(controllerName, definer, _parent) {
   var parentKlass = _parent || ControllerBase;
@@ -84,7 +80,7 @@ function buildPatternMatcher(_patterns, _opts) {
       part = sanitizeFunc(part);
     } else {
       part = part.replace(/\*/g, '@@@WILD_MATCH@@@');
-      part = regexpEscape(part);
+      part = Nife.regexpEscape(part);
       part = part.replace(/@@@WILD_MATCH@@@/g, '.*?');
     }
 
@@ -167,7 +163,7 @@ function buildPathMatcher(routeName, customParserTypes) {
 
     if (defaultValue) {
       defaultValue = defaultValue.trim().replace(/^=\s*/, '');
-      defaultValue = coerceValue(defaultValue, type);
+      defaultValue = Nife.coerceValue(defaultValue, type);
     }
 
     var matcher;
@@ -206,7 +202,7 @@ function buildPathMatcher(routeName, customParserTypes) {
 
     if (typeof item === 'string') {
       item = item.replace(/\?/g, '@@@CHAR_MATCH@@@').replace(/\*/g, '@@@WILD_MATCH@@@').replace(/\/+/g, '@@@FORWARD_SLASH@@@');
-      item = regexpEscape(item);
+      item = Nife.regexpEscape(item);
       item = item.replace(/@@@CHAR_MATCH@@@/g, '.').replace(/@@@WILD_MATCH@@@/g, '.*?').replace(/@@@FORWARD_SLASH@@@/g, '/');
 
       if (item.match(/\/$/)) {
@@ -243,7 +239,7 @@ function buildPathMatcher(routeName, customParserTypes) {
       if (customParserTypes && customParserTypes.hasOwnProperty(param.type))
         result[param.name] = customParserTypes[param.type](part, param, paramIndex);
       else
-        result[param.name] = coerceValue(part, param.type);
+        result[param.name] = Nife.coerceValue(part, param.type);
     }
 
     return result;

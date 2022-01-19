@@ -7,7 +7,8 @@ const { defineCommand } = require('./cli-utils');
 
 module.exports = defineCommand('shell', ({ Parent, Option }) => {
   return class ShellCommand extends Parent {
-    static nodeArguments = [ '--experimental-repl-await', '--experimental-top-level-await' ];
+    static nodeArguments    = [ '--experimental-repl-await', '--experimental-top-level-await' ];
+    static commandArguments = [ '-e, --env <environment:string> Environment to use {ENV[NODE_ENV]|development}' ];
 
     async execute(Application, options) {
       try {
