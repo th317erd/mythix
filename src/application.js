@@ -36,7 +36,7 @@ class Application {
         middleware:       null,
       },
       autoReload:         (process.env.NODE_ENV || 'development') === 'development',
-    }, _opts);
+    }, _opts || {});
 
     Object.defineProperties(this, {
       'dbConnection': {
@@ -237,6 +237,14 @@ class Application {
     return this.options;
   }
 
+  setOptions(opts) {
+    if (!opts)
+      return;
+
+    var options = this.getOptions();
+    Nife.extend(true, options, opts);
+  }
+
   getApplicationName() {
     var options = this.getOptions();
     return options.appName;
@@ -303,6 +311,10 @@ class Application {
   getModel(name) {
     var models = this.models;
     return models[name];
+  }
+
+  getModels() {
+    return this.models || {};
   }
 
   getControllerFilePaths(controllersPath) {
@@ -416,8 +428,12 @@ class Application {
     }
   }
 
+  getDBConnection() {
+    return this.dbConnection;
+  }
+
   async createHTTPServer(options) {
-    var server = new HTTPServer(options);
+    var server = new HTTPServer(this, options);
 
     await server.start();
 
@@ -442,20 +458,24 @@ class Application {
     this.dbConnection = await this.connectToDatabase(databaseConfig);
     this.dbConfig = databaseConfig;
 
-    var httpServerConfig = this.getConfigValue('SERVER.{ENVIRONMENT}');
-    if (!httpServerConfig)
-      httpServerConfig = this.getConfigValue('SERVER');
+    if (options.httpServer !== false) {
+      var httpServerConfig = this.getConfigValue('SERVER.{ENVIRONMENT}');
+      if (!httpServerConfig)
+        httpServerConfig = this.getConfigValue('SERVER');
 
-    this.server = await this.createHTTPServer(this, Nife.extend(true, {}, options.httpServer || {}, httpServerConfig || {}));
+      this.server = await this.createHTTPServer(Nife.extend(true, {}, options.httpServer || {}, httpServerConfig || {}));
+    }
 
     var models = await this.loadModels(options.modelsPath, databaseConfig);
     this.models = models;
 
-    var controllers = await this.loadControllers(options.controllersPath, this.server);
-    this.controllers = controllers;
+    if (options.httpServer !== false) {
+      var controllers = await this.loadControllers(options.controllersPath, this.server);
+      this.controllers = controllers;
 
-    var routes = await this.buildRoutes(this.server, this.getRoutes());
-    this.server.setRoutes(routes);
+      var routes = await this.buildRoutes(this.server, this.getRoutes());
+      this.server.setRoutes(routes);
+    }
 
     await this.autoReload(options.autoReload, false);
 
@@ -463,6 +483,9 @@ class Application {
   }
 
   async stop() {
+    if (this.isStopping || !this.isStarted)
+      return;
+
     this.getLogger().log('Shutting down...');
 
     this.isStopping = true;

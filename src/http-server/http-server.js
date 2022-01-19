@@ -6,6 +6,7 @@ const HTTPS         = require('https');
 const Nife          = require('nife');
 const Express       = require('express');
 const ExpressBusBoy = require('express-busboy');
+const Sequelize     = require('sequelize');
 
 const {
   HTTPBaseError,
@@ -33,7 +34,7 @@ class HTTPServer {
         path:         uploadPath,
         allowedPath:  /./i,
       },
-    });
+    }, _opts || {});
 
     Object.defineProperties(this, {
       'application': {
@@ -106,16 +107,41 @@ class HTTPServer {
     if (!middleware || !middleware.length)
       return rootNext.call(this);
 
+    var application = this.getApplication();
+    request.mythixApplication = application;
+
+    var logger = request.mythixLogger = this.createRequestLogger(application, request);
+
+    request.Sequelize = Sequelize;
+
     var middlewareIndex = 0;
-    const next = () => {
+    const next = async () => {
       if (middlewareIndex >= middleware.length)
         return rootNext();
 
       var middlewareFunc = middleware[middlewareIndex++];
-      return middlewareFunc.call(this, request, response, next);
+
+      try {
+        await middlewareFunc.call(this, request, response, next);
+      } catch (error) {
+        var statusCode  = error.statusCode || error.status_code || 500;
+
+        if (error instanceof HTTPBaseError) {
+          logger.log(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
+          this.errorHandler(error.getMessage(), statusCode, response, request);
+        } else {
+          if (statusCode) {
+            logger.log(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
+            this.errorHandler(error.message, statusCode, response, request);
+          } else {
+            logger.log(`Error: ${error.message}`, error);
+            this.errorHandler(error.message, 500, response, request);
+          }
+        }
+      }
     };
 
-    return next();
+    next();
   }
 
   findFirstMatchingRoute(request, _routes) {
@@ -175,7 +201,10 @@ class HTTPServer {
     return controller;
   }
 
-  createRequestLogger(application, request, { controller, controllerMethod }) {
+  createRequestLogger(application, request, context) {
+    if (request.mythixLogger)
+      return request.mythixLogger;
+
     var logger        = application.getLogger();
     var loggerMethod  = ('' + request.method).toUpperCase();
     var loggerURL     = ('' + request.url);
@@ -243,9 +272,7 @@ class HTTPServer {
 
         if (controllerInstance && typeof controllerInstance.errorHandler === 'function')
           await controllerInstance.errorHandler(error, statusCode, request, response);
-        else if (error instanceof HTTPBadRequestError) {
-          await this.errorHandler(error.getMessage(), statusCode, response, request);
-        } else if (error instanceof HTTPBaseError) {
+        else if (error instanceof HTTPBaseError) {
           await this.errorHandler(error.getMessage(), statusCode, response, request);
         } else {
           await this.errorHandler(error.message, statusCode, response, request);

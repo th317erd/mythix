@@ -118,7 +118,7 @@ function defineModel(modelName, definer, _parent) {
       Sequelize,
       connection,
       modelName,
-      app: application,
+      application,
     });
 
     Klass.fields = compileModelFields(Klass);
@@ -138,6 +138,9 @@ function defineModel(modelName, definer, _parent) {
       modelName,
       indexes,
     });
+
+    Klass.getApplication = () => application;
+    Klass.getLogger = () => application.getLogger();
 
     return { [modelName]: Klass };
   };
