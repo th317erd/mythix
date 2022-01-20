@@ -1,5 +1,6 @@
 const Nife                    = require('nife');
 const Path                    = require('path');
+const EventEmitter            = require('events');
 const { Sequelize }           = require('sequelize');
 const chokidar                = require('chokidar');
 const { Logger }              = require('./logger');
@@ -12,11 +13,12 @@ const {
   walkDir,
 } = require('./utils');
 
-
-class Application {
+class Application extends EventEmitter {
   static APP_NAME = 'mythix';
 
   constructor(_opts) {
+    super();
+
     var ROOT_PATH = (_opts && _opts.rootPath) ? _opts.rootPath : Path.resolve(__dirname);
 
     var opts = Nife.extend(true, {
@@ -32,6 +34,7 @@ class Application {
       logger:           {
         rootPath: ROOT_PATH,
       },
+      database:   {},
       httpServer: {
         routeParserTypes: undefined,
         middleware:       null,
@@ -42,12 +45,6 @@ class Application {
 
     Object.defineProperties(this, {
       'dbConnection': {
-        writable:     true,
-        enumerable:   false,
-        configurable: true,
-        value:        null,
-      },
-      'dbConfig': {
         writable:     true,
         enumerable:   false,
         configurable: true,
@@ -216,12 +213,12 @@ class Application {
     }
 
     var modelScope = files['models'];
-    if (modelScope && this.dbConfig) {
+    if (modelScope && options.database) {
       var fileNames = Object.keys(modelScope);
       flushRequireCacheForFiles('model', fileNames);
 
       try {
-        var models = await this.loadModels(options.modelsPath, this.dbConfig);
+        var models = await this.loadModels(options.modelsPath, options.database);
         this.models = models;
       } catch (error) {
         this.getLogger().error('Error while attempting to reload models', error);
@@ -456,16 +453,14 @@ class Application {
   async start() {
     var options = this.getOptions();
 
-    var databaseConfig = this.getConfigValue('DATABASE.{ENVIRONMENT}');
+    var databaseConfig = this.getConfigValue('database.{environment}');
     if (!databaseConfig)
-      databaseConfig = this.getConfigValue('DATABASE');
+      databaseConfig = this.getConfigValue('database');
 
-    if (!databaseConfig)
-      databaseConfig = options.database;
-
-    if (databaseConfig !== false) {
-      if (!databaseConfig) {
-        this.getLogger().error(`Error: database connection for "${this.getConfigValue('ENVIRONMENT')}" not defined`);
+    if (options.database !== false) {
+      databaseConfig = Nife.extend(true, {}, databaseConfig || {}, options.database || {});
+      if (Nife.isEmpty(databaseConfig)) {
+        this.getLogger().error(`Error: database connection for "${this.getConfigValue('environment')}" not defined`);
         return;
       }
 
@@ -473,18 +468,27 @@ class Application {
         databaseConfig.tablePrefix = `${this.getApplicationName()}_`;
 
       this.dbConnection = await this.connectToDatabase(databaseConfig);
-      this.dbConfig = databaseConfig;
+
+      this.setOptions({ database: databaseConfig });
     }
 
     if (options.httpServer !== false) {
-      var httpServerConfig = this.getConfigValue('SERVER.{ENVIRONMENT}');
+      var httpServerConfig = this.getConfigValue('httpServer.{environment}');
       if (!httpServerConfig)
-        httpServerConfig = this.getConfigValue('SERVER');
+        httpServerConfig = this.getConfigValue('httpServer');
 
-      this.server = await this.createHTTPServer(Nife.extend(true, {}, options.httpServer || {}, httpServerConfig || {}));
+      httpServerConfig = Nife.extend(true, {}, httpServerConfig || {}, options.httpServer || {});
+      if (Nife.isEmpty(httpServerConfig)) {
+        this.getLogger().error(`Error: httpServer options for "${this.getConfigValue('environment')}" not defined`);
+        return;
+      }
+
+      this.server = await this.createHTTPServer(httpServerConfig);
+
+      this.setOptions({ httpServer: httpServerConfig });
     }
 
-    if (databaseConfig !== false) {
+    if (options.database !== false) {
       var models = await this.loadModels(options.modelsPath, databaseConfig);
       this.models = models;
     }
@@ -500,13 +504,15 @@ class Application {
     await this.autoReload(options.autoReload, false);
 
     this.isStarted = true;
+
+    this.emit('start');
   }
 
   async stop(exitCode) {
     if (this.isStopping || !this.isStarted)
       return;
 
-    this.getLogger().log('Shutting down...');
+    this.getLogger().info('Shutting down...');
 
     this.isStopping = true;
     this.isStarted = false;
@@ -519,11 +525,16 @@ class Application {
     if (this.dbConnection)
       await this.dbConnection.close();
 
-    this.getLogger().log('Shut down complete!');
+    this.getLogger().info('Shut down complete!');
+
+    this.emit('stop');
 
     var options = this.getOptions();
-    if (options.exitOnShutdown != null || exitCode != null)
-      process.exit((exitCode != null) ? exitCode : options.exitOnShutdown);
+    if (options.exitOnShutdown != null || exitCode != null) {
+      var code = (exitCode != null) ? exitCode : options.exitOnShutdown;
+      this.emit('exit', code);
+      process.exit(code);
+    }
   }
 }
 

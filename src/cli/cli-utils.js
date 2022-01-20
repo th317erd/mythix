@@ -1,6 +1,7 @@
 const Path        = require('path');
 const FileSystem  = require('fs');
 const Nife        = require('nife');
+const { Logger }  = require('../logger');
 
 const {
   walkDir,
@@ -95,14 +96,31 @@ function defineCommand(_name, definer, _parent) {
 
         var config            = loadMythixConfig(mythixConfigPath);
         var Application       = config.getApplicationClass(config);
-        var application       = await createApplication(Application, { httpServer: false, exitOnShutdown: 1, autoReload: false }, false);
+        var applicationConfig = Klass.applicationConfig;
+
+        if (typeof applicationConfig === 'function') {
+          applicationConfig = applicationConfig(config, Application);
+        } else if (applicationConfig) {
+          applicationConfig = Nife.extend(true, { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN } }, applicationConfig);
+        }
+
+        if (!applicationConfig)
+          applicationConfig = { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN } };
+
+        var doStartApplication = (applicationConfig.autoStart !== false);
+
+        delete applicationConfig.autoStart;
+
+        var application = await createApplication(Application, Object.assign({ exitOnShutdown: 1 }, applicationConfig), false);
 
         var environment = args.env;
         if (Nife.isEmpty(environment))
-          environment = application.getConfigValue('ENVIRONMENT', 'development');
+          environment = application.getConfigValue('environment', 'development');
 
-        application.setConfig({ ENVIRONMENT: environment });
-        await application.start();
+        application.setConfig({ environment: environment });
+
+        if (doStartApplication)
+          await application.start();
 
         var commandInstance = new Klass(application, args);
         var result          = await commandInstance.execute.call(commandInstance, args);
@@ -130,12 +148,11 @@ function defineCommand(_name, definer, _parent) {
   return Klass;
 }
 
-async function createApplication(Application, _opts, start) {
-  var application = new Application(Object.assign({ cli: true }, _opts || {}));
-  application.setOptions(Object.assign({ httpServer: false }, _opts || {}));
+async function createApplication(Application, opts) {
+  var application = new Application(Object.assign({ cli: true }, opts || {}));
 
-  if (start !== false)
-    await application.start();
+  if (Nife.isNotEmpty(opts))
+    application.setOptions(Object.assign(opts || {}));
 
   return application;
 }
@@ -150,7 +167,7 @@ function loadCommand(name) {
 }
 
 function loadCommands(yargs, application) {
-  const getApplicationCommandFiles = (commandsPath) => {
+  const getCommandFiles = (commandsPath) => {
     try {
       return walkDir(commandsPath, {
         filter: (fullFileName, fileName, stats) => {
@@ -172,12 +189,11 @@ function loadCommands(yargs, application) {
     }
   }
 
-  loadCommand(Path.resolve(__dirname, 'shell-command.js'));
-
   var applicationOptions      = application.getOptions();
-  var applicationCommandFiles = getApplicationCommandFiles(applicationOptions.commandsPath);
+  var mythixCommandFiles      = getCommandFiles(Path.resolve(__dirname));
+  var applicationCommandFiles = getCommandFiles(applicationOptions.commandsPath);
 
-  applicationCommandFiles.forEach((commandPath) => loadCommand(commandPath));
+  ([].concat(mythixCommandFiles, applicationCommandFiles)).forEach((commandPath) => loadCommand(commandPath));
 
   return CommandBase.commands;
 }
@@ -258,24 +274,10 @@ function spawnCommand(args, options) {
         'node',
         args,
         Object.assign({}, options || {}, {
-          env: Object.assign({}, process.env, (options || {}).env || {}),
-          stdio: [
-            0,      // Use parent's stdin for child.
-            'pipe', // Pipe child's stdout to parent.
-            'pipe', // Pipe child's stderr to parent.
-          ],
+          env:    Object.assign({}, process.env, (options || {}).env || {}),
+          stdio:  'inherit',
         })
       );
-
-      childProcess.on('spawn', () => {
-        childProcess.stdout.on('data', (data) => {
-          process.stdout.write(data);
-        });
-
-        childProcess.stderr.on('data', (data) => {
-          process.stderr.write(data);
-        });
-      });
 
       childProcess.on('error', (error) => {
         reject(error);

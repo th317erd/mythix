@@ -12,7 +12,7 @@ module.exports = defineCommand('shell', ({ Parent }) => {
     execute(args) {
       return new Promise((resolve, reject) => {
         var application = this.getApplication();
-        var environment = application.getConfigValue('ENVIRONMENT', 'development');
+        var environment = application.getConfigValue('environment', 'development');
         var appName     = application.getApplicationName();
 
         const interactiveShell = REPL.start({
