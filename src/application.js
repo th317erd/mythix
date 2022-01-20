@@ -28,6 +28,7 @@ class Application {
       seedersPath:      Path.resolve(ROOT_PATH, 'seeders'),
       controllersPath:  Path.resolve(ROOT_PATH, 'controllers'),
       templatesPath:    Path.resolve(ROOT_PATH, 'templates'),
+      commandsPath:     Path.resolve(ROOT_PATH, 'commands'),
       logger:           {
         rootPath: ROOT_PATH,
       },
@@ -36,6 +37,7 @@ class Application {
         middleware:       null,
       },
       autoReload:         (process.env.NODE_ENV || 'development') === 'development',
+      exitOnShutdown:     null,
     }, _opts || {});
 
     Object.defineProperties(this, {
@@ -243,11 +245,8 @@ class Application {
 
     var options = this.getOptions();
     Nife.extend(true, options, opts);
-  }
 
-  getApplicationName() {
-    var options = this.getOptions();
-    return options.appName;
+    return this;
   }
 
   loadConfig(configPath) {
@@ -260,13 +259,31 @@ class Application {
     }
   }
 
+  getConfigValue(key, defaultValue) {
+    return this.config.ENV(key, defaultValue);
+  }
+
+  getConfig() {
+    return this.config;
+  }
+
+  setConfig(opts) {
+    Nife.extend(true, this.config.CONFIG, opts);
+    return this;
+  }
+
+  getApplicationName() {
+    var options = this.getOptions();
+    return options.appName;
+  }
+
   getModelFilePaths(modelsPath) {
     return walkDir(modelsPath, {
-      filter: (fullFileName, fileName) => {
+      filter: (fullFileName, fileName, stats) => {
         if (fileName.match(/^_/))
           return false;
 
-        if (!fileNameWithoutExtension(fileName).match(/-model$/))
+        if (stats.isFile() && !fileNameWithoutExtension(fileName).match(/-model$/))
           return false;
 
         return true;
@@ -319,11 +336,11 @@ class Application {
 
   getControllerFilePaths(controllersPath) {
     return walkDir(controllersPath, {
-      filter: (fullFileName, fileName) => {
+      filter: (fullFileName, fileName, stats) => {
         if (fileName.match(/^_/))
           return false;
 
-        if (!fileNameWithoutExtension(fileName).match(/-controller$/))
+        if (stats.isFile() && !fileNameWithoutExtension(fileName).match(/-controller$/))
           return false;
 
         return true;
@@ -392,10 +409,6 @@ class Application {
     return buildRoutes(routes, customParserTypes);
   }
 
-  getConfigValue(key, defaultValue) {
-    return this.config.ENV(key, defaultValue);
-  }
-
   createLogger(loggerOpts, Logger) {
     return new Logger(loggerOpts);
   }
@@ -447,16 +460,21 @@ class Application {
     if (!databaseConfig)
       databaseConfig = this.getConfigValue('DATABASE');
 
-    if (!databaseConfig) {
-      this.getLogger().error(`Error: database connection for "${this.getConfigValue('ENVIRONMENT')}" not defined`);
-      return;
+    if (!databaseConfig)
+      databaseConfig = options.database;
+
+    if (databaseConfig !== false) {
+      if (!databaseConfig) {
+        this.getLogger().error(`Error: database connection for "${this.getConfigValue('ENVIRONMENT')}" not defined`);
+        return;
+      }
+
+      if (Nife.isEmpty(databaseConfig.tablePrefix))
+        databaseConfig.tablePrefix = `${this.getApplicationName()}_`;
+
+      this.dbConnection = await this.connectToDatabase(databaseConfig);
+      this.dbConfig = databaseConfig;
     }
-
-    if (Nife.isEmpty(databaseConfig.tablePrefix))
-      databaseConfig.tablePrefix = `${this.getApplicationName()}_`;
-
-    this.dbConnection = await this.connectToDatabase(databaseConfig);
-    this.dbConfig = databaseConfig;
 
     if (options.httpServer !== false) {
       var httpServerConfig = this.getConfigValue('SERVER.{ENVIRONMENT}');
@@ -466,8 +484,10 @@ class Application {
       this.server = await this.createHTTPServer(Nife.extend(true, {}, options.httpServer || {}, httpServerConfig || {}));
     }
 
-    var models = await this.loadModels(options.modelsPath, databaseConfig);
-    this.models = models;
+    if (databaseConfig !== false) {
+      var models = await this.loadModels(options.modelsPath, databaseConfig);
+      this.models = models;
+    }
 
     if (options.httpServer !== false) {
       var controllers = await this.loadControllers(options.controllersPath, this.server);
@@ -482,7 +502,7 @@ class Application {
     this.isStarted = true;
   }
 
-  async stop() {
+  async stop(exitCode) {
     if (this.isStopping || !this.isStarted)
       return;
 
@@ -500,6 +520,10 @@ class Application {
       await this.dbConnection.close();
 
     this.getLogger().log('Shut down complete!');
+
+    var options = this.getOptions();
+    if (options.exitOnShutdown != null || exitCode != null)
+      process.exit((exitCode != null) ? exitCode : options.exitOnShutdown);
   }
 }
 

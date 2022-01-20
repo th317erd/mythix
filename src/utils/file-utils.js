@@ -14,7 +14,7 @@ function walkDir(rootPath, _options, _callback, _allFiles, _depth) {
     var fullFileName  = Path.join(rootPath, fileName);
     var stats         = FileSystem.statSync(fullFileName);
 
-    if (typeof filterFunc === 'function' && !filterFunc(fullFileName, fileName, rootPath, depth, stats))
+    if (typeof filterFunc === 'function' && !filterFunc(fullFileName, fileName, stats, rootPath, depth))
       continue;
     else if (filterFunc instanceof RegExp && !filterFunc.match(fullFileName))
       continue;
