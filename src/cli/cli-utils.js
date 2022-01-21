@@ -53,8 +53,29 @@ function defineCommand(_name, definer, _parent) {
     });
   }
 
-  var name        = _name.toLowerCase();
-  var parentClass = _parent || CommandBase;
+  var name    = _name.toLowerCase();
+  var parent  = _parent;
+
+  var doExecuteCommand    = process.env['MYTHIX_EXECUTE_COMMAND'];
+  var executeImmediately  = false;
+
+  if (doExecuteCommand === name) {
+    executeImmediately = true;
+
+    var mythixCommandPath             = process.env['MYTHIX_COMMAND_PATH'];
+    var mythixApplicationCommandsPath = process.env['MYTHIX_APPLICATION_COMMANDS'];
+    if (mythixCommandPath && mythixApplicationCommandsPath)
+      loadCommands(mythixApplicationCommandsPath, [ mythixCommandPath ]);
+  }
+
+  if (Nife.instanceOf(parent, 'string')) {
+    if (!CommandBase.commands[parent])
+      throw new Error(`Can not find parent class for command "${name}": No such parent class "${parent}" found`);
+
+    parent = CommandBase.commands[parent];
+  }
+
+  var parentClass = parent || CommandBase;
 
   var Klass = definer({
     Parent: parentClass,
@@ -141,8 +162,7 @@ function defineCommand(_name, definer, _parent) {
 
   // If this command file was loaded directly, and it was requested
   // that we execute it, then do so right now
-  var doExecuteCommand = process.env['MYTHIX_EXECUTE_COMMAND'];
-  if (doExecuteCommand === name)
+  if (executeImmediately)
     Klass.execute().then(() => {}, (error) => { console.error(error); });
 
   return Klass;
@@ -166,7 +186,7 @@ function loadCommand(name) {
   return CommandKlass;
 }
 
-function loadCommands(yargs, application) {
+function loadCommands(applicationCommandsPath, skip) {
   const getCommandFiles = (commandsPath) => {
     try {
       return walkDir(commandsPath, {
@@ -189,11 +209,15 @@ function loadCommands(yargs, application) {
     }
   }
 
-  var applicationOptions      = application.getOptions();
   var mythixCommandFiles      = getCommandFiles(Path.resolve(__dirname));
-  var applicationCommandFiles = getCommandFiles(applicationOptions.commandsPath);
+  var applicationCommandFiles = getCommandFiles(applicationCommandsPath);
 
-  ([].concat(mythixCommandFiles, applicationCommandFiles)).forEach((commandPath) => loadCommand(commandPath));
+  ([].concat(mythixCommandFiles, applicationCommandFiles)).forEach((commandPath) => {
+    if (skip && skip.indexOf(commandPath) >= 0)
+      return;
+
+    loadCommand(commandPath);
+  });
 
   return CommandBase.commands;
 }
@@ -292,7 +316,7 @@ function spawnCommand(args, options) {
   });
 }
 
-async function executeCommand(configPath, yargsPath, simpleYargsPath, argv, commandPath, command) {
+async function executeCommand(configPath, applicationCommandsPath, yargsPath, simpleYargsPath, argv, commandPath, command) {
   try {
     var Klass         = CommandBase.commands[command];
     var nodeArguments = Klass.nodeArguments || [];
@@ -302,10 +326,12 @@ async function executeCommand(configPath, yargsPath, simpleYargsPath, argv, comm
       args,
       {
         env: {
-          MYTHIX_CONFIG_PATH:       configPath,
-          MYTHIX_YARGS_PATH:        yargsPath,
-          MYTHIX_SIMPLE_YARGS_PATH: simpleYargsPath,
-          MYTHIX_EXECUTE_COMMAND:   command,
+          MYTHIX_CONFIG_PATH:           configPath,
+          MYTHIX_COMMAND_PATH:          commandPath,
+          MYTHIX_APPLICATION_COMMANDS:  applicationCommandsPath,
+          MYTHIX_YARGS_PATH:            yargsPath,
+          MYTHIX_SIMPLE_YARGS_PATH:     simpleYargsPath,
+          MYTHIX_EXECUTE_COMMAND:       command,
         }
       }
     );
