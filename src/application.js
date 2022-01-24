@@ -17,6 +17,8 @@ function nowInSeconds() {
   return Math.floor(Date.now() / 1000);
 }
 
+var globalTaskRunID = 1;
+
 class Application extends EventEmitter {
   static APP_NAME = 'mythix';
 
@@ -310,8 +312,14 @@ class Application extends EventEmitter {
     }
   }
 
-  getConfigValue(key, defaultValue) {
-    return this.config.ENV(key, defaultValue);
+  getConfigValue(key, defaultValue, type) {
+    var result = this.config.ENV(key, defaultValue);
+
+    // Coerce to type, if type was specified
+    if (type)
+      Nife.coerceValue(result, type);
+
+    return result;
   }
 
   getConfig() {
@@ -507,20 +515,14 @@ class Application extends EventEmitter {
   }
 
   async runTasks() {
-    const executeTask = (TaskKlass, lastTime, currentTime, diff) => {
-      const createTaskLogger = (TaskKlass) => {
-        var logger  = this.getLogger();
-        var runID   = (Date.now() + Math.random()).toFixed(4);
-
-        return logger.clone({ formatter: (output) => `[[ Running task ${taskName}(${runID}) @ ${currentTime} ]]: ${output}`});
+    const executeTask = (TaskKlass, taskIndex, taskInfo, lastTime, currentTime, diff) => {
+      const createTaskLogger = () => {
+        var logger = this.getLogger();
+        return logger.clone({ formatter: (output) => `[[ Running task ${taskName}[${taskIndex}](${runID}) @ ${currentTime} ]]: ${output}`});
       };
 
       const successResult = (value) => {
-        var tasksInfo     = this.taskInfo;
-        var thisTaskInfo  = tasksInfo[taskName];
-        if (thisTaskInfo)
-          thisTaskInfo.failedCount = 0;
-
+        taskInfo.failedCount = 0;
         promise.resolve(value);
       };
 
@@ -529,20 +531,25 @@ class Application extends EventEmitter {
         if (!thisLogger)
           thisLogger = this.getLogger();
 
-        thisLogger.error(`Task ${taskName} failed with an error: `, error);
+        thisLogger.error(`Task "${taskName}[${taskIndex}]" failed with an error: `, error);
 
         promise.reject(error);
       };
 
+      globalTaskRunID++;
+
+      var runID     = `${Math.floor(Date.now() + (Math.random() * 1000000)) + globalTaskRunID}-${taskIndex}`;
       var taskName  = TaskKlass.taskName;
       var promise   = Nife.createResolvable();
+
+      taskInfo.runID = runID;
 
        // No op, since promises are handled differently here
       promise.then(() => {}, () => {});
 
       try {
-        var logger        = createTaskLogger(TaskKlass);
-        var taskInstance  = new TaskKlass(this, logger, { lastTime, currentTime, diff });
+        var logger        = createTaskLogger();
+        var taskInstance  = new TaskKlass(this, logger, runID, { lastTime, currentTime, diff });
         var result        = taskInstance.execute(lastTime, currentTime, diff);
 
         if (Nife.instanceOf(result, 'promise')) {
@@ -560,49 +567,65 @@ class Application extends EventEmitter {
       return promise;
     };
 
-    var currentTime = nowInSeconds();
-    var tasksInfo   = this.taskInfo;
-    var tasks       = this.tasks;
-    var taskNames   = Object.keys(tasks);
-
-    for (var i = 0, il = taskNames.length; i < il; i++) {
-      var taskName      = taskNames[i];
-      var taskKlass     = tasks[taskName];
-      var taskInfo      = tasksInfo[taskName] || { lastTime: null, failedCount: 0, promise: null };
+    const handleTask = (taskName, taskKlass, taskInfo, taskIndex, failAfterAttempts) => {
       var lastTime      = taskInfo.lastTime;
-      var startTime     = lastTime || tasksInfo._startTime;
+      var startTime     = lastTime || allTasksInfo._startTime;
       var diff          = (currentTime - startTime);
       var lastRunStatus = (taskInfo && taskInfo.promise && taskInfo.promise.status());
-      var failAfter     = taskKlass.failAfterAttempts || 5;
 
-      if (!tasksInfo[taskName])
-        tasksInfo[taskName] = taskInfo;
-
-      if (lastRunStatus === 'pending') {
-        console.log('SKIPPING TASK EXECUTION', taskName);
-        continue;
-      }
+      if (lastRunStatus === 'pending')
+        return;
 
       if (lastRunStatus === 'rejected') {
         taskInfo.promise = null;
         taskInfo.failedCount++;
 
-        if (taskInfo.failedCount >= failAfter) {
-          this.getLogger().error(`Task "${taskName}" failed permanently after ${taskInfo.failedCount} failed attempts`);
-          continue;
-        }
+        if (taskInfo.failedCount >= failAfterAttempts)
+          this.getLogger().error(`Task "${taskName}[${taskIndex}]" failed permanently after ${taskInfo.failedCount} failed attempts`);
 
-        continue;
+        return;
       }
 
-      if (taskInfo.failedCount >= failAfter)
-        continue;
+      if (taskInfo.failedCount >= failAfterAttempts)
+        return;
 
-      if (!taskKlass.shouldRun(lastTime, currentTime, diff))
-        continue;
+      if (!taskKlass.shouldRun(taskIndex, lastTime, currentTime, diff))
+        return;
 
       taskInfo.lastTime = currentTime;
-      taskInfo.promise = executeTask(taskKlass, lastTime, currentTime, diff);
+      taskInfo.promise = executeTask(taskKlass, taskIndex, taskInfo, lastTime, currentTime, diff);
+    };
+
+    const handleTaskQueue = (taskName, taskKlass, infoForTasks) => {
+      var failAfterAttempts = taskKlass.failAfterAttempts || 5;
+      var workers           = taskKlass.workers || 1;
+
+      for (var taskIndex = 0; taskIndex < workers; taskIndex++) {
+        var taskInfo = infoForTasks[taskIndex];
+        if (!taskInfo)
+          taskInfo = infoForTasks[taskIndex] = { failedCount: 0, promise: null, stop: false };
+
+        if (taskInfo.stop)
+          continue;
+
+        handleTask(taskName, taskKlass, taskInfo, taskIndex, failAfterAttempts);
+      }
+    }
+
+    var currentTime   = nowInSeconds();
+    var allTasksInfo  = this.taskInfo;
+    var tasks         = this.tasks;
+    var taskNames     = Object.keys(tasks);
+
+    for (var i = 0, il = taskNames.length; i < il; i++) {
+      var taskName  = taskNames[i];
+      var taskKlass = tasks[taskName];
+      var tasksInfo = allTasksInfo[taskName];
+
+      if (!tasksInfo)
+        tasksInfo = allTasksInfo[taskName] = [];
+
+      handleTaskQueue(taskName, taskKlass, tasksInfo);
     }
   }
 
@@ -633,6 +656,51 @@ class Application extends EventEmitter {
       this.taskInfo = { _startTime: nowInSeconds() };
     else
       this.taskInfo._startTime = nowInSeconds();
+  }
+
+  iterateAllTaskInfos(callback) {
+    var tasks         = this.tasks;
+    var allTasksInfo  = this.taskInfo;
+    var taskNames     = Object.keys(tasks);
+
+    for (var i = 0, il = taskNames.length; i < il; i++) {
+      var taskName  = taskNames[i];
+      var tasksInfo = allTasksInfo[taskName];
+      if (!tasksInfo)
+        continue;
+
+      for (var j = 0, jl = tasksInfo.length; j < jl; j++) {
+        var taskInfo = tasksInfo[j];
+        callback(taskInfo, j, taskName);
+      }
+    }
+  }
+
+  getAllTaskPromises() {
+    var promises = [];
+
+    this.iterateAllTaskInfos((taskInfo) => {
+      var promise = taskInfo.promise;
+      if (promise)
+        promises.push(promise);
+    });
+
+    return promises;
+  }
+
+  async waitForAllTasksToFinish() {
+    // Tell all tasks that they are stopping
+    this.iterateAllTaskInfos((taskInfo) => (taskInfo.stop = true));
+
+    // Stop the tasks interval timer
+    this.stopTasks();
+
+    // Await on all running tasks to complete
+    var promises = this.getAllTaskPromises();
+    if (!promises || !promises.length)
+      return;
+
+    return await Promise.allSettled(promises);
   }
 
   createLogger(loggerOpts, Logger) {
@@ -693,6 +761,8 @@ class Application extends EventEmitter {
         this.getLogger().error(`Error: database connection for "${this.getConfigValue('environment')}" not defined`);
         return;
       }
+
+      databaseConfig.logging = this.getLogger().isDebugLevel();
 
       if (Nife.isEmpty(databaseConfig.tablePrefix))
         databaseConfig.tablePrefix = `${this.getApplicationName()}_`;
@@ -758,6 +828,11 @@ class Application extends EventEmitter {
 
     if (this.server)
       await this.server.stop();
+
+    if (Nife.isNotEmpty(this.tasks) && this.tasks._intervalTimerID) {
+      this.getLogger().info('Waiting for all tasks to complete...');
+      await this.waitForAllTasksToFinish();
+    }
 
     if (this.dbConnection)
       await this.dbConnection.close();

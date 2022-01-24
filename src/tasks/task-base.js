@@ -1,5 +1,5 @@
 class TaskBase {
-  constructor(application, logger) {
+  constructor(application, logger, runID) {
     Object.defineProperties(this, {
       'application': {
         writable:     false,
@@ -12,6 +12,12 @@ class TaskBase {
         enumberable:  false,
         configurable: true,
         value:        logger,
+      },
+      'runID': {
+        writable:     false,
+        enumberable:  false,
+        configurable: true,
+        value:        runID,
       },
     });
   }
@@ -30,6 +36,15 @@ class TaskBase {
     return logger;
   }
 
+  getRunID() {
+    return this.runID;
+  }
+
+  getNumberOfWorkers() {
+    var workers = this.constructor.workers || 1;
+    return workers;
+  }
+
   getModel(name) {
     var application = this.application;
     return application.getModel(name);
@@ -38,6 +53,11 @@ class TaskBase {
   getModels() {
     var application = this.application;
     return application.getModels();
+  }
+
+  getDBConnection() {
+    var application = this.application;
+    return application.getDBConnection();
   }
 
   getFrequency() {
@@ -56,23 +76,32 @@ class TaskBase {
     return Klass;
   }
 
-  static getFrequency(Task) {
+  static getFrequency(Task, taskIndex) {
     return Task._frequency || 0;
   }
 
-  static getStartDelay(Task) {
-    return Task._startDelay || 0;
+  static getStartDelay(Task, taskIndex) {
+    var workers     = Task.workers || 1;
+    var frequency   = Task.getFrequency(taskIndex);
+    var startDelay  = Task._startDelay || 0;
+
+    if (workers > 1) {
+      var shift = (frequency / workers);
+      startDelay = Math.round(startDelay + (shift * taskIndex));
+    }
+
+    return startDelay;
   }
 
-  static shouldRun(Task, lastTime, currentTime, diff) {
+  static shouldRun(Task, taskIndex, lastTime, currentTime, diff) {
     if (!lastTime) {
-      if (diff >= Task.getStartDelay())
+      if (diff >= Task.getStartDelay(taskIndex))
         return true;
 
       return false;
     }
 
-    if (diff >= Task.getFrequency())
+    if (diff >= Task.getFrequency(taskIndex))
       return true;
 
     return false;

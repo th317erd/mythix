@@ -28,7 +28,9 @@ class Model extends Sequelize.Model {
       var key   = keys[i];
       var value = conditions[key];
 
-      if (Nife.instanceOf(value, 'number', 'string', 'boolean', 'bigint')) {
+      if (value === null) {
+        finalQuery[key] = { [Ops.is]: value };
+      } else if (Nife.instanceOf(value, 'number', 'string', 'boolean', 'bigint')) {
         finalQuery[key] = { [Ops.eq]: value };
       } else {
         finalQuery[key] = value;

@@ -63,7 +63,8 @@ class TimeHelpers {
   }
 
   totalSeconds() {
-    return (this._days * SECONDS_PER_DAY) + (this._hours * SECONDS_PER_HOUR) + (this._minutes * SECONDS_PER_MINUTE) + this._seconds;
+    var totalTime = (this._days * SECONDS_PER_DAY) + (this._hours * SECONDS_PER_HOUR) + (this._minutes * SECONDS_PER_MINUTE) + this._seconds;
+    return totalTime;
   }
 }
 
@@ -88,7 +89,7 @@ function defineTask(taskName, definer, _parent) {
 
     Klass.taskName = taskName;
 
-    Klass._frequency = Klass.fequency;
+    Klass._frequency = Klass.frequency;
     if (Klass._frequency instanceof TimeHelpers)
       Klass._frequency = Klass._frequency.totalSeconds();
 
