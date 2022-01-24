@@ -517,7 +517,7 @@ class Application extends EventEmitter {
 
       const successResult = (value) => {
         var tasksInfo     = this.taskInfo;
-        var thisTaskInfo  = tasksInfo[TaskClass.taskName];
+        var thisTaskInfo  = tasksInfo[taskName];
         if (thisTaskInfo)
           thisTaskInfo.failedCount = 0;
 
@@ -578,8 +578,10 @@ class Application extends EventEmitter {
       if (!tasksInfo[taskName])
         tasksInfo[taskName] = taskInfo;
 
-      if (lastRunStatus === 'pending')
+      if (lastRunStatus === 'pending') {
+        console.log('SKIPPING TASK EXECUTION', taskName);
         continue;
+      }
 
       if (lastRunStatus === 'rejected') {
         taskInfo.promise = null;
