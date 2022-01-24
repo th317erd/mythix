@@ -49,8 +49,13 @@ class ControllerBase {
     return application.getModel(name);
   }
 
+  getModels() {
+    var application = this.application;
+    return application.getModels();
+  }
+
   async handleIncomingRequest(request, response, { route, controller, controllerMethod, controllerInstance, startTime, params }) {
-    return await this[controllerMethod].call(this, params, request.query || {}, request.body);
+    return await this[controllerMethod].call(this, params, request.query || {}, request.body, this.getModels());
   }
 
   async handleOutgoingResponse(_controllerResult, request, response, { route, controller, controllerMethod, controllerInstance, startTime, params }) {

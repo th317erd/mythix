@@ -36,12 +36,14 @@ class CommandBase {
   }
 }
 
+var loadingAllCommandsInProgress = false;
+
 CommandBase.defaultArguments = `
 [-e,-env:string(Environment to use)=$NODE_ENV|development(Default "development")]
 [--mythixConfig:string(Path to .mythix-config.js)=$MYTHIX_CONFIG_PATH]
-`;
+`.trim();
 
-function defineCommand(_name, definer, _parent) {
+function defineCommand(_commandName, definer, _parent) {
   if (!CommandBase.commands) {
     Object.defineProperties(CommandBase, {
       'commands': {
@@ -53,24 +55,29 @@ function defineCommand(_name, definer, _parent) {
     });
   }
 
-  var name    = _name.toLowerCase();
-  var parent  = _parent;
+  var commandName = _commandName.toLowerCase();
+  var parent      = _parent;
 
   var doExecuteCommand    = process.env['MYTHIX_EXECUTE_COMMAND'];
   var executeImmediately  = false;
 
-  if (doExecuteCommand === name) {
+  // Is this command script being executed directly?
+  // If so, make certain to load all commands.
+  // This is required, so that commands that inherit
+  // from other commands will continue to work.
+  if (doExecuteCommand === commandName && !loadingAllCommandsInProgress) {
     executeImmediately = true;
 
     var mythixCommandPath             = process.env['MYTHIX_COMMAND_PATH'];
     var mythixApplicationCommandsPath = process.env['MYTHIX_APPLICATION_COMMANDS'];
-    if (mythixCommandPath && mythixApplicationCommandsPath)
+    if (mythixCommandPath && mythixApplicationCommandsPath) {
       loadCommands(mythixApplicationCommandsPath, [ mythixCommandPath ]);
+    }
   }
 
   if (Nife.instanceOf(parent, 'string')) {
     if (!CommandBase.commands[parent])
-      throw new Error(`Can not find parent class for command "${name}": No such parent class "${parent}" found`);
+      throw new Error(`Can not find parent class for command "${commandName}": No such parent class "${parent}" found`);
 
     parent = CommandBase.commands[parent];
   }
@@ -81,14 +88,30 @@ function defineCommand(_name, definer, _parent) {
     Parent: parentClass,
   });
 
-  Klass.commandName = name;
+  if (typeof Klass.prototype.execute !== 'function')
+    throw new Error(`Error while defining command ${commandName}: "execute" method is required`);
+
+  Klass.commandName = commandName;
   if (!Klass.commandArguments)
     Klass.commandArguments = '';
 
-  Klass.commandArguments = `${Klass.commandArguments} ${CommandBase.defaultArguments}`.trim();
+  if (!Klass.description)
+    Klass.description = '';
 
-  Klass.commandString = `${name} ${(Klass.commandArguments) ? Klass.commandArguments : ''}`.trim();
+  if (Klass.commandArguments.indexOf(CommandBase.defaultArguments) < 0)
+    Klass.commandArguments = `${Klass.commandArguments} ${CommandBase.defaultArguments}`.trim();
+  else
+    Klass.commandArguments = Klass.commandArguments.trim();
 
+  Klass.commandString = `${commandName}(${Klass.description}) ${(Klass.commandArguments) ? Klass.commandArguments : ''}`.trim();
+
+  //console.log('COMMAND STRING: ', name, Klass.commandString.replace(/\n/gm, ' '));
+
+  // Executor method. This gets invoked in a separate node process
+  // The command script is executed directly via node when the
+  // command is invoked via the CLI. The process starts at
+  // "executeCommand" below, which spawns a node process that
+  // targets this command script.
   Klass.execute = async function() {
     var yargsPath = process.env['MYTHIX_YARGS_PATH'];
     if (!yargsPath)
@@ -122,7 +145,7 @@ function defineCommand(_name, definer, _parent) {
         if (typeof applicationConfig === 'function') {
           applicationConfig = applicationConfig(config, Application);
         } else if (applicationConfig) {
-          applicationConfig = Nife.extend(true, { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN } }, applicationConfig);
+          applicationConfig = Nife.extend(true, { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false }, applicationConfig);
         }
 
         if (!applicationConfig)
@@ -148,22 +171,23 @@ function defineCommand(_name, definer, _parent) {
 
         await application.stop(result || 0);
       } catch (error) {
+        console.log(`Error while executing command "${command}"`, error);
+
         if (application)
           await application.stop(1);
-
-        console.error(`Error while executing command "${command}"`, error);
       }
     }, [ Klass.commandString ]);
 
     rootCommand.parse();
   };
 
-  CommandBase.commands[name] = Klass;
+  CommandBase.commands[commandName] = Klass;
 
   // If this command file was loaded directly, and it was requested
   // that we execute it, then do so right now
-  if (executeImmediately)
-    Klass.execute().then(() => {}, (error) => { console.error(error); });
+  if (executeImmediately) {
+    Klass.execute().then(() => {}, (error) => { console.log(error); });
+  }
 
   return Klass;
 }
@@ -194,7 +218,7 @@ function loadCommands(applicationCommandsPath, skip) {
           if (fileName.match(/^_/))
             return false;
 
-          if (!stats.isFile() && !fileNameWithoutExtension(fileName).match(/-command$/))
+          if (stats.isFile() && !fileNameWithoutExtension(fileName).match(/-command$/))
             return false;
 
           return true;
@@ -209,15 +233,24 @@ function loadCommands(applicationCommandsPath, skip) {
     }
   }
 
+  if (loadingAllCommandsInProgress)
+    return;
+
+  loadingAllCommandsInProgress = true;
+
   var mythixCommandFiles      = getCommandFiles(Path.resolve(__dirname));
   var applicationCommandFiles = getCommandFiles(applicationCommandsPath);
+  var allCommandFiles         = [].concat(mythixCommandFiles, applicationCommandFiles);
 
-  ([].concat(mythixCommandFiles, applicationCommandFiles)).forEach((commandPath) => {
-    if (skip && skip.indexOf(commandPath) >= 0)
+  allCommandFiles.forEach((commandPath) => {
+    if (skip && skip.indexOf(commandPath) >= 0) {
       return;
+    }
 
     loadCommand(commandPath);
   });
+
+  loadingAllCommandsInProgress = false;
 
   return CommandBase.commands;
 }

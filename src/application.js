@@ -13,6 +13,10 @@ const {
   walkDir,
 } = require('./utils');
 
+function nowInSeconds() {
+  return Math.floor(Date.now() / 1000);
+}
+
 class Application extends EventEmitter {
   static APP_NAME = 'mythix';
 
@@ -31,6 +35,7 @@ class Application extends EventEmitter {
       controllersPath:  Path.resolve(ROOT_PATH, 'controllers'),
       templatesPath:    Path.resolve(ROOT_PATH, 'templates'),
       commandsPath:     Path.resolve(ROOT_PATH, 'commands'),
+      tasksPath:        Path.resolve(ROOT_PATH, 'tasks'),
       logger:           {
         rootPath: ROOT_PATH,
       },
@@ -41,6 +46,7 @@ class Application extends EventEmitter {
       },
       autoReload:         (process.env.NODE_ENV || 'development') === 'development',
       exitOnShutdown:     null,
+      runTasks:           true,
     }, _opts || {});
 
     Object.defineProperties(this, {
@@ -92,6 +98,18 @@ class Application extends EventEmitter {
         configurable: true,
         value:        null,
       },
+      'tasks': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        {},
+      },
+      'taskInfo': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        {},
+      },
     });
 
     Object.defineProperties(this, {
@@ -142,6 +160,9 @@ class Application extends EventEmitter {
         if (path.substring(0, options.modelsPath.length) === options.modelsPath)
           return 'models';
 
+        if (path.substring(0, options.tasksPath.length) === options.tasksPath)
+          return 'tasks';
+
         return 'default';
       };
 
@@ -167,7 +188,7 @@ class Application extends EventEmitter {
       var filesChangedQueue = {};
       var filesChangedTimeout;
 
-      this.fileWatcher = chokidar.watch([ options.modelsPath, options.controllersPath ], {
+      this.fileWatcher = chokidar.watch([ options.modelsPath, options.controllersPath, options.tasksPath ], {
         persistent:     true,
         followSymlinks: true,
         usePolling:     false,
@@ -197,31 +218,64 @@ class Application extends EventEmitter {
       }
     }
 
-    var options = this.getOptions();
+    var options   = this.getOptions();
+    var handlers  = {
+      'controllers': {
+        type:           'controller',
+        reloadHandler:  async () => {
+          if (!this.server)
+            return;
 
-    var controllerScope = files['controllers'];
-    if (controllerScope && this.server) {
-      var fileNames = Object.keys(controllerScope);
-      flushRequireCacheForFiles('controller', fileNames);
+          var controllers = await this.loadControllers(options.controllersPath, this.server);
+          this.controllers = controllers;
+        },
+      },
+      'models': {
+        type:           'model',
+        reloadHandler:  async () => {
+          if (!options.database)
+            return;
+
+          var models = await this.loadModels(options.modelsPath, options.database);
+          this.models = models;
+        },
+      },
+      'tasks': {
+        type:           'tasks',
+        reloadHandler:  async () => {
+          this.stopTasks();
+
+          var tasks = await this.loadTasks(options.tasksPath, options.database);
+
+          this.tasks    = tasks;
+          this.taskInfo = { _startTime: nowInSeconds() };
+
+          this.startTasks();
+        },
+      },
+    };
+
+    var handlerNames = Object.keys(handlers);
+    for (var i = 0, il = handlerNames.length; i < il; i++) {
+      var handlerName = handlerNames[i];
+      var handler     = handlers[handlerName];
+      var scope       = files[handlerName];
+      var fileNames   = Object.keys(scope || {});
+
+      if (Nife.isEmpty(fileNames))
+        continue;
+
+      var {
+        type,
+        reloadHandler,
+      } = handler;
+
+      flushRequireCacheForFiles(type, fileNames);
 
       try {
-        var controllers = await this.loadControllers(options.controllersPath, this.server);
-        this.controllers = controllers;
+        await reloadHandler();
       } catch (error) {
-        this.getLogger().error('Error while attempting to reload controllers', error);
-      }
-    }
-
-    var modelScope = files['models'];
-    if (modelScope && options.database) {
-      var fileNames = Object.keys(modelScope);
-      flushRequireCacheForFiles('model', fileNames);
-
-      try {
-        var models = await this.loadModels(options.modelsPath, options.database);
-        this.models = models;
-      } catch (error) {
-        this.getLogger().error('Error while attempting to reload models', error);
+        this.getLogger().error(`Error while attempting to reload ${handlerName}`, error);
       }
     }
   }
@@ -406,6 +460,179 @@ class Application extends EventEmitter {
     return buildRoutes(routes, customParserTypes);
   }
 
+  getTaskFilePaths(tasksPath) {
+    return walkDir(tasksPath, {
+      filter: (fullFileName, fileName, stats) => {
+        if (fileName.match(/^_/))
+          return false;
+
+        if (stats.isFile() && !fileNameWithoutExtension(fileName).match(/-task$/))
+          return false;
+
+        return true;
+      }
+    });
+  }
+
+  loadTasks(tasksPath, dbConfig) {
+    var taskFiles = this.getTaskFilePaths(tasksPath);
+    var tasks     = {};
+    var args      = { application: this, Sequelize, connection: this.dbConnection, dbConfig };
+
+    for (var i = 0, il = taskFiles.length; i < il; i++) {
+      var taskFile = taskFiles[i];
+
+      try {
+        var taskGenerator = require(taskFile);
+        if (taskGenerator['default'] && typeof taskGenerator['default'] === 'function')
+          taskGenerator = taskGenerator['default'];
+
+        Object.assign(tasks, taskGenerator(args));
+      } catch (error) {
+        this.getLogger().error(`Error while loading task ${taskFile}: `, error);
+        throw error;
+      }
+    }
+
+    Object.defineProperties(tasks, {
+      '_files': {
+        writable:     true,
+        enumberable:  false,
+        configurable: true,
+        value:        taskFiles,
+      },
+    });
+
+    return tasks;
+  }
+
+  async runTasks() {
+    const executeTask = (TaskKlass, lastTime, currentTime, diff) => {
+      const createTaskLogger = (TaskKlass) => {
+        var logger  = this.getLogger();
+        var runID   = (Date.now() + Math.random()).toFixed(4);
+
+        return logger.clone({ formatter: (output) => `[[ Running task ${taskName}(${runID}) @ ${currentTime} ]]: ${output}`});
+      };
+
+      const successResult = (value) => {
+        var tasksInfo     = this.taskInfo;
+        var thisTaskInfo  = tasksInfo[TaskClass.taskName];
+        if (thisTaskInfo)
+          thisTaskInfo.failedCount = 0;
+
+        promise.resolve(value);
+      };
+
+      const errorResult = (error) => {
+        var thisLogger = logger;
+        if (!thisLogger)
+          thisLogger = this.getLogger();
+
+        thisLogger.error(`Task ${taskName} failed with an error: `, error);
+
+        promise.reject(error);
+      };
+
+      var taskName  = TaskKlass.taskName;
+      var promise   = Nife.createResolvable();
+
+       // No op, since promises are handled differently here
+      promise.then(() => {}, () => {});
+
+      try {
+        var logger        = createTaskLogger(TaskKlass);
+        var taskInstance  = new TaskKlass(this, logger, { lastTime, currentTime, diff });
+        var result        = taskInstance.execute(lastTime, currentTime, diff);
+
+        if (Nife.instanceOf(result, 'promise')) {
+          result.then(
+            successResult,
+            errorResult,
+          );
+        } else {
+          promise.resolve(result);
+        }
+      } catch (error) {
+        errorResult(error);
+      }
+
+      return promise;
+    };
+
+    var currentTime = nowInSeconds();
+    var tasksInfo   = this.taskInfo;
+    var tasks       = this.tasks;
+    var taskNames   = Object.keys(tasks);
+
+    for (var i = 0, il = taskNames.length; i < il; i++) {
+      var taskName      = taskNames[i];
+      var taskKlass     = tasks[taskName];
+      var taskInfo      = tasksInfo[taskName] || { lastTime: null, failedCount: 0, promise: null };
+      var lastTime      = taskInfo.lastTime;
+      var startTime     = lastTime || tasksInfo._startTime;
+      var diff          = (currentTime - startTime);
+      var lastRunStatus = (taskInfo && taskInfo.promise && taskInfo.promise.status());
+      var failAfter     = taskKlass.failAfterAttempts || 5;
+
+      if (!tasksInfo[taskName])
+        tasksInfo[taskName] = taskInfo;
+
+      if (lastRunStatus === 'pending')
+        continue;
+
+      if (lastRunStatus === 'rejected') {
+        taskInfo.promise = null;
+        taskInfo.failedCount++;
+
+        if (taskInfo.failedCount >= failAfter) {
+          this.getLogger().error(`Task "${taskName}" failed permanently after ${taskInfo.failedCount} failed attempts`);
+          continue;
+        }
+
+        continue;
+      }
+
+      if (taskInfo.failedCount >= failAfter)
+        continue;
+
+      if (!taskKlass.shouldRun(lastTime, currentTime, diff))
+        continue;
+
+      taskInfo.lastTime = currentTime;
+      taskInfo.promise = executeTask(taskKlass, lastTime, currentTime, diff);
+    }
+  }
+
+  stopTasks() {
+    var intervalTimerID = (this.tasks && this.tasks._intervalTimerID);
+    if (intervalTimerID) {
+      clearInterval(intervalTimerID);
+      this.tasks._intervalTimerID = null;
+    }
+  }
+
+  startTasks(flushTaskInfo) {
+    this.stopTasks();
+
+    if (!this.tasks)
+      this.tasks = {};
+
+    Object.defineProperties(this.tasks, {
+      '_intervalTimerID': {
+        writable:     true,
+        enumberable:  false,
+        configurable: true,
+        value:        setInterval(this.runTasks.bind(this), 1000),
+      },
+    });
+
+    if (flushTaskInfo !== false)
+      this.taskInfo = { _startTime: nowInSeconds() };
+    else
+      this.taskInfo._startTime = nowInSeconds();
+  }
+
   createLogger(loggerOpts, Logger) {
     return new Logger(loggerOpts);
   }
@@ -457,8 +684,9 @@ class Application extends EventEmitter {
     if (!databaseConfig)
       databaseConfig = this.getConfigValue('database');
 
+    databaseConfig = Nife.extend(true, {}, databaseConfig || {}, options.database || {});
+
     if (options.database !== false) {
-      databaseConfig = Nife.extend(true, {}, databaseConfig || {}, options.database || {});
       if (Nife.isEmpty(databaseConfig)) {
         this.getLogger().error(`Error: database connection for "${this.getConfigValue('environment')}" not defined`);
         return;
@@ -499,6 +727,13 @@ class Application extends EventEmitter {
 
       var routes = await this.buildRoutes(this.server, this.getRoutes());
       this.server.setRoutes(routes);
+    }
+
+    if (options.runTasks !== false) {
+      var tasks = await this.loadTasks(options.tasksPath, databaseConfig);
+      this.tasks = tasks;
+
+      this.startTasks();
     }
 
     await this.autoReload(options.autoReload, false);

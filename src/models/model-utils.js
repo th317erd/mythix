@@ -111,7 +111,7 @@ function defineModel(modelName, definer, _parent) {
   }
 
   return function({ application, Sequelize, connection }) {
-    const Klass = definer({
+    var Klass = definer({
       Parent:   (_parent) ? _parent : Model,
       Type:     Sequelize.DataTypes,
       Relation: RELATION_HELPERS,
@@ -121,14 +121,22 @@ function defineModel(modelName, definer, _parent) {
       application,
     });
 
+    Klass.name = modelName;
+
+    var pluralName = (Klass.pluralName) ? Klass.pluralName : Inflection.pluralize(modelName);
+    if (Klass.pluralName !== pluralName)
+      Klass.pluralName = pluralName;
+
     Klass.fields = compileModelFields(Klass);
 
     var indexes = generateIndexes(Klass);
 
     Klass.fields = cleanModelFields(Klass);
 
-    var tableName = Inflection.pluralize(modelName);
-    tableName = (`${application.getConfigValue('DB_TABLE_PREFIX', '')}${Nife.camelCaseToSnakeCase(tableName)}`).toLowerCase();
+    var applicationOptions = application.getOptions();
+    var tableName;
+
+    tableName = (`${Nife.get(applicationOptions, 'database.tablePrefix', '')}${Nife.camelCaseToSnakeCase(pluralName)}`).toLowerCase();
 
     Klass.init(Klass.fields, {
       underscored:      true,
@@ -141,6 +149,12 @@ function defineModel(modelName, definer, _parent) {
 
     Klass.getApplication = () => application;
     Klass.getLogger = () => application.getLogger();
+
+    Klass.getPrimaryKeyField      = getModelPrimaryKeyField.bind(this, Klass);
+    Klass.getPrimaryKeyFieldName  = () => (getModelPrimaryKeyField(Klass).field);
+
+    if (typeof Klass.onModelClassCreate === 'function')
+      Klass = Klass.onModelClassCreate(Klass);
 
     return { [modelName]: Klass };
   };

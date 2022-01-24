@@ -1,3 +1,4 @@
+const Nife              = require('nife');
 const OS                = require('os');
 const Path              = require('path');
 const REPL              = require('repl');
@@ -9,7 +10,8 @@ const { URL }           = require('url');
 
 module.exports = defineCommand('shell', ({ Parent }) => {
   return class ShellCommand extends Parent {
-    static nodeArguments = [ '--experimental-repl-await', '--experimental-top-level-await' ];
+    static description    = 'Drop into an application shell to execute commands directly';
+    static nodeArguments  = [ '--experimental-repl-await', '--experimental-top-level-await' ];
 
     constructor(...args) {
       super(...args);
@@ -50,11 +52,13 @@ module.exports = defineCommand('shell', ({ Parent }) => {
         interactiveShell.context.Sequelize = Sequelize;
         interactiveShell.context.connection = application.getDBConnection();
         interactiveShell.context.application = application;
+        interactiveShell.context.Nife = Nife;
 
         interactiveShell.context.HTTP = {
           'getDefaultURL':      this.getDefaultURL.bind(this),
           'setDefaultURL':      this.setDefaultURL.bind(this),
           'getDefaultHeader':   this.getDefaultHeader.bind(this),
+          'getDefaultHeaders':  this.getDefaultHeaders.bind(this),
           'setDefaultHeader':   this.setDefaultHeader.bind(this),
           'setDefaultHeaders':  this.setDefaultHeaders.bind(this),
           'request':            this.anyRequest.bind(this),
@@ -88,6 +92,10 @@ module.exports = defineCommand('shell', ({ Parent }) => {
         return;
 
       return this.defaultHeaders[headerName];
+    }
+
+    getDefaultHeaders() {
+      return this.defaultHeaders;
     }
 
     setDefaultHeader(headerName, value) {
@@ -124,10 +132,13 @@ module.exports = defineCommand('shell', ({ Parent }) => {
 
         var method      = (requestOptions.method || 'GET').toUpperCase();
         var url         = new URL(requestOptions.url);
-        var data        = (!method.match(/^(GET|HEAD)$/) && data) ? requestOptions.data : undefined;
+        var data        = (!method.match(/^(GET|HEAD)$/i) && requestOptions.data) ? requestOptions.data : undefined;
         var extraConfig = {};
 
         if (data) {
+          if (Nife.get(requestOptions, 'headers.Content-Type').match(/application\/json/))
+            data = JSON.stringify(data);
+
           extraConfig = {
             headers: {
               'Content-Length': Buffer.byteLength(data),
@@ -146,11 +157,15 @@ module.exports = defineCommand('shell', ({ Parent }) => {
           }, this.defaultHeaders || {}),
         }, requestOptions, extraConfig);
 
+        delete options.data;
+
+        console.log('REQUEST INFO: ', options);
+
         var request = http.request(options, (response) => {
-          var data = buffer.alloc(0);
+          var data = Buffer.alloc(0);
 
           response.on('data', (chunk) => {
-            data = Buffer.concat(data, chunk);
+            data = Buffer.concat([ data, chunk ]);
           });
 
           response.on('error', (error) => {
@@ -164,6 +179,8 @@ module.exports = defineCommand('shell', ({ Parent }) => {
               var contentType = response.headers['content-type'];
               if (contentType && contentType.match(/application\/json/))
                 response.body = JSON.parse(data.toString('utf8'));
+              else if (contentType && contentType.match(/text\/(plain|html)/))
+                response.body = data.toString('utf8');
             } catch (error) {
               return reject(error);
             }
@@ -176,8 +193,11 @@ module.exports = defineCommand('shell', ({ Parent }) => {
           reject(error);
         });
 
-        if (data)
+        if (data) {
+          console.log("SENDING DATA: ", data);
+
           request.write(data);
+        }
 
         request.end();
       });

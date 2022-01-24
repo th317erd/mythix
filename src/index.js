@@ -1,15 +1,26 @@
-const ApplicationScope  = require('./application');
-const ModelScope        = require('./models');
+const { Application }   = require('./application');
+const Models            = require('./models');
 const HTTPServerScope   = require('./http-server');
 const ControllerScope   = require('./controllers');
 const CLIUtilsScope     = require('./cli');
-const LoggerScope       = require('./logger');
+const TasksScope        = require('./tasks');
+const { Logger }        = require('./logger');
 
-module.exports = Object.assign(module.exports,
-  ApplicationScope,
-  ModelScope,
-  HTTPServerScope,
-  ControllerScope,
-  CLIUtilsScope,
-  LoggerScope,
-);
+module.exports = {
+  defineModel:      Models.defineModel,
+  defineController: ControllerScope.defineController,
+  defineCommand:    CLIUtilsScope.defineCommand,
+  defineTask:       TasksScope.defineTask,
+  HTTPServer:       HTTPServerScope.HTTPServer,
+  HTTPErrors:       HTTPServerScope.HTTPErrors,
+  Middleware:       HTTPServerScope.Middleware,
+  ControllerBase:   ControllerScope.ControllerBase,
+  TaskBase:         TasksScope.TaskBase,
+  HTTP:             HTTPServerScope,
+  Controllers:      ControllerScope,
+  CLI:              CLIUtilsScope,
+  Tasks:            TasksScope,
+  Application,
+  Models,
+  Logger,
+};

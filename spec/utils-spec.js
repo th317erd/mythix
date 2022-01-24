@@ -8,6 +8,3 @@ describe('file-utils', function() {
     });
   });
 });
-
-describe('misc-utils', function() {
-});

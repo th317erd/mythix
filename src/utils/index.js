@@ -1,9 +1,12 @@
-const ConfigUtils = require('./config-utils');
-const FileUtils   = require('./file-utils');
-const MiscUtils   = require('./misc-utils');
+const { wrapConfig }  = require('./config-utils');
 
-module.exports = Object.assign(module.exports,
-  ConfigUtils,
-  FileUtils,
-  MiscUtils,
-);
+const {
+  walkDir,
+  fileNameWithoutExtension,
+} = require('./file-utils');
+
+module.exports = {
+  wrapConfig,
+  walkDir,
+  fileNameWithoutExtension,
+};

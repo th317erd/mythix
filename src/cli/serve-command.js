@@ -3,8 +3,10 @@ const { defineCommand } = require('./cli-utils');
 
 module.exports = defineCommand('serve', ({ Parent }) => {
   return class ServeCommand extends Parent {
+    static description      = 'Start application and HTTP server';
+    static commandArguments = '[--host:string(Specify hostname or IP to listen on)] [--port:integer(Specify port to listen on)]';
+
     static applicationConfig = () => ({ autoStart: false, exitOnShutdown: 0 });
-    static commandArgumments = '<--host:string> <--port:integer>';
 
     execute(args) {
       return new Promise((resolve, reject) => {

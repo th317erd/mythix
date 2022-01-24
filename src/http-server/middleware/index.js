@@ -1,5 +1,5 @@
-const DefaultMiddleware = require('./default-middleware');
+const { conditional } = require('./default-middleware');
 
-module.exports = Object.assign(module.exports,
-  DefaultMiddleware,
-);
+module.exports = {
+  conditional,
+};

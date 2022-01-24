@@ -1,7 +1,14 @@
-const Model       = require('./model');
-const ModelUtils  = require('./model-utils');
+const { Model } = require('./model');
 
-module.exports = Object.assign(module.exports,
+const {
+  defineModel,
+  getModelPrimaryKeyField,
+  buildModelRelations,
+} = require('./model-utils');
+
+module.exports = {
   Model,
-  ModelUtils,
-);
+  defineModel,
+  getModelPrimaryKeyField,
+  buildModelRelations,
+};

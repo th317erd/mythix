@@ -1,7 +1,20 @@
-const ControllerBaseScope   = require('./controller-base');
-const ControllerUtilsScope  = require('./controller-utils');
+const { ControllerBase } = require('./controller-base');
 
-module.exports = Object.assign(module.exports,
-  ControllerBaseScope,
-  ControllerUtilsScope,
-);
+const {
+  buildPatternMatcher,
+  buildMethodMatcher,
+  buildContentTypeMatcher,
+  buildPathMatcher,
+  buildRoutes,
+  defineController,
+} = require('./controller-utils');
+
+module.exports = {
+  ControllerBase,
+  buildPatternMatcher,
+  buildMethodMatcher,
+  buildContentTypeMatcher,
+  buildPathMatcher,
+  buildRoutes,
+  defineController,
+};

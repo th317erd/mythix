@@ -1,11 +1,17 @@
-const HTTPServerScope = require('./http-server');
-const HTTPUtilsScope  = require('./http-utils');
-const HTTPErrors      = require('./http-errors');
-const Middleware      = require('./middleware');
+const {
+  HTTPServer,
+} = require('./http-server');
 
-module.exports = Object.assign(module.exports,
-  HTTPServerScope,
-  HTTPUtilsScope,
-  { HTTPErrors },
-  { Middleware },
-);
+const {
+  statusCodeToMessage,
+} = require('./http-utils');
+
+const HTTPErrors  = require('./http-errors');
+const Middleware  = require('./middleware');
+
+module.exports = {
+  HTTPServer,
+  statusCodeToMessage,
+  HTTPErrors,
+  Middleware,
+};
