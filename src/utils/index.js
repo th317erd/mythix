@@ -1,12 +1,17 @@
-const { wrapConfig }  = require('./config-utils');
+const { wrapConfig } = require('./config-utils');
 
 const {
   walkDir,
   fileNameWithoutExtension,
 } = require('./file-utils');
 
+const HTTPUtils   = require('./http-utils');
+const CryptoUtils = require('./crypto-utils');
+
 module.exports = {
-  wrapConfig,
-  walkDir,
+  CryptoUtils,
   fileNameWithoutExtension,
+  HTTPUtils,
+  walkDir,
+  wrapConfig,
 };

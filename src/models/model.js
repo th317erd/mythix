@@ -20,6 +20,9 @@ class Model extends Sequelize.Model {
   }
 
   static prepareWhereStatement(conditions) {
+    if (Nife.isEmpty(conditions))
+      return undefined;
+
     const Ops       = Sequelize.Op;
     var finalQuery  = {};
     var keys        = Object.keys(conditions);
@@ -28,11 +31,16 @@ class Model extends Sequelize.Model {
       var key   = keys[i];
       var value = conditions[key];
 
+      if (value === undefined)
+        continue;
+
       if (value === null) {
         finalQuery[key] = { [Ops.is]: value };
       } else if (Nife.instanceOf(value, 'number', 'string', 'boolean', 'bigint')) {
         finalQuery[key] = { [Ops.eq]: value };
-      } else {
+      } else if (Nife.instanceOf(value, 'array') && Nife.isNotEmpty(value)) {
+        finalQuery[key] = { [Ops.in]: value };
+      } else if (Nife.isNotEmpty(value)) {
         finalQuery[key] = value;
       }
     }
@@ -48,18 +56,19 @@ class Model extends Sequelize.Model {
   }
 
   static async first(Model, conditions, _order) {
-    var query = Model.prepareWhereStatement(conditions);
-    if (Nife.isEmpty(query))
-      return null;
+    var options = {};
+    var query   = Model.prepareWhereStatement(conditions);
+
+    if (Nife.isNotEmpty(query))
+      options.where = query;
 
     var order = _order;
     if (!order)
       order = [ Model.getPrimaryKeyFieldName() ];
 
-    return await Model.findOne({
-      where: query,
-      order,
-    });
+    options.order = order;
+
+    return await Model.findOne(options);
   }
 
   static async last(Model, conditions, _order) {

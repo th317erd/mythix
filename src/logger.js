@@ -7,7 +7,7 @@ const LEVEL_INFO    = 3;
 const LEVEL_DEBUG   = 4;
 
 function errorStackToString(rootPath, error) {
-  return ('\n -> [trace start]\n -> ' + error.stack.split(/\n+/).slice(1).map((part) => `${part.replace(/^\s+at\s+/, '')}\n`).reverse().join(' -> ')).trimEnd() + ' [top level]';
+  return ('\n -> ' + error.stack.split(/\n+/).slice(1).map((part) => `${part.replace(/^\s+at\s+/, '')}\n`).join(' -> ')).trimEnd();
 }
 
 function writeToWriterObject(writer, type, _output) {

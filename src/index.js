@@ -5,22 +5,28 @@ const ControllerScope   = require('./controllers');
 const CLIUtilsScope     = require('./cli');
 const TasksScope        = require('./tasks');
 const { Logger }        = require('./logger');
+const Utils             = require('./utils');
 
 module.exports = {
-  defineModel:      Models.defineModel,
-  defineController: ControllerScope.defineController,
   defineCommand:    CLIUtilsScope.defineCommand,
+  defineController: ControllerScope.defineController,
+  defineModel:      Models.defineModel,
   defineTask:       TasksScope.defineTask,
-  HTTPServer:       HTTPServerScope.HTTPServer,
-  HTTPErrors:       HTTPServerScope.HTTPErrors,
-  Middleware:       HTTPServerScope.Middleware,
-  ControllerBase:   ControllerScope.ControllerBase,
-  TaskBase:         TasksScope.TaskBase,
-  HTTP:             HTTPServerScope,
-  Controllers:      ControllerScope,
+
   CLI:              CLIUtilsScope,
+  ControllerBase:   ControllerScope.ControllerBase,
+  Controllers:      ControllerScope,
+  CryptoUtils:      Utils.CryptoUtils,
+  HTTP:             HTTPServerScope,
+  HTTPErrors:       HTTPServerScope.HTTPErrors,
+  HTTPServer:       HTTPServerScope.HTTPServer,
+  HTTPUtils:        Utils.HTTPUtils,
+  Middleware:       HTTPServerScope.Middleware,
+  TaskBase:         TasksScope.TaskBase,
   Tasks:            TasksScope,
+
   Application,
-  Models,
   Logger,
+  Models,
+  Utils,
 };

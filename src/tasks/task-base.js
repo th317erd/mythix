@@ -22,6 +22,13 @@ class TaskBase {
     });
   }
 
+  async start() {
+  }
+
+  async stop() {
+
+  }
+
   getApplication() {
     return this.application;
   }

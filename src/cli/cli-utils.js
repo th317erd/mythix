@@ -149,7 +149,7 @@ function defineCommand(_commandName, definer, _parent) {
         }
 
         if (!applicationConfig)
-          applicationConfig = { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN } };
+          applicationConfig = { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false };
 
         var doStartApplication = (applicationConfig.autoStart !== false);
 

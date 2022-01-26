@@ -39,7 +39,7 @@ const RELATION_HELPERS = {
 };
 
 function defineModel(modelName, definer, _parent) {
-  function compileModelFields(Klass) {
+  function compileModelFields(Klass, DataTypes) {
     var fields      = Klass.fields;
     var fieldNames  = Object.keys(fields);
 
@@ -50,6 +50,30 @@ function defineModel(modelName, definer, _parent) {
       if (!field.field) {
         var columnName = Nife.camelCaseToSnakeCase(fieldName);
         field.field = columnName;
+      }
+
+      if (field.type === DataTypes.BIGINT) {
+        if (!field.get) {
+          field.get = function(name) {
+            var value = this.getDataValue(name);
+            if (value == null)
+              return null;
+
+            return BigInt(value);
+          };
+        }
+
+        if (!field.set) {
+          field.set = function(_value, name) {
+            var value = _value;
+            if (value == null)
+              value = null;
+            else
+              value = BigInt(value);
+
+            return this.setDataValue(name, value);
+          }
+        }
       }
     }
 
@@ -127,7 +151,7 @@ function defineModel(modelName, definer, _parent) {
     if (Klass.pluralName !== pluralName)
       Klass.pluralName = pluralName;
 
-    Klass.fields = compileModelFields(Klass);
+    Klass.fields = compileModelFields(Klass, Sequelize.DataTypes);
 
     var indexes = generateIndexes(Klass);
 

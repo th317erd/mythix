@@ -17,6 +17,15 @@ function nowInSeconds() {
   return Math.floor(Date.now() / 1000);
 }
 
+// Trace what is requesting the application exit
+
+// (function doExit(_exit) {
+//   process.exit = function() {
+//     console.trace('EXIT');
+//     return _exit.apply(process, arguments);
+//   };
+// })(process.exit);
+
 var globalTaskRunID = 1;
 
 class Application extends EventEmitter {
@@ -129,7 +138,7 @@ class Application extends EventEmitter {
         enumerable:   false,
         configurable: true,
         value:        this.createLogger(
-          Object.assign({}, opts.logger || {}, this.getConfigValue('LOGGER', {})),
+          Object.assign({}, opts.logger || {}, this.getConfigValue('logger', {})),
           Logger,
         ),
       },
@@ -148,60 +157,66 @@ class Application extends EventEmitter {
     if (!shuttingDown)
       options.autoReload = set;
 
-    if (this.fileWatcher)
-      await this.fileWatcher.close();
+    if (this.fileWatcher) {
+      try {
+        await this.fileWatcher.close();
+      } catch (error) {
+        console.error(error);
+      }
+    }
 
     if (shuttingDown)
       return;
 
-    if (set) {
-      var getFileScope = (path) => {
-        if (path.substring(0, options.controllersPath.length) === options.controllersPath)
-          return 'controllers';
+    if (!set)
+      return;
 
-        if (path.substring(0, options.modelsPath.length) === options.modelsPath)
-          return 'models';
+    var getFileScope = (path) => {
+      if (path.substring(0, options.controllersPath.length) === options.controllersPath)
+        return 'controllers';
 
-        if (path.substring(0, options.tasksPath.length) === options.tasksPath)
-          return 'tasks';
+      if (path.substring(0, options.modelsPath.length) === options.modelsPath)
+        return 'models';
 
-        return 'default';
-      };
+      if (path.substring(0, options.tasksPath.length) === options.tasksPath)
+        return 'tasks';
 
-      const filesChanged = (eventName, path) => {
-        if (filesChangedTimeout)
-          clearTimeout(filesChangedTimeout);
+      return 'default';
+    };
 
-        var scopeName = getFileScope(path);
-        var scope     = filesChangedQueue[scopeName];
-        if (!scope)
-          scope = filesChangedQueue[scopeName] = {};
+    const filesChanged = (eventName, path) => {
+      if (filesChangedTimeout)
+        clearTimeout(filesChangedTimeout);
 
-        scope[path] = eventName;
+      var scopeName = getFileScope(path);
+      var scope     = filesChangedQueue[scopeName];
+      if (!scope)
+        scope = filesChangedQueue[scopeName] = {};
 
-        filesChangedTimeout = setTimeout(() => {
-          this.watchedFilesChanged(Object.assign({}, filesChangedQueue));
+      scope[path] = eventName;
 
-          filesChangedTimeout = null;
-          filesChangedQueue = {};
-        }, 500);
-      };
+      filesChangedTimeout = setTimeout(() => {
+        this.watchedFilesChanged(Object.assign({}, filesChangedQueue));
 
-      var filesChangedQueue = {};
-      var filesChangedTimeout;
+        filesChangedTimeout = null;
+        filesChangedQueue = {};
+      }, 500);
+    };
 
-      this.fileWatcher = chokidar.watch([ options.modelsPath, options.controllersPath, options.tasksPath ], {
-        persistent:     true,
-        followSymlinks: true,
-        usePolling:     false,
-        ignoreInitial:  true,
-        interval:       200,
-        binaryInterval: 500,
-        depth:          10,
-      });
+    var filesChangedQueue = {};
+    var filesChangedTimeout;
 
-      this.fileWatcher.on('all', filesChanged);
-    }
+    this.fileWatcher = chokidar.watch([ options.modelsPath, options.controllersPath, options.tasksPath ], {
+      persistent:     true,
+      followSymlinks: true,
+      usePolling:     false,
+      ignoreInitial:  true,
+      interval:       200,
+      binaryInterval: 500,
+      depth:          10,
+    });
+
+    this.fileWatcher.on('all', filesChanged);
   }
 
   async watchedFilesChanged(files) {
@@ -245,7 +260,7 @@ class Application extends EventEmitter {
       'tasks': {
         type:           'tasks',
         reloadHandler:  async () => {
-          this.stopTasks();
+          await this.waitForAllTasksToFinish();
 
           var tasks = await this.loadTasks(options.tasksPath, options.database);
 
@@ -536,21 +551,8 @@ class Application extends EventEmitter {
         promise.reject(error);
       };
 
-      globalTaskRunID++;
-
-      var runID     = `${Math.floor(Date.now() + (Math.random() * 1000000)) + globalTaskRunID}-${taskIndex}`;
-      var taskName  = TaskKlass.taskName;
-      var promise   = Nife.createResolvable();
-
-      taskInfo.runID = runID;
-
-       // No op, since promises are handled differently here
-      promise.then(() => {}, () => {});
-
-      try {
-        var logger        = createTaskLogger();
-        var taskInstance  = new TaskKlass(this, logger, runID, { lastTime, currentTime, diff });
-        var result        = taskInstance.execute(lastTime, currentTime, diff);
+      const runTask = () => {
+        var result = taskInstance.execute(lastTime, currentTime, diff);
 
         if (Nife.instanceOf(result, 'promise')) {
           result.then(
@@ -559,6 +561,36 @@ class Application extends EventEmitter {
           );
         } else {
           promise.resolve(result);
+        }
+      };
+
+      var taskName      = TaskKlass.taskName;
+      var promise       = Nife.createResolvable();
+      var taskInstance  = taskInfo.taskInstance;
+      var runID;
+      var logger;
+
+      if (!TaskKlass.keepAlive || !taskInstance) {
+        globalTaskRunID++;
+        runID = `${Math.floor(Date.now() + (Math.random() * 1000000)) + globalTaskRunID}-${taskIndex}`;
+      }
+
+      taskInfo.runID = runID;
+
+       // No op, since promises are handled differently here
+      promise.then(() => {}, () => {});
+
+      try {
+        if (!TaskKlass.keepAlive || !taskInstance) {
+          logger        = createTaskLogger();
+          taskInstance  = new TaskKlass(this, logger, runID, { lastTime, currentTime, diff });
+
+          taskInfo.taskInstance = taskInstance;
+
+          taskInstance.start().then(runTask, errorResult);
+        } else {
+          logger = taskInstance.getLogger();
+          runTask();
         }
       } catch (error) {
         errorResult(error);
@@ -620,8 +652,10 @@ class Application extends EventEmitter {
     for (var i = 0, il = taskNames.length; i < il; i++) {
       var taskName  = taskNames[i];
       var taskKlass = tasks[taskName];
-      var tasksInfo = allTasksInfo[taskName];
+      if (taskKlass.enabled === false)
+        continue;
 
+      var tasksInfo = allTasksInfo[taskName];
       if (!tasksInfo)
         tasksInfo = allTasksInfo[taskName] = [];
 
@@ -637,7 +671,7 @@ class Application extends EventEmitter {
     }
   }
 
-  startTasks(flushTaskInfo) {
+  async startTasks(flushTaskInfo) {
     this.stopTasks();
 
     if (!this.tasks)
@@ -652,10 +686,11 @@ class Application extends EventEmitter {
       },
     });
 
-    if (flushTaskInfo !== false)
+    if (flushTaskInfo !== false) {
       this.taskInfo = { _startTime: nowInSeconds() };
-    else
+    } else {
       this.taskInfo._startTime = nowInSeconds();
+    }
   }
 
   iterateAllTaskInfos(callback) {
@@ -689,7 +724,7 @@ class Application extends EventEmitter {
   }
 
   async waitForAllTasksToFinish() {
-    // Tell all tasks that they are stopping
+    // Request all tasks to stop
     this.iterateAllTaskInfos((taskInfo) => (taskInfo.stop = true));
 
     // Stop the tasks interval timer
@@ -697,10 +732,31 @@ class Application extends EventEmitter {
 
     // Await on all running tasks to complete
     var promises = this.getAllTaskPromises();
-    if (!promises || !promises.length)
-      return;
+    if (promises && promises.length) {
+      try {
+        await Promise.allSettled(promises);
+      } catch (error) {
+        this.getLogger().error('Error while waiting for tasks to finish: ', error);
+      }
+    }
 
-    return await Promise.allSettled(promises);
+    promises = [];
+
+    this.iterateAllTaskInfos((taskInfo) => {
+      var taskInstance = taskInfo.taskInstance;
+      if (!taskInstance)
+        return;
+
+      promises.push(taskInstance.stop());
+    });
+
+    if (promises && promises.length) {
+      try {
+        await Promise.allSettled(promises);
+      } catch (error) {
+        this.getLogger().error('Error while stopping tasks: ', error);
+      }
+    }
   }
 
   createLogger(loggerOpts, Logger) {
@@ -815,37 +871,60 @@ class Application extends EventEmitter {
     this.emit('start');
   }
 
+  async closeDBConnections() {
+    if (this.dbConnection) {
+      this.getLogger().info('Closing database connections...');
+      await this.dbConnection.close();
+      this.getLogger().info('All database connections closed successfully!');
+    }
+  }
+
+  async stopHTTPServer() {
+    if (this.server) {
+      this.getLogger().info('Stopping HTTP server...');
+      await this.server.stop();
+      this.getLogger().info('HTTP server stopped successfully!');
+    }
+  }
+
+  async stopAllTasks() {
+    if (Nife.isNotEmpty(this.tasks) && this.tasks._intervalTimerID) {
+      this.getLogger().info('Waiting for all tasks to complete...');
+      await this.waitForAllTasksToFinish();
+      this.getLogger().info('All tasks completed!');
+    }
+  }
+
   async stop(exitCode) {
     if (this.isStopping || !this.isStarted)
       return;
 
-    this.getLogger().info('Shutting down...');
+    try {
+      this.getLogger().info('Shutting down...');
 
-    this.isStopping = true;
-    this.isStarted = false;
+      this.isStopping = true;
+      this.isStarted = false;
 
-    await this.autoReload(false, true);
+      await this.autoReload(false, true);
 
-    if (this.server)
-      await this.server.stop();
+      await this.stopHTTPServer();
 
-    if (Nife.isNotEmpty(this.tasks) && this.tasks._intervalTimerID) {
-      this.getLogger().info('Waiting for all tasks to complete...');
-      await this.waitForAllTasksToFinish();
-    }
+      await this.stopAllTasks();
 
-    if (this.dbConnection)
-      await this.dbConnection.close();
+      await this.closeDBConnections();
 
-    this.getLogger().info('Shut down complete!');
+      this.getLogger().info('Shut down complete!');
 
-    this.emit('stop');
+      this.emit('stop');
 
-    var options = this.getOptions();
-    if (options.exitOnShutdown != null || exitCode != null) {
-      var code = (exitCode != null) ? exitCode : options.exitOnShutdown;
-      this.emit('exit', code);
-      process.exit(code);
+      var options = this.getOptions();
+      if (options.exitOnShutdown != null || exitCode != null) {
+        var code = (exitCode != null) ? exitCode : options.exitOnShutdown;
+        this.emit('exit', code);
+        process.exit(code);
+      }
+    } catch (error) {
+      this.getLogger().error('Error while shutting down: ', error);
     }
   }
 }
