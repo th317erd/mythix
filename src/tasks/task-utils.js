@@ -8,31 +8,31 @@ const MINUTES_PER_DAY     = (MINUTES_PER_HOUR * 24);
 const SECONDS_PER_DAY     = (MINUTES_PER_DAY * SECONDS_PER_MINUTE);
 
 class TimeHelpers {
-  constructor() {
+  constructor(_days, _hours, _minutes, _seconds) {
     Object.defineProperties(this, {
       '_days': {
         writable:     true,
         enumberable:  false,
         configurable: true,
-        value:        0,
+        value:        _days || 0,
       },
       '_hours': {
         writable:     true,
         enumberable:  false,
         configurable: true,
-        value:        0,
+        value:        _hours || 0,
       },
       '_minutes': {
         writable:     true,
         enumberable:  false,
         configurable: true,
-        value:        0,
+        value:        _minutes || 0,
       },
       '_seconds': {
         writable:     true,
         enumberable:  false,
         configurable: true,
-        value:        0,
+        value:        _seconds || 0,
       },
     });
 
@@ -42,29 +42,37 @@ class TimeHelpers {
     this.seconds  = this.seconds.bind(this);
   }
 
+  clone(_days, _hours, _minutes, _seconds) {
+    return new TimeHelpers(_days || this._days, _hours || this._hours, _minutes || this._minutes, _seconds || this._seconds);
+  }
+
+  reset() {
+    return new TimeHelpers();
+  }
+
   days(number) {
-    this._days = number;
-    return this;
+    return this.clone(number);
   }
 
   hours(number) {
-    this._hours = number;
-    return this;
+    return this.clone(undefined, number);
   }
 
   minutes(number) {
-    this._minutes = number;
-    return this;
+    return this.clone(undefined, undefined, number);
   }
 
   seconds(number) {
-    this._seconds = number;
-    return this;
+    return this.clone(undefined, undefined, undefined, number);
   }
 
   totalSeconds() {
     var totalTime = (this._days * SECONDS_PER_DAY) + (this._hours * SECONDS_PER_HOUR) + (this._minutes * SECONDS_PER_MINUTE) + this._seconds;
     return totalTime;
+  }
+
+  totalMilliseconds() {
+    return this.totalSeconds() * 1000;
   }
 }
 
