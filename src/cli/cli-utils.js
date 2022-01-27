@@ -86,6 +86,7 @@ function defineCommand(_commandName, definer, _parent) {
 
   var Klass = definer({
     Parent: parentClass,
+    commandName,
   });
 
   if (typeof Klass.prototype.execute !== 'function')
