@@ -787,7 +787,7 @@ class Application extends EventEmitter {
       return sequelize;
     } catch (error) {
       this.getLogger().error(`Unable to connect to database ${dbConnectionString}:`, error);
-      await this.stop();
+      throw error;
     }
   }
 
@@ -818,7 +818,7 @@ class Application extends EventEmitter {
         return;
       }
 
-      databaseConfig.logging = this.getLogger().isDebugLevel();
+      databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;
 
       if (Nife.isEmpty(databaseConfig.tablePrefix))
         databaseConfig.tablePrefix = `${this.getApplicationName()}_`;
