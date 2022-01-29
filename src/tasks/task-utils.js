@@ -72,7 +72,7 @@ class TimeHelpers {
   }
 
   totalMilliseconds() {
-    return this.totalSeconds() * 1000;
+    return Math.round(this.totalSeconds() * 1000);
   }
 }
 

@@ -48,8 +48,11 @@ function logToWriter(type, ..._args) {
 
     try {
       arg = JSON.stringify(arg);
-    } catch (e) {
-      return '<LOGGER_ERROR>';
+    } catch (error) {
+      if (error.message = 'Converting circular structure to JSON')
+        return '<circular>';
+
+      return `<LOGGER_ERROR: ${error.message}>`;
     }
 
     return arg;
@@ -88,7 +91,7 @@ class Logger {
 
     Object.defineProperties(this, {
       '_level': {
-        writable:     false,
+        writable:     true,
         enumerable:   false,
         configurable: false,
         value:        opts.level,
@@ -130,6 +133,10 @@ class Logger {
         value:        opts.errorStackFormatter,
       },
     });
+  }
+
+  setLevel(level) {
+    this._level = level;
   }
 
   clone(extraOpts) {

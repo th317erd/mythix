@@ -94,7 +94,7 @@ class TaskBase {
 
     if (workers > 1) {
       var shift = (frequency / workers);
-      startDelay = Math.round(startDelay + (shift * taskIndex));
+      startDelay = startDelay + (shift * taskIndex);
     }
 
     return startDelay;

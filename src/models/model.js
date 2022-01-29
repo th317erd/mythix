@@ -11,6 +11,11 @@ class Model extends Sequelize.Model {
     return application.getLogger();
   }
 
+  getDBConnection() {
+    var application = this.getApplication();
+    return application.getDBConnection();
+  }
+
   getPrimaryKeyField() {
     return this.constructor.getPrimaryKeyField();
   }

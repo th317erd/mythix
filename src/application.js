@@ -14,7 +14,7 @@ const {
 } = require('./utils');
 
 function nowInSeconds() {
-  return Math.floor(Date.now() / 1000);
+  return Date.now() / 1000;
 }
 
 // Trace what is requesting the application exit
@@ -138,7 +138,7 @@ class Application extends EventEmitter {
         enumerable:   false,
         configurable: true,
         value:        this.createLogger(
-          Object.assign({}, opts.logger || {}, this.getConfigValue('logger', {})),
+          Object.assign({}, this.getConfigValue('logger', {}), opts.logger || {}),
           Logger,
         ),
       },
@@ -782,7 +782,7 @@ class Application extends EventEmitter {
     try {
       await sequelize.authenticate();
 
-      this.getLogger().log(`Connection to ${dbConnectionString} has been established successfully!`);
+      this.getLogger().info(`Connection to ${dbConnectionString} has been established successfully!`);
 
       return sequelize;
     } catch (error) {

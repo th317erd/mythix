@@ -34,6 +34,11 @@ class CommandBase {
     var app = this.getApplication();
     return app.getLogger();
   }
+
+  getDBConnection() {
+    var application = this.getApplication();
+    return application.getDBConnection();
+  }
 }
 
 var loadingAllCommandsInProgress = false;

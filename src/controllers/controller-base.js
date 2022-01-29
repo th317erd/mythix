@@ -1,4 +1,5 @@
-const Nife = require('nife');
+const Nife        = require('nife');
+const HTTPErrors  = require('../http-server/http-errors');
 
 class ControllerBase {
   constructor(application, logger, request, response) {
@@ -27,6 +28,12 @@ class ControllerBase {
         configurable: true,
         value:        logger,
       },
+      'route': {
+        writable:     true,
+        enumberable:  false,
+        configurable: true,
+        value:        null,
+      },
     });
   }
 
@@ -54,7 +61,30 @@ class ControllerBase {
     return application.getModels();
   }
 
+  getDBConnection() {
+    var application = this.getApplication();
+    return application.getDBConnection();
+  }
+
+  throwNotFoundError(message) {
+    throw new HTTPErrors.HTTPNotFoundError(this.route, message);
+  }
+
+  throwBadRequestError(message) {
+    throw new HTTPErrors.HTTPBadRequestError(this.route, message);
+  }
+
+  throwUnauthorizedError(message) {
+    throw new HTTPErrors.HTTPUnauthorizedError(this.route, message);
+  }
+
+  throwInternalServerError(message) {
+    throw new HTTPErrors.HTTPInternalServerError(this.route, message);
+  }
+
   async handleIncomingRequest(request, response, { route, controller, controllerMethod, controllerInstance, startTime, params }) {
+    this.route = route;
+
     return await this[controllerMethod].call(this, params, request.query || {}, request.body, this.getModels());
   }
 

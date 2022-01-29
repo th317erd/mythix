@@ -349,9 +349,6 @@ function compileRoutes(routes, customParserTypes, _context) {
   if (!path)
     path = '/';
 
-  if (routeName !== '/')
-    path = `${(path)}/${routeName}`;
-
   path = path.replace(/\/{2,}/g, '/');
 
   var keys = Object.keys(routes);
@@ -370,10 +367,12 @@ function compileRoutes(routes, customParserTypes, _context) {
       continue;
 
     var thisRouteName = (isArray) ? routeName : key;
+    var newPath       = (isArray) ? path : `${path}/${key}`;
+
     if (Nife.instanceOf(route, 'object', 'array')) {
       var subRoutes = compileRoutes(route, customParserTypes, {
         routeName:  thisRouteName,
-        path:       path,
+        path:       newPath,
         priority:   i,
         depth:      depth + 1,
         alreadyVisited,

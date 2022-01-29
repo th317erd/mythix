@@ -34,7 +34,7 @@ function relationHelper(type) {
 const RELATION_HELPERS = {
   hasOne:         relationHelper('hasOne'),
   belongsTo:      relationHelper('belongsTo'),
-  hasMany:        relationHelper('belongsToMany'),
+  hasMany:        relationHelper('hasMany'),
   belongsToMany:  relationHelper('belongsToMany'),
 };
 

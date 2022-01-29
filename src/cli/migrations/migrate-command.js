@@ -81,7 +81,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       var useTransaction      = (args['transaction']) ? true : false;
       var rollback            = args.rollback;
 
-      console.log('USING TRANSACTION: ', useTransaction, args['no-transaction']);
+      console.log('USING TRANSACTION: ', useTransaction, args['transaction']);
 
       if (args.revision)
         migrationFiles = this.getMigrationFilesFromRevision(migrationFiles, args.revision);
