@@ -59,9 +59,12 @@ function makeRequest(requestOptions) {
     var url         = new URL(requestOptions.url);
     var data        = (!method.match(/^(GET|HEAD)$/i) && requestOptions.data) ? requestOptions.data : undefined;
     var extraConfig = {};
+    var headers     = Object.assign({
+      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36',
+    }, defaultHeaders || {});
 
     if (data) {
-      if (Nife.get(requestOptions, 'headers.Content-Type').match(/application\/json/))
+      if (Nife.get(headers, 'Content-Type').match(/application\/json/))
         data = JSON.stringify(data);
 
       extraConfig = {
@@ -77,9 +80,7 @@ function makeRequest(requestOptions) {
       port:     url.port,
       path:     `${url.pathname}${url.search}`,
       method,
-      headers: Object.assign({
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36',
-      }, defaultHeaders || {}),
+      headers,
     }, requestOptions, extraConfig);
 
     delete options.data;

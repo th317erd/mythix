@@ -2,9 +2,10 @@ const Path        = require('path');
 const FileSystem  = require('fs');
 
 const LEVEL_ERROR   = 1;
-const LEVEL_WARN    = 2;
-const LEVEL_INFO    = 3;
-const LEVEL_DEBUG   = 4;
+const LEVEL_LOG     = 2;
+const LEVEL_WARN    = 3;
+const LEVEL_INFO    = 4;
+const LEVEL_DEBUG   = 5;
 
 function errorStackToString(rootPath, error) {
   return ('\n -> ' + error.stack.split(/\n+/).slice(1).map((part) => `${part.replace(/^\s+at\s+/, '')}\n`).join(' -> ')).trimEnd();
@@ -141,16 +142,21 @@ class Logger {
 
   clone(extraOpts) {
     return new this.constructor(Object.assign({
-      level:      this._level,
-      writer:     this._writer,
-      pid:        this._pid,
-      formatter:  this._formatter,
-      rootPath:   this._rootPath,
+      level:                this._level,
+      writer:               this._writer,
+      pid:                  this._pid,
+      formatter:            this._formatter,
+      rootPath:             this._rootPath,
+      errorStackFormatter:  this._errorStackFormatter,
     }, extraOpts || {}));
   }
 
   isErrorLevel() {
     return (this._level >= LEVEL_ERROR);
+  }
+
+  isLogLevel() {
+    return (this._level >= LEVEL_LOG);
   }
 
   isWarningLevel() {
@@ -186,7 +192,7 @@ class Logger {
   }
 
   log(...args) {
-    if (this.isErrorLevel())
+    if (this.isLogLevel())
       logToWriter.call(this, 'log', ...args);
   }
 
@@ -208,6 +214,7 @@ class Logger {
 
 Object.assign(Logger, {
   ERROR:  LEVEL_ERROR,
+  LOG:    LEVEL_LOG,
   WARN:   LEVEL_WARN,
   INFO:   LEVEL_INFO,
   DEBUG:  LEVEL_DEBUG,

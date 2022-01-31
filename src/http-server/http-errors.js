@@ -25,10 +25,19 @@ class HTTPBadRequestError extends HTTPBaseError {
   constructor(route, message) {
     super(route, message, 400);
   }
+}
+
+class HTTPBadContentTypeError extends HTTPBaseError {
+  constructor(route, message) {
+    super(route, message, 400);
+  }
 
   getMessage() {
-    var route   = this.route;
-    var accept  = route.accept;
+    var route = this.route;
+    if (!route)
+      return this.message;
+
+    var accept = route.accept;
     if (!(accept instanceof Array))
       accept = [ accept ];
 
@@ -43,7 +52,10 @@ class HTTPBadRequestError extends HTTPBaseError {
                 return `'${part}'`;
               });
 
-    return `${this.message}: Accepted Content-Types are [ ${accept.join(', ')} ]`;
+    if (this.message)
+      return `${this.message}: Accepted Content-Types are [ ${accept.join(', ')} ]`;
+    else
+      return `Accepted Content-Types are [ ${accept.join(', ')} ]`;
   }
 }
 
@@ -63,6 +75,7 @@ module.exports = {
   HTTPBaseError,
   HTTPNotFoundError,
   HTTPBadRequestError,
+  HTTPBadContentTypeError,
   HTTPUnauthorizedError,
   HTTPInternalServerError,
 };

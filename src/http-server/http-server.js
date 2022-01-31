@@ -12,6 +12,7 @@ const {
   HTTPBaseError,
   HTTPNotFoundError,
   HTTPBadRequestError,
+  HTTPBadContentTypeError,
   HTTPInternalServerError,
 } = require('./http-errors');
 
@@ -23,7 +24,7 @@ class HTTPServer {
   constructor(application, _opts) {
     var appName = application.getApplicationName();
 
-    var uploadPath = Path.resolve(OS.tmpdir(), 'appName', ('' + process.pid));
+    var uploadPath = Path.resolve(OS.tmpdir(), appName.replace(/[^\w-]/g, ''), ('' + process.pid));
 
     var opts = Nife.extend(true, {
       host:   'localhost',
@@ -160,7 +161,7 @@ class HTTPServer {
         return;
 
       if (typeof contentTypeMatcher === 'function' && !contentTypeMatcher(contentType))
-        throw new HTTPBadRequestError(route);
+        throw new HTTPBadContentTypeError(route);
 
       return result;
     };
@@ -305,14 +306,15 @@ class HTTPServer {
   }
 
   async start() {
-    var options = this.getOptions();
-    var app     = this.createExpressApplication(options);
+    var options     = this.getOptions();
+    var app         = this.createExpressApplication(options);
+    var portString  = (options.port) ? `:${options.port}` : '';
     var server;
 
     app.use(this.baseMiddleware.bind(this));
     app.all('*', this.baseRouter.bind(this));
 
-    this.getLogger().log(`Starting ${(options.https) ? 'HTTPS' : 'HTTP'} server ${(options.https) ? 'https' : 'http'}://${options.host}:${options.port}...`);
+    this.getLogger().log(`Starting ${(options.https) ? 'HTTPS' : 'HTTP'} server ${(options.https) ? 'https' : 'http'}://${options.host}${portString}...`);
 
     if (options.https) {
       var credentials = await this.getHTTPSCredentials(options.https);
@@ -325,7 +327,8 @@ class HTTPServer {
 
     this.server = server;
 
-    this.getLogger().log(`Web server listening at ${(options.https) ? 'https' : 'http'}://${options.host}:${options.port}`);
+    var listeningPort = server.address().port;
+    this.getLogger().log(`Web server listening at ${(options.https) ? 'https' : 'http'}://${options.host}:${listeningPort}`);
 
     return server;
   }

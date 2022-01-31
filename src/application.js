@@ -58,6 +58,7 @@ class Application extends EventEmitter {
       autoReload:         (process.env.NODE_ENV || 'development') === 'development',
       exitOnShutdown:     null,
       runTasks:           true,
+      testMode:           false,
     }, _opts || {});
 
     Object.defineProperties(this, {
@@ -777,8 +778,13 @@ class Application extends EventEmitter {
     }
 
     var sequelize = new Sequelize(databaseConfig);
+    var dbConnectionString;
 
-    var dbConnectionString = `${databaseConfig.dialect}://${databaseConfig.host}:${databaseConfig.port || '<default port>'}/${databaseConfig.database}`;
+    if (Nife.instanceOf(databaseConfig, 'string'))
+      dbConnectionString = databaseConfig;
+    else
+      dbConnectionString = `${databaseConfig.dialect}://${databaseConfig.host}:${databaseConfig.port || '<default port>'}/${databaseConfig.database}`;
+
     try {
       await sequelize.authenticate();
 
@@ -803,6 +809,13 @@ class Application extends EventEmitter {
     return server;
   }
 
+  getDBTablePrefix(userSpecifiedPrefix) {
+    if (Nife.isNotEmpty(userSpecifiedPrefix))
+      return userSpecifiedPrefix;
+
+    return `${this.getApplicationName()}_`;
+  }
+
   async start() {
     var options = this.getOptions();
 
@@ -818,10 +831,13 @@ class Application extends EventEmitter {
         return;
       }
 
-      databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;
+      if (options.testMode) {
+        databaseConfig.logging = false;
+      } else {
+        databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;
+      }
 
-      if (Nife.isEmpty(databaseConfig.tablePrefix))
-        databaseConfig.tablePrefix = `${this.getApplicationName()}_`;
+      databaseConfig.tablePrefix = this.getDBTablePrefix(databaseConfig.tablePrefix);
 
       this.dbConnection = await this.connectToDatabase(databaseConfig);
 

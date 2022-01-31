@@ -7,11 +7,13 @@ const {
 
 const HTTPUtils   = require('./http-utils');
 const CryptoUtils = require('./crypto-utils');
+const TestUtils   = require('./test-utils');
 
 module.exports = {
   CryptoUtils,
   fileNameWithoutExtension,
   HTTPUtils,
+  TestUtils,
   walkDir,
   wrapConfig,
 };

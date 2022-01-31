@@ -135,7 +135,7 @@ describe('controller-utils', function() {
         },
       });
 
-      console.log('ALL ROUTES: ', allRoutes);
+      // console.log('ALL ROUTES: ', allRoutes);
     });
   });
 });
