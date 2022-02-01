@@ -82,10 +82,10 @@ class ControllerBase {
     throw new HTTPErrors.HTTPInternalServerError(this.route, message);
   }
 
-  async handleIncomingRequest(request, response, { route, controller, controllerMethod, controllerInstance, startTime, params }) {
+  async handleIncomingRequest(request, response, { route, controller, controllerMethod, controllerInstance, startTime, params, query }) {
     this.route = route;
 
-    return await this[controllerMethod].call(this, params, request.query || {}, request.body, this.getModels());
+    return await this[controllerMethod].call(this, { params, query, body: request.body, request, response, startTime }, this.getModels());
   }
 
   async handleOutgoingResponse(_controllerResult, request, response, { route, controller, controllerMethod, controllerInstance, startTime, params }) {

@@ -38,10 +38,24 @@ const RELATION_HELPERS = {
   belongsToMany:  relationHelper('belongsToMany'),
 };
 
+function preciseNow() {
+  var janFirst2022      = 1640995200000;
+  var now               = Date.now() - janFirst2022;
+  var highResolutionNow = Nife.now();
+  var diff              = Math.floor(highResolutionNow);
+
+  return Math.floor((now + (highResolutionNow - diff)) * 1000);
+}
+
 function defineModel(modelName, definer, _parent) {
-  function compileModelFields(Klass, DataTypes) {
+  function compileModelFields(Klass, DataTypes, application, connection) {
+    const createAutoIncrementor = () => {
+      return () => preciseNow();
+    };
+
     var fields      = Klass.fields;
     var fieldNames  = Object.keys(fields);
+    var isSQLIte    = !!('' + Nife.get(connection, 'options.dialect')).match(/sqlite/);
 
     for (var i = 0, il = fieldNames.length; i < il; i++) {
       var fieldName = fieldNames[i];
@@ -50,6 +64,14 @@ function defineModel(modelName, definer, _parent) {
       if (!field.field) {
         var columnName = Nife.camelCaseToSnakeCase(fieldName);
         field.field = columnName;
+      }
+
+      // If using SQLite, which doesn't support autoincrement
+      // on anything except the primary key, then create our
+      // own auto-incrementor for this field
+      if (field.autoIncrement && isSQLIte && !field.primaryKey) {
+        application.getLogger().warn(`!Warning!: Using an auto-increment field in SQLite on a non-primary-key column "${field.field}"! Be aware that this functionality is now emulated using high resolution timestamps. This won't work unless the column is a BIGINT. You may run into serious problems with this emulation!`)
+        field.defaultValue = createAutoIncrementor();
       }
 
       if (field.type === DataTypes.BIGINT) {
@@ -80,15 +102,26 @@ function defineModel(modelName, definer, _parent) {
     return fields;
   }
 
-  function cleanModelFields(Klass) {
+  function cleanModelFields(Klass, connection) {
     var finalFields = {};
     var fields      = Klass.fields;
     var fieldNames  = Object.keys(fields);
+    var isSQLIte    = !!('' + Nife.get(connection, 'options.dialect')).match(/sqlite/);
 
     for (var i = 0, il = fieldNames.length; i < il; i++) {
       var fieldName = fieldNames[i];
       var field     = fields[fieldName];
-      var newField  = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(index)$/), {}, field);
+      var newField  = Nife.extend(Nife.extend.FILTER, (key) => {
+        if (key.match(/^(index)$/))
+          return false;
+
+        // Strip "autoIncrement" if this is not the primary key
+        // and we are using sqlite for our dialect
+        if (key === 'autoIncrement' && isSQLIte && !field.primaryKey)
+          return false;
+
+        return true;
+      }, {}, field);
 
       finalFields[fieldName] = newField;
     }
@@ -135,7 +168,7 @@ function defineModel(modelName, definer, _parent) {
   }
 
   return function({ application, Sequelize, connection }) {
-    var Klass = definer({
+    var definerArgs = {
       Parent:   (_parent) ? _parent : Model,
       Type:     Sequelize.DataTypes,
       Relation: RELATION_HELPERS,
@@ -143,19 +176,24 @@ function defineModel(modelName, definer, _parent) {
       connection,
       modelName,
       application,
-    });
+    };
+
+    var Klass = definer(definerArgs);
 
     Klass.name = modelName;
+
+    if (typeof Klass.onModelClassCreate === 'function')
+      Klass = Klass.onModelClassCreate(Klass, definerArgs);
 
     var pluralName = (Klass.pluralName) ? Klass.pluralName : Inflection.pluralize(modelName);
     if (Klass.pluralName !== pluralName)
       Klass.pluralName = pluralName;
 
-    Klass.fields = compileModelFields(Klass, Sequelize.DataTypes);
+    Klass.fields = compileModelFields(Klass, Sequelize.DataTypes, application, connection);
 
     var indexes = generateIndexes(Klass);
 
-    Klass.fields = cleanModelFields(Klass);
+    Klass.fields = cleanModelFields(Klass, connection);
 
     var applicationOptions = application.getOptions();
     var tableName;
@@ -177,8 +215,8 @@ function defineModel(modelName, definer, _parent) {
     Klass.getPrimaryKeyField      = getModelPrimaryKeyField.bind(this, Klass);
     Klass.getPrimaryKeyFieldName  = () => (getModelPrimaryKeyField(Klass).field);
 
-    if (typeof Klass.onModelClassCreate === 'function')
-      Klass = Klass.onModelClassCreate(Klass);
+    if (typeof Klass.onModelClassFinalized === 'function')
+      Klass = Klass.onModelClassFinalized(Klass, definerArgs);
 
     return { [modelName]: Klass };
   };

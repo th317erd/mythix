@@ -20,8 +20,9 @@ const ROUTE_PROPERTIES = [
   'accept',
   'controller',
   'methods',
-  'middleWare',
+  'middleware',
   'priority',
+  'queryParams',
 ];
 
 function buildPatternMatcher(_patterns, _opts) {
@@ -281,6 +282,26 @@ function getRouteProperties(route) {
 function compileRoutes(routes, customParserTypes, _context) {
   const sortRoutes = (routes) => {
     return routes.sort((a, b) => {
+      var pathA = a.path;
+      var pathB = b.path;
+
+      if (Nife.arrayUnion(a.methods, b.methods).length > 0) {
+        // If the routes are at the same level
+        // but one of them has a capture parameter
+        // then the one without a capture parameter comes first.
+        // If we don't do this, then the capture parameter wild-card
+        // might match the route name of the non-parameter route
+        var lastForwardSlashIndexA = pathA.lastIndexOf('/');
+        var lastForwardSlashIndexB = pathB.lastIndexOf('/');
+
+        if (lastForwardSlashIndexA >= 0 && lastForwardSlashIndexB >= 0 && pathA.substring(0, lastForwardSlashIndexA) === pathB.substring(0, lastForwardSlashIndexB)) {
+          if (pathA.indexOf('<', lastForwardSlashIndexA) >= 0 && pathB.indexOf('<', lastForwardSlashIndexB) < 0)
+            return 1;
+          else if (pathA.indexOf('<', lastForwardSlashIndexA) < 0 && pathB.indexOf('<', lastForwardSlashIndexB) >= 0)
+            return -1;
+        }
+      }
+
       var x = a.priority;
       var y = b.priority;
 

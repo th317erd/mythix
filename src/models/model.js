@@ -28,6 +28,9 @@ class Model extends Sequelize.Model {
     if (Nife.isEmpty(conditions))
       return undefined;
 
+    if (conditions._mythixQuery)
+      return conditions;
+
     const Ops       = Sequelize.Op;
     var finalQuery  = {};
     var keys        = Object.keys(conditions);
@@ -57,7 +60,7 @@ class Model extends Sequelize.Model {
         finalQuery[name] = (invert) ? { [Ops.not]: { [Ops.in]: value } } : { [Ops.in]: value };
       } else if (Nife.isNotEmpty(value)) {
         if (invert)
-          throw new Error(`Model.prepareWhereStatement: Attempted to invert (not query) a custom matcher "${name}"`);
+          throw new Error(`Model.prepareWhereStatement: Attempted to invert a custom matcher "${name}"`);
 
         finalQuery[name] = value;
       }
@@ -66,50 +69,107 @@ class Model extends Sequelize.Model {
     if (Nife.isEmpty(finalQuery))
       return;
 
+    Object.defineProperties(finalQuery, {
+      '_mythixQuery': {
+        writable:     false,
+        enumberable:  false,
+        configurable: false,
+        value:        true,
+      },
+    });
+
     return finalQuery;
   }
 
-  static onModelClassCreate(Klass) {
-    Klass.where     = Klass.where.bind(this, Klass);
-    Klass.rowCount  = Klass.rowCount.bind(this, Klass);
-    Klass.first     = Klass.first.bind(this, Klass);
-    Klass.last      = Klass.last.bind(this, Klass);
+  static onModelClassFinalized(Klass) {
+    Klass.getDefaultOrderBy   = Klass.getDefaultOrderBy.bind(this, Klass);
+    Klass.prepareQueryOptions = Klass.prepareQueryOptions.bind(this, Klass);
+    Klass.bulkUpdate           = Klass.bulkUpdate.bind(this, Klass);
+    Klass.all                 = Klass.all.bind(this, Klass);
+    Klass.where               = Klass.where.bind(this, Klass);
+    Klass.rowCount            = Klass.rowCount.bind(this, Klass);
+    Klass.first               = Klass.first.bind(this, Klass);
+    Klass.last                = Klass.last.bind(this, Klass);
 
     return Klass;
+  }
+
+  static getDefaultOrderBy(Model) {
+    return [ Model.getPrimaryKeyFieldName() ];
+  }
+
+  static prepareQueryOptions(Model, conditions, _order) {
+    const Ops = Sequelize.Op;
+    var options;
+    var query;
+
+    if (conditions && Nife.isNotEmpty(conditions.where)) {
+      query = conditions.where;
+      options = Object.assign({}, conditions);
+    } else if (conditions) {
+      query = Model.prepareWhereStatement(conditions);
+    }
+
+    var order = _order;
+    if (!options && Nife.instanceOf(order, 'object')) {
+      options = Object.assign({}, order);
+      order = undefined;
+    } else if (!options) {
+      options = {};
+    }
+
+    if (Nife.isNotEmpty(query))
+      options.where = query;
+
+    if (!order && options.defaultOrder !== false) {
+      if (options.order) {
+        order = options.order;
+      } else {
+        if (typeof Model.getDefaultOrderBy === 'function')
+          order = Model.getDefaultOrderBy();
+        else
+          order = [ Model.getPrimaryKeyFieldName() ];
+      }
+    }
+
+    options.order = order;
+    if (!options.hasOwnProperty('distinct'))
+      options.distinct = true;
+
+    // If no "where" clause was specified, then grab everything
+    if (!options.where)
+      options.where = { [Model.getPrimaryKeyFieldName()]: { [Ops.not]: null } };
+
+    if (options.debug)
+      console.log('QUERY OPTIONS: ', options);
+
+    return options;
   }
 
   static where(Model, conditions) {
     return Model.prepareWhereStatement(conditions);
   }
 
-  static async rowCount(Model, conditions) {
-    var query = Model.prepareWhereStatement(conditions);
-    return await Model.count({
-      where:    query,
-      distinct: true,
-    });
+  static async rowCount(Model, conditions, options) {
+    return await Model.count(Model.prepareQueryOptions(conditions, options));
   }
 
-  static async first(Model, conditions, _order) {
-    var options = {};
-    var query   = Model.prepareWhereStatement(conditions);
+  static async bulkUpdate(Model, attrs, conditions) {
+    return await Model.update(attrs, Model.prepareQueryOptions(conditions, { distinct: false, defaultOrder: false }));
+  }
 
-    if (Nife.isNotEmpty(query))
-      options.where = query;
+  static async all(Model, conditions, order) {
+    return await Model.findAll(Model.prepareQueryOptions(conditions, order));
+  }
 
-    var order = _order;
-    if (!order)
-      order = [ Model.getPrimaryKeyFieldName() ];
-
-    options.order = order;
-
-    return await Model.findOne(options);
+  static async first(Model, conditions, order) {
+    return await Model.findOne(Model.prepareQueryOptions(conditions, order));
   }
 
   static async last(Model, conditions, _order) {
     var order = _order;
     if (!order)
-      order = [ Model.getPrimaryKeyFieldName(), 'DESC' ];
+      order = [ 'createdAt', 'DESC' ];
 
     return await Model.first(conditions, order);
   }

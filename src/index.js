@@ -26,6 +26,7 @@ module.exports = {
   TaskBase:               TasksScope.TaskBase,
   Tasks:                  TasksScope,
   TestUtils:              Utils.TestUtils,
+  Model:                  Models.Model,
 
   Application,
   Logger,
