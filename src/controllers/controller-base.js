@@ -104,6 +104,7 @@ class ControllerBase {
     if (controllerResult == null)
       controllerResult = {};
 
+    response.header('Content-Type', 'application/json; charset=UTF-8');
     response.status(200).send(JSON.stringify(controllerResult));
   }
 }

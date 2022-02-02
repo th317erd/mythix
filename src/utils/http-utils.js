@@ -61,10 +61,10 @@ function makeRequest(requestOptions) {
     var extraConfig = {};
     var headers     = Object.assign({
       'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36',
-    }, defaultHeaders || {});
+    }, defaultHeaders || {}, requestOptions.headers || {});
 
     if (data) {
-      if (Nife.get(headers, 'Content-Type').match(/application\/json/))
+      if (Nife.get(headers, 'Content-Type', '').match(/application\/json/))
         data = JSON.stringify(data);
 
       extraConfig = {

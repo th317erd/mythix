@@ -25,15 +25,16 @@ class Model extends Sequelize.Model {
   }
 
   static prepareWhereStatement(conditions) {
-    if (Nife.isEmpty(conditions))
+    if (Nife.isEmpty(conditions)) {
       return undefined;
+    }
 
     if (conditions._mythixQuery)
       return conditions;
 
     const Ops       = Sequelize.Op;
     var finalQuery  = {};
-    var keys        = Object.keys(conditions);
+    var keys        = Object.keys(conditions).concat(Object.getOwnPropertySymbols(conditions));
 
     for (var i = 0, il = keys.length; i < il; i++) {
       var key   = keys[i];
@@ -155,7 +156,7 @@ class Model extends Sequelize.Model {
   }
 
   static async bulkUpdate(Model, attrs, conditions) {
-    return await Model.update(attrs, Model.prepareQueryOptions(conditions, { distinct: false, defaultOrder: false }));
+    return await Model.update(attrs, Model.prepareQueryOptions(conditions, { distinct: false }));
   }
 
   static async all(Model, conditions, order) {
