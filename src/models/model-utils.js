@@ -1,6 +1,10 @@
+'use strict';
+
 const Nife        = require('nife');
 const Inflection  = require('inflection');
 const { Model }   = require('./model');
+
+const MILLISECONDS_PER_SECOND = 1000;
 
 function relationHelper(modelName, type) {
   return function(target, _options) {
@@ -12,24 +16,20 @@ function relationHelper(modelName, type) {
         return Inflection.pluralize(target.toLowerCase());
       else
         return target.toLowerCase();
-
-      //return { singular: target.toLowerCase(), plural: Inflection.pluralize(target.toLowerCase()) };
     };
 
-    const getFieldName = () => {
-      if (options.field)
-        return options.field;
+    // const getFieldName = () => {
+    //   if (options.field)
+    //     return options.field;
 
-      if (type.match(/many/i))
-        return Inflection.pluralize(target.toLowerCase());
-      else
-        return target.toLowerCase();
+    //   if (type.match(/many/i))
+    //     return Inflection.pluralize(target.toLowerCase());
+    //   else
+    //     return target.toLowerCase();
+    // };
 
-      //return { singular: target.toLowerCase(), plural: Inflection.pluralize(target.toLowerCase()) };
-    };
-
-    var options               = _options || {};
-    var defaultOnDeleteAction = 'RESTRICT';
+    let options               = _options || {};
+    let defaultOnDeleteAction = 'RESTRICT';
     if (options.allowNull)
       defaultOnDeleteAction = 'SET NULL';
 
@@ -40,7 +40,7 @@ function relationHelper(modelName, type) {
       onUpdate:   options.onUpdate || options.onDelete || defaultOnDeleteAction,
       field:      options.field,
       name:       getName(),
-      allowNull:  (options.hasOwnProperty('allowNull')) ? options.allowNull : false,
+      allowNull:  (Object.prototype.hasOwnProperty.call(options, 'allowNull')) ? options.allowNull : false,
     };
   };
 }
@@ -53,10 +53,10 @@ const RELATION_HELPERS = [
 ];
 
 function getRelationHelpers(modelName) {
-  var obj = {};
+  let obj = {};
 
-  for (var i = 0, il = RELATION_HELPERS.length; i < il; i++) {
-    var type = RELATION_HELPERS[i];
+  for (let i = 0, il = RELATION_HELPERS.length; i < il; i++) {
+    let type = RELATION_HELPERS[i];
     obj[type] = relationHelper(modelName, type);
   }
 
@@ -64,12 +64,12 @@ function getRelationHelpers(modelName) {
 }
 
 function preciseNow() {
-  var janFirst2022      = 1640995200000;
-  var now               = Date.now() - janFirst2022;
-  var highResolutionNow = Nife.now();
-  var diff              = Math.floor(highResolutionNow);
+  let janFirst2022      = 1640995200000;
+  let now               = Date.now() - janFirst2022;
+  let highResolutionNow = Nife.now();
+  let diff              = Math.floor(highResolutionNow);
 
-  return Math.floor((now + (highResolutionNow - diff)) * 1000);
+  return Math.floor((now + (highResolutionNow - diff)) * MILLISECONDS_PER_SECOND);
 }
 
 function defineModel(modelName, definer, _parent) {
@@ -78,16 +78,16 @@ function defineModel(modelName, definer, _parent) {
       return () => preciseNow();
     };
 
-    var fields      = Klass.fields;
-    var fieldNames  = Object.keys(fields);
-    var isSQLIte    = !!('' + Nife.get(connection, 'options.dialect')).match(/sqlite/);
+    let fields      = Klass.fields;
+    let fieldNames  = Object.keys(fields);
+    let isSQLIte    = !!('' + Nife.get(connection, 'options.dialect')).match(/sqlite/);
 
-    for (var i = 0, il = fieldNames.length; i < il; i++) {
-      var fieldName = fieldNames[i];
-      var field     = fields[fieldName];
+    for (let i = 0, il = fieldNames.length; i < il; i++) {
+      let fieldName = fieldNames[i];
+      let field     = fields[fieldName];
 
       if (!field.field) {
-        var columnName = Nife.camelCaseToSnakeCase(fieldName);
+        let columnName = Nife.camelCaseToSnakeCase(fieldName);
         field.field = columnName;
       }
 
@@ -95,14 +95,14 @@ function defineModel(modelName, definer, _parent) {
       // on anything except the primary key, then create our
       // own auto-incrementor for this field
       if (field.autoIncrement && isSQLIte && !field.primaryKey) {
-        application.getLogger().warn(`!Warning!: Using an auto-increment field in SQLite on a non-primary-key column "${field.field}"! Be aware that this functionality is now emulated using high resolution timestamps. This won't work unless the column is a BIGINT. You may run into serious problems with this emulation!`)
+        application.getLogger().warn(`!Warning!: Using an auto-increment field in SQLite on a non-primary-key column "${field.field}"! Be aware that this functionality is now emulated using high resolution timestamps. This won't work unless the column is a BIGINT. You may run into serious problems with this emulation!`);
         field.defaultValue = createAutoIncrementor();
       }
 
       if (field.type === DataTypes.BIGINT) {
         if (!field.get) {
           field.get = function(name) {
-            var value = this.getDataValue(name);
+            let value = this.getDataValue(name);
             if (value == null)
               return null;
 
@@ -112,14 +112,14 @@ function defineModel(modelName, definer, _parent) {
 
         if (!field.set) {
           field.set = function(_value, name) {
-            var value = _value;
+            let value = _value;
             if (value == null)
               value = null;
             else
               value = BigInt(value);
 
             return this.setDataValue(name, value);
-          }
+          };
         }
       }
     }
@@ -128,15 +128,15 @@ function defineModel(modelName, definer, _parent) {
   }
 
   function cleanModelFields(Klass, connection) {
-    var finalFields = {};
-    var fields      = Klass.fields;
-    var fieldNames  = Object.keys(fields);
-    var isSQLIte    = !!('' + Nife.get(connection, 'options.dialect')).match(/sqlite/);
+    let finalFields = {};
+    let fields      = Klass.fields;
+    let fieldNames  = Object.keys(fields);
+    let isSQLIte    = !!('' + Nife.get(connection, 'options.dialect')).match(/sqlite/);
 
-    for (var i = 0, il = fieldNames.length; i < il; i++) {
-      var fieldName = fieldNames[i];
-      var field     = fields[fieldName];
-      var newField  = Nife.extend(Nife.extend.FILTER, (key) => {
+    for (let i = 0, il = fieldNames.length; i < il; i++) {
+      let fieldName = fieldNames[i];
+      let field     = fields[fieldName];
+      let newField  = Nife.extend(Nife.extend.FILTER, (key) => {
         if (key.match(/^(index)$/))
           return false;
 
@@ -155,13 +155,13 @@ function defineModel(modelName, definer, _parent) {
   }
 
   function generateIndexes(Klass) {
-    var finalIndexes  = [];
-    var fields        = Klass.fields;
-    var fieldNames    = Object.keys(fields);
+    let finalIndexes  = [];
+    let fields        = Klass.fields;
+    let fieldNames    = Object.keys(fields);
 
-    for (var i = 0, il = fieldNames.length; i < il; i++) {
-      var fieldName = fieldNames[i];
-      var field     = fields[fieldName];
+    for (let i = 0, il = fieldNames.length; i < il; i++) {
+      let fieldName = fieldNames[i];
+      let field     = fields[fieldName];
 
       if (field.index) {
         if (field.index === 'unique') {
@@ -186,14 +186,14 @@ function defineModel(modelName, definer, _parent) {
       {
         unique: false,
         fields: [ 'updated_at' ],
-      }
+      },
     ]);
 
     return finalIndexes;
   }
 
   return function({ application, Sequelize, connection }) {
-    var definerArgs = {
+    let definerArgs = {
       Parent:   (_parent) ? _parent : Model,
       Type:     Sequelize.DataTypes,
       Relation: getRelationHelpers(modelName),
@@ -203,25 +203,25 @@ function defineModel(modelName, definer, _parent) {
       application,
     };
 
-    var Klass = definer(definerArgs);
+    let Klass = definer(definerArgs);
 
     Klass.name = modelName;
 
     if (typeof Klass.onModelClassCreate === 'function')
       Klass = Klass.onModelClassCreate(Klass, definerArgs);
 
-    var pluralName = (Klass.pluralName) ? Klass.pluralName : Inflection.pluralize(modelName);
+    let pluralName = (Klass.pluralName) ? Klass.pluralName : Inflection.pluralize(modelName);
     if (Klass.pluralName !== pluralName)
       Klass.pluralName = pluralName;
 
     Klass.fields = compileModelFields(Klass, Sequelize.DataTypes, application, connection);
 
-    var indexes = generateIndexes(Klass);
+    let indexes = generateIndexes(Klass);
 
     Klass.fields = cleanModelFields(Klass, connection);
 
-    var applicationOptions = application.getOptions();
-    var tableName;
+    let applicationOptions = application.getOptions();
+    let tableName;
 
     tableName = (`${Nife.get(applicationOptions, 'database.tablePrefix', '')}${Nife.camelCaseToSnakeCase(pluralName)}`).toLowerCase();
 
@@ -232,10 +232,10 @@ function defineModel(modelName, definer, _parent) {
       tableName,
       modelName,
       indexes,
-      name: {
+      name:            {
         singular: modelName.toLowerCase(),
-        plural: Inflection.pluralize(modelName.toLowerCase()),
-      }
+        plural:   Inflection.pluralize(modelName.toLowerCase()),
+      },
     });
 
     Klass.getApplication = () => application;
@@ -252,12 +252,12 @@ function defineModel(modelName, definer, _parent) {
 }
 
 function getModelPrimaryKeyField(Klass) {
-  var fields      = Klass.fields;
-  var fieldNames  = Object.keys(fields);
+  let fields      = Klass.fields;
+  let fieldNames  = Object.keys(fields);
 
-  for (var i = 0, il = fieldNames.length; i < il; i++) {
-    var fieldName = fieldNames[i];
-    var field     = fields[fieldName];
+  for (let i = 0, il = fieldNames.length; i < il; i++) {
+    let fieldName = fieldNames[i];
+    let field     = fields[fieldName];
 
     if (field.primaryKey)
       return field;
@@ -265,27 +265,27 @@ function getModelPrimaryKeyField(Klass) {
 }
 
 function buildModelRelations(models) {
-  var modelNames = Object.keys(models);
-  for (var i = 0, il = modelNames.length; i < il; i++) {
-    var modelName = modelNames[i];
-    var model     = models[modelName];
-    var relations = model.relations;
+  let modelNames = Object.keys(models);
+  for (let i = 0, il = modelNames.length; i < il; i++) {
+    let modelName = modelNames[i];
+    let model     = models[modelName];
+    let relations = model.relations;
 
     if (!relations)
       continue;
 
-    for (var j = 0, jl = relations.length; j < jl; j++) {
-      var relation        = relations[j];
-      var type            = relation.type;
-      var fieldName       = Nife.camelCaseToSnakeCase(relation.field);
-      var targetModelName = relation.target;
-      var targetModel     = models[targetModelName];
-      var belongsType     = !!type.match(/^belongs/);
+    for (let j = 0, jl = relations.length; j < jl; j++) {
+      let relation        = relations[j];
+      let type            = relation.type;
+      let fieldName       = Nife.camelCaseToSnakeCase(relation.field);
+      let targetModelName = relation.target;
+      let targetModel     = models[targetModelName];
+      let belongsType     = !!type.match(/^belongs/);
 
       if (!targetModel)
         throw new Error(`${modelName} relation error: target model ${targetModelName} not found`);
 
-      var primaryKeyField;
+      let primaryKeyField;
 
       if (belongsType) {
         primaryKeyField = getModelPrimaryKeyField(targetModel);
@@ -293,7 +293,7 @@ function buildModelRelations(models) {
         if (!primaryKeyField)
           throw new Error(`${modelName} relation error: primary key for model ${targetModelName} not found`);
 
-        var pkFieldName = primaryKeyField.field;
+        let pkFieldName = primaryKeyField.field;
         if (pkFieldName === 'id')
           pkFieldName = 'ID';
 
@@ -305,7 +305,7 @@ function buildModelRelations(models) {
         if (!primaryKeyField)
           throw new Error(`${modelName} relation error: primary key for model ${modelName} not found`);
 
-        var pkFieldName = primaryKeyField.field;
+        let pkFieldName = primaryKeyField.field;
         if (pkFieldName === 'id')
           pkFieldName = 'ID';
 
@@ -313,10 +313,10 @@ function buildModelRelations(models) {
           fieldName = `${Nife.camelCaseToSnakeCase(modelName)}${Nife.snakeCaseToCamelCase(pkFieldName, true)}`;
       }
 
-      var pkFieldCopy = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(field|primaryKey)$/), {}, primaryKeyField);
+      let pkFieldCopy = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(field|primaryKey)$/), {}, primaryKeyField);
 
       // Build relation options for sequelize
-      var options = {
+      let options = {
         onDelete:   relation.onDelete,
         onUpdate:   relation.onUpdate,
         foreignKey: Object.assign(pkFieldCopy, { name: fieldName, as: relation.name, field: Nife.camelCaseToSnakeCase(fieldName) }),

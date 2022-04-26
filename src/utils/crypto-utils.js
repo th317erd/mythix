@@ -1,27 +1,27 @@
 const { createHash, randomFillSync } = require('crypto');
 
 function randomBytes(length) {
-  var buffer = Buffer.alloc(length);
+  let buffer = Buffer.alloc(length);
   randomFillSync(buffer);
 
   return buffer;
 }
 
 function SHA256(data) {
-  var hash = createHash('sha256');
+  let hash = createHash('sha256');
   hash.update(data);
   return hash.digest('hex');
 }
 
 function SHA512(data) {
-  var hash = createHash('sha512');
+  let hash = createHash('sha512');
   hash.update(data);
   return hash.digest('hex');
 }
 
 function randomHash(type = 'sha256', length = 128) {
-  var bytes = randomBytes(length);
-  var hash  = createHash(type);
+  let bytes = randomBytes(length);
+  let hash  = createHash(type);
 
   hash.update(bytes);
 

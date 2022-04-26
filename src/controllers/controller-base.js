@@ -1,3 +1,5 @@
+'use strict';
+
 const Nife        = require('nife');
 const HTTPErrors  = require('../http-server/http-errors');
 
@@ -42,9 +44,9 @@ class ControllerBase {
   }
 
   getLogger() {
-    var logger = this.logger;
+    let logger = this.logger;
     if (!logger) {
-      var application = this.getApplication();
+      let application = this.getApplication();
       logger = application.getLogger();
     }
 
@@ -52,17 +54,17 @@ class ControllerBase {
   }
 
   getModel(name) {
-    var application = this.application;
+    let application = this.application;
     return application.getModel(name);
   }
 
   getModels() {
-    var application = this.application;
+    let application = this.application;
     return application.getModels();
   }
 
   getDBConnection() {
-    var application = this.getApplication();
+    let application = this.getApplication();
     return application.getDBConnection();
   }
 
@@ -82,15 +84,15 @@ class ControllerBase {
     throw new HTTPErrors.HTTPInternalServerError(this.route, message);
   }
 
-  async handleIncomingRequest(request, response, { route, controller, controllerMethod, controllerInstance, startTime, params, query }) {
+  async handleIncomingRequest(request, response, { route, controllerMethod, startTime, params, query /* , controller, controllerInstance, */ }) {
     this.route = route;
 
     return await this[controllerMethod].call(this, { params, query, body: request.body, request, response, startTime }, this.getModels());
   }
 
-  async handleOutgoingResponse(_controllerResult, request, response, { route, controller, controllerMethod, controllerInstance, startTime, params }) {
-    var controllerResult  = _controllerResult;
-    var contentType       = Nife.get(request, 'headers.content-type');
+  async handleOutgoingResponse(_controllerResult, request, response /*, { route, controller, controllerMethod, controllerInstance, startTime, params } */) {
+    let controllerResult  = _controllerResult;
+    let contentType       = Nife.get(request, 'headers.content-type');
 
     if (!('' + contentType).match(/application\/json/i)) {
       if (controllerResult == null)

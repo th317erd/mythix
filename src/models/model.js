@@ -1,3 +1,5 @@
+'use strict';
+
 const Nife          = require('nife');
 const { Sequelize } = require('sequelize');
 
@@ -7,12 +9,12 @@ class Model extends Sequelize.Model {
   }
 
   getLogger() {
-    var application = this.getApplication();
+    let application = this.getApplication();
     return application.getLogger();
   }
 
   getDBConnection() {
-    var application = this.getApplication();
+    let application = this.getApplication();
     return application.getDBConnection();
   }
 
@@ -25,41 +27,41 @@ class Model extends Sequelize.Model {
   }
 
   static prepareWhereStatement(conditions) {
-    if (Nife.isEmpty(conditions)) {
+    if (Nife.isEmpty(conditions))
       return undefined;
-    }
+
 
     if (conditions._mythixQuery)
       return conditions;
 
     const Ops       = Sequelize.Op;
-    var finalQuery  = {};
-    var keys        = Object.keys(conditions).concat(Object.getOwnPropertySymbols(conditions));
+    let finalQuery  = {};
+    let keys        = Object.keys(conditions).concat(Object.getOwnPropertySymbols(conditions));
 
-    for (var i = 0, il = keys.length; i < il; i++) {
-      var key   = keys[i];
-      var value = conditions[key];
+    for (let i = 0, il = keys.length; i < il; i++) {
+      let key   = keys[i];
+      let value = conditions[key];
 
       if (value === undefined)
         continue;
 
-      var name    = key;
-      var invert  = false;
+      let name    = key;
+      let invert  = false;
 
       if (typeof name === 'string' && name.charAt(0) === '!') {
         name    = name.substring(1);
         invert  = true;
       }
 
-      if (typeof key === 'symbol') {
+      if (typeof key === 'symbol')
         finalQuery[key] = value;
-      } else if (value === null) {
+      else if (value === null)
         finalQuery[name] = (invert) ? { [Ops.not]: value } : { [Ops.is]: value };
-      } else if (Nife.instanceOf(value, 'number', 'string', 'boolean', 'bigint')) {
+      else if (Nife.instanceOf(value, 'number', 'string', 'boolean', 'bigint'))
         finalQuery[name] = (invert) ? { [Ops.ne]: value } : { [Ops.eq]: value };
-      } else if (Nife.instanceOf(value, 'array') && Nife.isNotEmpty(value)) {
+      else if (Nife.instanceOf(value, 'array') && Nife.isNotEmpty(value))
         finalQuery[name] = (invert) ? { [Ops.not]: { [Ops.in]: value } } : { [Ops.in]: value };
-      } else if (Nife.isNotEmpty(value)) {
+      else if (Nife.isNotEmpty(value)) {
         if (invert)
           throw new Error(`Model.prepareWhereStatement: Attempted to invert a custom matcher "${name}"`);
 
@@ -95,51 +97,51 @@ class Model extends Sequelize.Model {
     return Klass;
   }
 
-  static getDefaultOrderBy(Model) {
-    return [ Model.getPrimaryKeyFieldName() ];
+  static getDefaultOrderBy(ModelClass) {
+    return [ ModelClass.getPrimaryKeyFieldName() ];
   }
 
-  static prepareQueryOptions(Model, conditions, _order) {
+  static prepareQueryOptions(ModelClass, conditions, _order) {
     const Ops = Sequelize.Op;
-    var options;
-    var query;
+    let options;
+    let query;
 
     if (conditions && Nife.isNotEmpty(conditions.where)) {
       query = conditions.where;
       options = Object.assign({}, conditions);
-    } else if (conditions) {
-      query = Model.prepareWhereStatement(conditions);
-    }
+    } else if (conditions)
+      query = ModelClass.prepareWhereStatement(conditions);
 
-    var order = _order;
+
+    let order = _order;
     if (!options && Nife.instanceOf(order, 'object')) {
       options = Object.assign({}, order);
       order = undefined;
-    } else if (!options) {
+    } else if (!options)
       options = {};
-    }
+
 
     if (Nife.isNotEmpty(query))
       options.where = query;
 
     if (!order && options.defaultOrder !== false) {
-      if (options.order) {
+      if (options.order)
         order = options.order;
-      } else {
-        if (typeof Model.getDefaultOrderBy === 'function')
-          order = Model.getDefaultOrderBy();
+      else {
+        if (typeof ModelClass.getDefaultOrderBy === 'function')
+          order = ModelClass.getDefaultOrderBy();
         else
-          order = [ Model.getPrimaryKeyFieldName() ];
+          order = [ ModelClass.getPrimaryKeyFieldName() ];
       }
     }
 
     options.order = order;
-    if (!options.hasOwnProperty('distinct'))
+    if (!Object.prototype.hasOwnProperty.call(options, 'distinct'))
       options.distinct = true;
 
     // If no "where" clause was specified, then grab everything
     if (!options.where)
-      options.where = { [Model.getPrimaryKeyFieldName()]: { [Ops.not]: null } };
+      options.where = { [ModelClass.getPrimaryKeyFieldName()]: { [Ops.not]: null } };
 
     if (options.debug)
       console.log('QUERY OPTIONS: ', options);
@@ -147,32 +149,32 @@ class Model extends Sequelize.Model {
     return options;
   }
 
-  static where(Model, conditions) {
-    return Model.prepareWhereStatement(conditions);
+  static where(ModelClass, conditions) {
+    return ModelClass.prepareWhereStatement(conditions);
   }
 
-  static async rowCount(Model, conditions, options) {
-    return await Model.count(Model.prepareQueryOptions(conditions, options));
+  static async rowCount(ModelClass, conditions, options) {
+    return await ModelClass.count(ModelClass.prepareQueryOptions(conditions, options));
   }
 
-  static async bulkUpdate(Model, attrs, conditions) {
-    return await Model.update(attrs, Model.prepareQueryOptions(conditions, { distinct: false }));
+  static async bulkUpdate(ModelClass, attrs, conditions) {
+    return await ModelClass.update(attrs, ModelClass.prepareQueryOptions(conditions, { distinct: false }));
   }
 
-  static async all(Model, conditions, order) {
-    return await Model.findAll(Model.prepareQueryOptions(conditions, order));
+  static async all(ModelClass, conditions, order) {
+    return await ModelClass.findAll(ModelClass.prepareQueryOptions(conditions, order));
   }
 
-  static async first(Model, conditions, order) {
-    return await Model.findOne(Model.prepareQueryOptions(conditions, order));
+  static async first(ModelClass, conditions, order) {
+    return await ModelClass.findOne(ModelClass.prepareQueryOptions(conditions, order));
   }
 
-  static async last(Model, conditions, _order) {
-    var order = _order;
+  static async last(ModelClass, conditions, _order) {
+    let order = _order;
     if (!order)
       order = [ 'createdAt', 'DESC' ];
 
-    return await Model.first(conditions, order);
+    return await ModelClass.first(conditions, order);
   }
 }
 

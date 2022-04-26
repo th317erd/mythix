@@ -7,7 +7,7 @@ function createTestApplication(Application) {
     static APP_NAME = `${(Nife.isNotEmpty(Application.APP_NAME)) ? Application.APP_NAME : 'mythix'}_test`;
 
     constructor(_opts) {
-      var opts = Nife.extend(true, {
+      let opts = Nife.extend(true, {
         autoReload: false,
         runTasks:   false,
         testMode:   true,
@@ -17,7 +17,7 @@ function createTestApplication(Application) {
     }
 
     getDBTablePrefix(userSpecifiedPrefix) {
-      var prefix = super.getDBTablePrefix(userSpecifiedPrefix);
+      let prefix = super.getDBTablePrefix(userSpecifiedPrefix);
       return `${prefix.replace(/_test/g, '')}_test_`.replace(/_+/g, '_');
     }
 
@@ -45,13 +45,13 @@ function createTestApplication(Application) {
     }
 
     async connectToDatabase() {
-      var connection = await super.connectToDatabase(this.getTestingDatabaseConfig());
+      let connection = await super.connectToDatabase(this.getTestingDatabaseConfig());
       return connection;
     }
 
     async createHTTPServer(options) {
-      var httpServerConfig  = this.getTestingHTTPServerConfig(options);
-      var server            = await super.createHTTPServer(httpServerConfig);
+      let httpServerConfig  = this.getTestingHTTPServerConfig(options);
+      let server            = await super.createHTTPServer(httpServerConfig);
 
       Object.defineProperties(this, {
         'host': {
@@ -71,28 +71,28 @@ function createTestApplication(Application) {
     }
 
     async start(...args) {
-      var result = await super.start(...args);
+      let result = await super.start(...args);
 
-      var dbConnection = this.getDBConnection();
+      let dbConnection = this.getDBConnection();
       await dbConnection.sync({ force: true, logging: false });
 
       return result;
     }
 
     async truncateAllTables(exclude) {
-      var dbConnection  = this.getDBConnection();
-      var models        = this.getModels();
-      var modelNames    = Object.keys(models);
+      let dbConnection  = this.getDBConnection();
+      let models        = this.getModels();
+      let modelNames    = Object.keys(models);
 
       await dbConnection.query('PRAGMA foreign_keys = OFF');
 
       try {
-        for (var i = 0, il = modelNames.length; i < il; i++) {
-          var modelName = modelNames[i];
+        for (let i = 0, il = modelNames.length; i < il; i++) {
+          let modelName = modelNames[i];
           if (exclude && exclude.indexOf(modelName) >= 0)
             continue;
 
-          var model = models[modelName];
+          let model = models[modelName];
           await dbConnection.query(`DELETE FROM ${model.tableName}`);
         }
       } catch (error) {

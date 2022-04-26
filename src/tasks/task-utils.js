@@ -1,11 +1,15 @@
+'use strict';
+
 const Nife          = require('nife');
 const { TaskBase }  = require('./task-base');
 
-const SECONDS_PER_MINUTE  = 60;
-const MINUTES_PER_HOUR    = 60;
-const SECONDS_PER_HOUR    = (SECONDS_PER_MINUTE * MINUTES_PER_HOUR);
-const MINUTES_PER_DAY     = (MINUTES_PER_HOUR * 24);
-const SECONDS_PER_DAY     = (MINUTES_PER_DAY * SECONDS_PER_MINUTE);
+const SECONDS_PER_MINUTE      = 60;
+const MINUTES_PER_HOUR        = 60;
+const SECONDS_PER_HOUR        = (SECONDS_PER_MINUTE * MINUTES_PER_HOUR);
+const HOURS_PER_DAY           = 24;
+const MINUTES_PER_DAY         = (MINUTES_PER_HOUR * HOURS_PER_DAY);
+const SECONDS_PER_DAY         = (MINUTES_PER_DAY * SECONDS_PER_MINUTE);
+const MILLISECONDS_PER_SECOND = 1000;
 
 class TimeHelpers {
   constructor(_days, _hours, _minutes, _seconds) {
@@ -67,22 +71,22 @@ class TimeHelpers {
   }
 
   totalSeconds() {
-    var totalTime = (this._days * SECONDS_PER_DAY) + (this._hours * SECONDS_PER_HOUR) + (this._minutes * SECONDS_PER_MINUTE) + this._seconds;
+    let totalTime = (this._days * SECONDS_PER_DAY) + (this._hours * SECONDS_PER_HOUR) + (this._minutes * SECONDS_PER_MINUTE) + this._seconds;
     return totalTime;
   }
 
   totalMilliseconds() {
-    return Math.round(this.totalSeconds() * 1000);
+    return Math.round(this.totalSeconds() * MILLISECONDS_PER_SECOND);
   }
 }
 
 function defineTask(taskName, definer, _parent) {
-  var parentKlass = _parent || TaskBase;
+  let parentKlass = _parent || TaskBase;
 
   return function({ application, Sequelize, connection, dbConfig }) {
-    var time = new TimeHelpers();
+    let time = new TimeHelpers();
 
-    var Klass = definer({
+    let Klass = definer({
       Parent: parentKlass,
       application,
       Sequelize,

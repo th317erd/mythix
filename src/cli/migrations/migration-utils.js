@@ -1,150 +1,150 @@
 // Many thanks to the authors of "sequelize-auto-migrations" for most of the following code
 
-const Sequelize = require("sequelize");
-const hash = require("object-hash");
-const _ = require("lodash");
+'use strict';
+
+const Sequelize = require('sequelize');
+const hash = require('object-hash');
+const _ = require('lodash');
 const diff = require('deep-diff').diff;
-const FileSystem = require("fs");
-const Path = require("path");
+const FileSystem = require('fs');
+const Path = require('path');
 const log = console.log;
 
 function reverseSequelizeColType(col, prefix = 'Sequelize.') {
-  var attrName              = col['type'].key;
-  var attrObj               = col.type;
-  var options               = (col['type']['options']) ? col['type']['options'] : {};
-  var DataTypes             = Sequelize.DataTypes;
+  let attrName              = col['type'].key;
+  let attrObj               = col.type;
+  let options               = (col['type']['options']) ? col['type']['options'] : {};
+  let DataTypes             = Sequelize.DataTypes;
 
   // TODO: Change this based on the database being used
-  var databaseLiteralQuote  = "'";
+  let databaseLiteralQuote  = '\'';
 
   switch (attrName) {
-    case DataTypes.CHAR.key:
-      // CHAR(length, binary)
-      if (options.binary)
-        return `${prefix}CHAR.BINARY`;
+  case DataTypes.CHAR.key:
+    // CHAR(length, binary)
+    if (options.binary)
+      return `${prefix}CHAR.BINARY`;
 
-      return `${prefix}CHAR(${options.length})`;
+    return `${prefix}CHAR(${options.length})`;
 
-    case DataTypes.STRING.key:
-      // STRING(length, binary).BINARY
-      return `${prefix}STRING${(options.length) ? `(${options.length})` : ''}${(options.binary) ? '.BINARY' : ''}`;
+  case DataTypes.STRING.key:
+    // STRING(length, binary).BINARY
+    return `${prefix}STRING${(options.length) ? `(${options.length})` : ''}${(options.binary) ? '.BINARY' : ''}`;
 
-    case DataTypes.TEXT.key:
-      // TEXT(length)
-      if (!options.length)
-        return `${prefix}TEXT`;
+  case DataTypes.TEXT.key:
+    // TEXT(length)
+    if (!options.length)
+      return `${prefix}TEXT`;
 
-      return `${prefix}TEXT(${('' + options.length).toLowerCase()})`;
+    return `${prefix}TEXT(${('' + options.length).toLowerCase()})`;
 
-    case DataTypes.NUMBER.key:
-    case DataTypes.TINYINT.key:
-    case DataTypes.SMALLINT.key:
-    case DataTypes.MEDIUMINT.key:
-    case DataTypes.BIGINT.key:
-    case DataTypes.FLOAT.key:
-    case DataTypes.REAL.key:
-    case DataTypes.DOUBLE.key:
-    case DataTypes.DECIMAL.key:
-    case DataTypes.INTEGER.key: {
-      // NUMBER(length, decimals).UNSIGNED.ZEROFILL
-      var finalResult = attrName;
+  case DataTypes.NUMBER.key:
+  case DataTypes.TINYINT.key:
+  case DataTypes.SMALLINT.key:
+  case DataTypes.MEDIUMINT.key:
+  case DataTypes.BIGINT.key:
+  case DataTypes.FLOAT.key:
+  case DataTypes.REAL.key:
+  case DataTypes.DOUBLE.key:
+  case DataTypes.DECIMAL.key:
+  case DataTypes.INTEGER.key: {
+    // NUMBER(length, decimals).UNSIGNED.ZEROFILL
+    let finalResult = attrName;
 
-      if (options.length)
-        finalResult = `${finalResult}(${options.length}${(options.decimals) ? `, ${options.decimals}` : ''})`;
+    if (options.length)
+      finalResult = `${finalResult}(${options.length}${(options.decimals) ? `, ${options.decimals}` : ''})`;
 
-      if (options.precision)
-        finalResult = `${finalResult}(${options.precision}${(options.scale) ? `, ${options.scale}` : ''})`;
+    if (options.precision)
+      finalResult = `${finalResult}(${options.precision}${(options.scale) ? `, ${options.scale}` : ''})`;
 
-      finalResult = [ finalResult ];
+    finalResult = [ finalResult ];
 
-      if (options.zerofill)
-        finalResult.push('ZEROFILL');
+    if (options.zerofill)
+      finalResult.push('ZEROFILL');
 
-      if (options.unsigned)
-        finalResult.push('UNSIGNED');
+    if (options.unsigned)
+      finalResult.push('UNSIGNED');
 
-      return `${prefix}${finalResult.join('.')}`;
+    return `${prefix}${finalResult.join('.')}`;
+  }
+
+  case DataTypes.ENUM.key:
+    return `${prefix}ENUM(${databaseLiteralQuote}${options.values.join(`${databaseLiteralQuote}, ${databaseLiteralQuote}`)}${databaseLiteralQuote})`;
+
+  case DataTypes.BLOB.key:
+    if (!options.length)
+      return `${prefix}BLOB`;
+
+    return `${prefix}BLOB(${('' + options.length).toLowerCase()})`;
+
+  case DataTypes.GEOMETRY.key:
+    if (options.type) {
+      if (options.srid)
+        return `${prefix}GEOMETRY(${databaseLiteralQuote}${options.type}${databaseLiteralQuote}, ${options.srid})`;
+      else
+        return `${prefix}GEOMETRY(${databaseLiteralQuote}${options.type}${databaseLiteralQuote})`;
     }
 
-    case DataTypes.ENUM.key:
-      return `${prefix}ENUM(${databaseLiteralQuote}${options.values.join(`${databaseLiteralQuote}, ${databaseLiteralQuote}`)}${databaseLiteralQuote})`;
+    return `${prefix}GEOMETRY`;
 
-    case DataTypes.BLOB.key:
-      if (!options.length)
-        return `${prefix}BLOB`;
+  case DataTypes.GEOGRAPHY.key:
+    return `${prefix}GEOGRAPHY`;
 
-      return `${prefix}BLOB(${('' + options.length).toLowerCase()})`;
+  case DataTypes.ARRAY.key:
+    let type = attrObj.toString();
+    let arrayType;
 
-    case DataTypes.ENUM.key:
-      return `${prefix}ENUM(${databaseLiteralQuote}${options.values.join(`${databaseLiteralQuote}, ${databaseLiteralQuote}`)}${databaseLiteralQuote})`;
+    if (type === 'INTEGER[]' || type === 'STRING[]')
+      arrayType = `${prefix}${type.replace('[]', '')}`;
+    else
+      arrayType = (col.seqType === 'Sequelize.ARRAY(Sequelize.INTEGER)') ? `${prefix}INTEGER` : `${prefix}STRING`;
 
-    case DataTypes.GEOMETRY.key:
-      if (options.type) {
-        if (options.srid)
-          return `${prefix}GEOMETRY(${databaseLiteralQuote}${options.type}${databaseLiteralQuote}, ${options.srid})`;
-        else
-          return `${prefix}GEOMETRY(${databaseLiteralQuote}${options.type}${databaseLiteralQuote})`;
-      }
 
-      return `${prefix}GEOMETRY`;
+    return prefix + `ARRAY(${arrayType})`;
 
-    case DataTypes.GEOGRAPHY.key:
-      return `${prefix}GEOGRAPHY`;
+  case DataTypes.RANGE.key:
+    console.warn(`${attrName} type not supported, so we are going to guess...`);
+    return `${prefix}${attrObj.toSql()}`;
 
-    case DataTypes.ARRAY.key:
-      var type = attrObj.toString();
-      var arrayType;
+  default:
+    // BOOLEAN
+    // TIME
+    // DATE
+    // DATEONLY
+    // HSTORE
+    // JSONB
+    // UUID
+    // UUIDV1
+    // UUIDV4
+    // VIRTUAL
+    // INET
+    // MACADDR
 
-      if (type === 'INTEGER[]' || type === 'STRING[]') {
-        arrayType = `${prefix}${type.replace('[]', '')}`;
-      } else {
-        arrayType = (col.seqType === 'Sequelize.ARRAY(Sequelize.INTEGER)') ? `${prefix}INTEGER` : `${prefix}STRING`;
-      }
-
-      return prefix + `ARRAY(${arrayType})`;
-
-    case DataTypes.RANGE.key:
-      console.warn(`${attrName} type not supported, so we are going to guess...`);
-      return `${prefix}${attrObj.toSql()}`;
-
-    default:
-      // BOOLEAN
-      // TIME
-      // DATE
-      // DATEONLY
-      // HSTORE
-      // JSONB
-      // UUID
-      // UUIDV1
-      // UUIDV4
-      // VIRTUAL
-      // INET
-      // MACADDR
-
-      return `${prefix}${attrName}`;
+    return `${prefix}${attrName}`;
   }
-};
+}
 
 function reverseSequelizeDefValueType(defaultValue, prefix = 'Sequelize.') {
   if (typeof defaultValue === 'object') {
     if (defaultValue.constructor && defaultValue.constructor.name) {
       return {
         internal: true,
-        value:    `${prefix}${defaultValue.constructor.name}`
+        value:    `${prefix}${defaultValue.constructor.name}`,
       };
     }
   }
 
-  if (typeof defaultValue === 'function')
+  if (typeof defaultValue === 'function') {
     return {
       notSupported: true,
-      value:        ''
+      value:        '',
     };
+  }
 
   return {
-    value: defaultValue
+    value: defaultValue,
   };
-};
+}
 
 function parseIndex(index) {
   delete index.parser;
@@ -152,7 +152,7 @@ function parseIndex(index) {
   if (index.type === '')
     delete index.type;
 
-  var options = {};
+  let options = {};
 
   if (index.name)
     options.name = options.indexName = index.name; // The name of the index. Default is __
@@ -172,29 +172,29 @@ function parseIndex(index) {
   index.hash = hash(index);
 
   return index;
-};
+}
 
 function reverseModels(sequelize, models) {
-  var tables = {};
+  let tables = {};
 
   delete models.default;
 
-  for (var model in models) {
-    var attributes = models[model].attributes || models[model].rawAttributes;
+  for (let model in models) {
+    let attributes = models[model].attributes || models[model].rawAttributes;
 
-    for (var column in attributes) {
+    for (let column in attributes) {
       delete attributes[column].Model;
       delete attributes[column].fieldName;
       // delete attributes[column].field;
 
-      for (var property in attributes[column]) {
+      for (let property in attributes[column]) {
         if (property.startsWith('_')) {
           delete attributes[column][property];
           continue;
         }
 
         if (property === 'defaultValue') {
-          var value = reverseSequelizeDefValueType(attributes[column][property]);
+          let value = reverseSequelizeDefValueType(attributes[column][property]);
           if (value.notSupported) {
             log(`[Not supported] Skip defaultValue column of attribute ${model}:${column}`);
             delete attributes[column][property];
@@ -204,9 +204,9 @@ function reverseModels(sequelize, models) {
           attributes[column][property] = value;
         }
 
-        if (property === 'validate') {
+        if (property === 'validate')
           delete attributes[column][property];
-        }
+
 
         // remove getters, setters...
         if (typeof attributes[column][property] === 'function')
@@ -230,7 +230,7 @@ function reverseModels(sequelize, models) {
         }
       }
 
-      var seqType = reverseSequelizeColType(attributes[column]);
+      let seqType = reverseSequelizeColType(attributes[column]);
 
       // NO virtual types in migration
       if (seqType === 'Sequelize.VIRTUAL') {
@@ -259,9 +259,9 @@ function reverseModels(sequelize, models) {
     };
 
     if (models[model].options.indexes.length > 0) {
-      var indexOut = {};
-      for (var i in models[model].options.indexes) {
-        var index = parseIndex(models[model].options.indexes[i]);
+      let indexOut = {};
+      for (let i in models[model].options.indexes) {
+        let index = parseIndex(models[model].options.indexes[i]);
         indexOut[index.hash + ''] = index;
         delete index.hash;
 
@@ -272,37 +272,37 @@ function reverseModels(sequelize, models) {
       models[model].options.indexes = indexOut;
     }
 
-    if (typeof models[model].options.charset !== 'undefined') {
+    if (typeof models[model].options.charset !== 'undefined')
       tables[models[model].tableName].charset = models[model].options.charset;
-    }
+
 
     tables[models[model].tableName].indexes = models[model].options.indexes;
   }
 
   return tables;
-};
+}
 
 function parseDifference(previousState, currentState) {
   const addAction = (actions, difference) => {
     // new table created
     if (difference.path.length === 1) {
-      var depends   = [];
-      var tableName = difference.rhs.tableName;
+      let depends   = [];
+      let tableName = difference.rhs.tableName;
 
-      var schema      = difference.rhs.schema;
-      var schemaKeys  = Object.keys(schema);
-      for (var i = 0, il = schemaKeys.length; i < il; i++) {
-        var schemaKey = schemaKeys[i];
-        var item      = schema[schemaKey];
+      let schema      = difference.rhs.schema;
+      let schemaKeys  = Object.keys(schema);
+      for (let i = 0, il = schemaKeys.length; i < il; i++) {
+        let schemaKey = schemaKeys[i];
+        let item      = schema[schemaKey];
 
         if (item.references)
           depends.push(item.references.model);
       }
 
-      var options = {};
-      if (typeof difference.rhs.charset !== 'undefined') {
+      let options = {};
+      if (typeof difference.rhs.charset !== 'undefined')
         options.charset = difference.rhs.charset;
-      }
+
 
       actions.push({
         actionType: 'createTable',
@@ -314,7 +314,7 @@ function parseDifference(previousState, currentState) {
 
       // create indexes
       if (difference.rhs.indexes) {
-        for (var i in difference.rhs.indexes) {
+        for (let i in difference.rhs.indexes) {
           actions.push(_.extend({
             actionType: 'addIndex',
             tableName:  tableName,
@@ -326,8 +326,8 @@ function parseDifference(previousState, currentState) {
       return;
     }
 
-    var tableName = difference.path[0];
-    var depends   = [ tableName ];
+    let tableName = difference.path[0];
+    let depends   = [ tableName ];
 
     if (difference.path[1] === 'schema') {
       // if (df.path.length === 3) - new field
@@ -350,7 +350,7 @@ function parseDifference(previousState, currentState) {
       // if (df.path.length > 3) - add new attribute to column (change col)
       if (difference.path.length > 3 && difference.path[1] === 'schema') {
         // new field attributes
-        var options = currentState[tableName].schema[difference.path[2]];
+        let options = currentState[tableName].schema[difference.path[2]];
         if (options.references)
           depends.push(options.references.nodel);
 
@@ -366,8 +366,8 @@ function parseDifference(previousState, currentState) {
 
     // new index
     if (difference.path[1] === 'indexes') {
-      var tableName = difference.path[0];
-      var index     = _.clone(difference.rhs);
+      let tableName = difference.path[0];
+      let index     = _.clone(difference.rhs);
 
       index.actionType  = 'addIndex';
       index.tableName   = tableName;
@@ -378,8 +378,8 @@ function parseDifference(previousState, currentState) {
   };
 
   const dropAction = (actions, difference) => {
-    var tableName = difference.path[0];
-    var depends   = [ tableName ];
+    let tableName = difference.path[0];
+    let depends   = [ tableName ];
 
     console.log('DROP ACTION: ', difference, difference.lhs.schema);
 
@@ -412,7 +412,7 @@ function parseDifference(previousState, currentState) {
       // if (df.path.length > 3) - drop attribute from column (change col)
       if (difference.path.length > 3) {
         // new field attributes
-        var options = currentState[tableName].schema[difference.path[2]];
+        let options = currentState[tableName].schema[difference.path[2]];
         if (options.references)
           depends.push(options.references.nodel);
 
@@ -440,12 +440,12 @@ function parseDifference(previousState, currentState) {
   };
 
   const editAction = (actions, difference) => {
-    var tableName = difference.path[0];
-    var depends   = [tableName];
+    let tableName = difference.path[0];
+    let depends   = [tableName];
 
     if (difference.path[1] === 'schema') {
       // new field attributes
-      var options = currentState[tableName].schema[difference.path[2]];
+      let options = currentState[tableName].schema[difference.path[2]];
       if (options.references)
         depends.push(options.references.nodel);
 
@@ -461,12 +461,12 @@ function parseDifference(previousState, currentState) {
     // updated index
     // only support updating and dropping indexes
     if (difference.path[1] === 'indexes') {
-      var tableName = difference.path[0];
-      var keys      = Object.keys(difference.rhs);
+      let tableName = difference.path[0];
+      let keys      = Object.keys(difference.rhs);
 
-      for (var k in keys) {
-        var key = keys[k];
-        // var index = _.clone(difference.rhs[key]);
+      for (let k in keys) {
+        let key = keys[k];
+        // let index = _.clone(difference.rhs[key]);
 
         actions.push({
           actionType: 'addIndex',
@@ -480,9 +480,9 @@ function parseDifference(previousState, currentState) {
       }
 
       keys = Object.keys(difference.lhs);
-      for (var k in keys) {
-        var key = keys[k];
-        // var index = _.clone(difference.lhs[key]);
+      for (let k in keys) {
+        let key = keys[k];
+        // let index = _.clone(difference.lhs[key]);
 
         actions.push({
           actionType: 'removeIndex',
@@ -497,36 +497,36 @@ function parseDifference(previousState, currentState) {
     }
   };
 
-  var actions     = [];
-  var differences = diff(previousState, currentState);
+  let actions     = [];
+  let differences = diff(previousState, currentState);
 
-  for (var key in differences) {
-    var difference = differences[key];
+  for (let key in differences) {
+    let difference = differences[key];
 
     switch (difference.kind) {
-      case 'N':
-        addAction(actions, difference);
-        break;
-      case 'D':
-        dropAction(actions, difference);
-        break;
-      case 'E':
-        editAction(actions, difference);
-        break;
-      case 'A':
-        // array change indexes
-        log("[Not supported] Array model changes! Problems are possible. Please, check result more carefully!");
-        log("[Not supported] Difference: ");
-        log(JSON.stringify(difference, null, 2));
-        break;
+    case 'N':
+      addAction(actions, difference);
+      break;
+    case 'D':
+      dropAction(actions, difference);
+      break;
+    case 'E':
+      editAction(actions, difference);
+      break;
+    case 'A':
+      // array change indexes
+      log('[Not supported] Array model changes! Problems are possible. Please, check result more carefully!');
+      log('[Not supported] Difference: ');
+      log(JSON.stringify(difference, null, 2));
+      break;
     }
   }
 
   return actions;
-};
+}
 
 function sortActions(_actions, debug) {
-  var orderedActionTypes = [
+  let orderedActionTypes = [
     'removeIndex',
     'removeColumn',
     'dropTable',
@@ -536,21 +536,21 @@ function sortActions(_actions, debug) {
     'addIndex',
   ];
 
-  var actions = _actions.slice();
+  let actions = _actions.slice();
 
   // remove duplicate changeColumns
 
   // TODO: Dangerous code... modifying an array while iterating
   // Fix by duplicating array
-  for (var i = 1; i < actions.length; i++) {
-    if (_.isEqual(actions[i], actions[i - 1])) {
+  for (let i = 1; i < actions.length; i++) {
+    if (_.isEqual(actions[i], actions[i - 1]))
       actions.splice(i, 1);
-    }
+
   }
 
   actions.sort((a, b) => {
-    var x = orderedActionTypes.indexOf(a.actionType);
-    var y = orderedActionTypes.indexOf(b.actionType);
+    let x = orderedActionTypes.indexOf(a.actionType);
+    let y = orderedActionTypes.indexOf(b.actionType);
 
     if (x < y) {
       if (debug)
@@ -606,14 +606,14 @@ function sortActions(_actions, debug) {
   });
 
   return actions;
-};
+}
 
 function getPartialMigration(actions) {
-  var literals = [];
+  let literals = [];
 
   const newLiteral = (value) => {
-    var index           = literals.length;
-    var literalTemplate = `@@@@@${index}@@@@@`;
+    let index           = literals.length;
+    let literalTemplate = `@@@@@${index}@@@@@`;
 
     literals.push(value);
 
@@ -621,8 +621,8 @@ function getPartialMigration(actions) {
   };
 
   const reinsertLiterals = (finalString) => {
-    var result = finalString.replace(/"@@@@@(\d+)@@@@@"/g, function(m, _index) {
-      var index = parseInt(_index, 10);
+    let result = finalString.replace(/"@@@@@(\d+)@@@@@"/g, function(m, _index) {
+      let index = parseInt(_index, 10);
       return literals[index];
     });
 
@@ -633,14 +633,14 @@ function getPartialMigration(actions) {
   };
 
   const objectToSingleLineJSON = (obj) => {
-    var keys  = Object.keys(obj);
-    var parts = [];
+    let keys  = Object.keys(obj);
+    let parts = [];
 
     keys = keys.sort().reverse();
 
-    for (var i = 0, il = keys.length; i < il; i++) {
-      var key   = keys[i];
-      var value = obj[key];
+    for (let i = 0, il = keys.length; i < il; i++) {
+      let key   = keys[i];
+      let value = obj[key];
 
       if (value === undefined || typeof value === 'function')
         continue;
@@ -655,12 +655,12 @@ function getPartialMigration(actions) {
   };
 
   const coercePropertyObjectKeys = (obj) => {
-    var keys    = Object.keys(obj);
-    var newObj  = {};
+    let keys    = Object.keys(obj);
+    let newObj  = {};
 
-    for (var i = 0, il = keys.length; i < il; i++) {
-      var key   = keys[i];
-      var value = obj[key];
+    for (let i = 0, il = keys.length; i < il; i++) {
+      let key   = keys[i];
+      let value = obj[key];
 
       if (key === 'seqType') {
         key   = 'type';
@@ -687,12 +687,12 @@ function getPartialMigration(actions) {
   };
 
   const getAttributes = (attrs) => {
-    var newObj  = {};
-    var keys    = Object.keys(attrs);
+    let newObj  = {};
+    let keys    = Object.keys(attrs);
 
-    for (var i = 0, il = keys.length; i < il; i++) {
-      var key   = keys[i];
-      var value = attrs[key];
+    for (let i = 0, il = keys.length; i < il; i++) {
+      let key   = keys[i];
+      let value = attrs[key];
 
       newObj[key] = coercePropertyObjectKeys(value);
     }
@@ -705,12 +705,12 @@ function getPartialMigration(actions) {
   };
 
   const createActionString = (action, actionName, params) => {
-    var serialized = JSON.stringify({
+    let serialized = JSON.stringify({
       actionName: actionName,
       params:     params.concat(addTransactionToOptions(action.options)),
     }, undefined, 2);
 
-    var result = reinsertLiterals(serialized);
+    let result = reinsertLiterals(serialized);
 
     literals = [];
 
@@ -765,9 +765,9 @@ function getPartialMigration(actions) {
   };
 
   const addIndexAction = (action) => {
-    var nameOrAttrs = (action.options && action.options.indexName && action.options.indexName !== '')
-                        ? action.options.indexName
-                        : action.fields;
+    let nameOrAttrs = (action.options && action.options.indexName && action.options.indexName !== '')
+      ? action.options.indexName
+      : action.fields;
 
     commands.push(createActionString(action, 'addIndex', [
       action.tableName,
@@ -779,9 +779,9 @@ function getPartialMigration(actions) {
   };
 
   const removeIndexAction = (action) => {
-    var nameOrAttrs = (action.options && action.options.indexName && action.options.indexName !== '')
-                        ? action.options.indexName
-                        : action.fields;
+    let nameOrAttrs = (action.options && action.options.indexName && action.options.indexName !== '')
+      ? action.options.indexName
+      : action.fields;
 
     commands.push(createActionString(action, 'removeIndex', [
       action.tableName,
@@ -792,34 +792,34 @@ function getPartialMigration(actions) {
     consoleOut.push(`removeIndex ${JSON.stringify(nameOrAttrs)} from table "${action.tableName}"`);
   };
 
-  var commands    = [];
-  var consoleOut  = [];
+  let commands    = [];
+  let consoleOut  = [];
 
-  for (var i in actions) {
-    var action = actions[i];
+  for (let i in actions) {
+    let action = actions[i];
 
     switch (action.actionType) {
-      case 'createTable':
-        createTableAction(action);
-        break;
-      case 'dropTable':
-        dropTableAction(action);
-        break;
-      case 'addColumn':
-        addColumnAction(action);
-        break;
-      case 'removeColumn':
-        removeColumnAction(action);
-        break;
-      case 'changeColumn':
-        changeColumnAction(action);
-        break;
-      case 'addIndex':
-        addIndexAction(action);
-        break;
-      case 'removeIndex':
-        removeIndexAction(action);
-        break;
+    case 'createTable':
+      createTableAction(action);
+      break;
+    case 'dropTable':
+      dropTableAction(action);
+      break;
+    case 'addColumn':
+      addColumnAction(action);
+      break;
+    case 'removeColumn':
+      removeColumnAction(action);
+      break;
+    case 'changeColumn':
+      changeColumnAction(action);
+      break;
+    case 'addIndex':
+      addIndexAction(action);
+      break;
+    case 'removeIndex':
+      removeIndexAction(action);
+      break;
     }
   }
 
@@ -827,13 +827,13 @@ function getPartialMigration(actions) {
     commands,
     consoleOut,
   };
-};
+}
 
 function getMigration(upActions, downActions) {
-  var commandsDown;
-  var commandsUp;
-  var consoleOut;
-  var migration;
+  let commandsDown;
+  let commandsUp;
+  let consoleOut;
+  let migration;
 
   migration     = getPartialMigration(upActions);
   commandsUp    = migration.commands;
@@ -847,21 +847,21 @@ function getMigration(upActions, downActions) {
     commandsDown,
     consoleOut,
   };
-};
+}
 
 function writeMigration(revision, migration, migrationsDir, _name = '', comment = '') {
-  var commandsUp   = `function migrationCommands(transaction, Sequelize) {\n  return [ \n${migration.commandsUp.join(", \n")} \n  ];\n};\n`;
-  var commandsDown = `function rollbackCommands(transaction, Sequelize) {\n  return [ \n${migration.commandsDown.join(", \n")} \n  ];\n};\n`;
-  var actions      = ` * ${migration.consoleOut.join("\n * ")}`;
+  let commandsUp   = `function migrationCommands(transaction, Sequelize) {\n  return [ \n${migration.commandsUp.join(', \n')} \n  ];\n};\n`;
+  let commandsDown = `function rollbackCommands(transaction, Sequelize) {\n  return [ \n${migration.commandsDown.join(', \n')} \n  ];\n};\n`;
+  let actions      = ` * ${migration.consoleOut.join('\n * ')}`;
 
-  var info = {
+  let info = {
     created: new Date(),
     revision,
     name,
     comment,
   };
 
-  var template = `'use strict';
+  let template = `'use strict';
 
 /**
  * Actions summary:
@@ -870,21 +870,21 @@ ${actions}
  *
  **/
 
-var info = ${JSON.stringify(info, null, 2)};
+let info = ${JSON.stringify(info, null, 2)};
 
 ${commandsUp}
 ${commandsDown}
 
 module.exports = {
   execute: function(queryInterface, Sequelize, _commands, useTransaction, position) {
-    var index = position || 0;
+    let index = position || 0;
     function run(transaction) {
-      var commands = _commands(transaction, Sequelize);
+      let commands = _commands(transaction, Sequelize);
 
       return new Promise(function(resolve, reject) {
         function next() {
           if (index < commands.length) {
-            var command = commands[index];
+            let command = commands[index];
             console.log(\`[\${index}] execute: \${command.actionName}\`);
 
             index++;
@@ -915,8 +915,8 @@ module.exports = {
 };
 `;
 
-  var name      = _name.replace(/\W+/g, '_');
-  var filename  = Path.join(migrationsDir, `${revision}${((name !== '') ? `-${name}` : '')}.js`);
+  let name      = _name.replace(/\W+/g, '_');
+  let filename  = Path.join(migrationsDir, `${revision}${((name !== '') ? `-${name}` : '')}.js`);
 
   FileSystem.writeFileSync(filename, template);
 
@@ -924,10 +924,10 @@ module.exports = {
     filename,
     info,
   };
-};
+}
 
 async function executeMigration(queryInterface, filename, useTransaction, position, rollback) {
-  var migration = require(filename);
+  let migration = require(filename);
 
   if (!migration)
     return;
@@ -937,10 +937,10 @@ async function executeMigration(queryInterface, filename, useTransaction, positi
       return;
 
     return await migration.down.call(migration, queryInterface, Sequelize, useTransaction, position);
-  } else {
+  } else
     return await migration.up.call(migration, queryInterface, Sequelize, useTransaction, position);
-  }
-};
+
+}
 
 module.exports = {
   executeMigration,

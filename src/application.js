@@ -1,3 +1,7 @@
+'use strict';
+
+/* global process, __dirname */
+
 const Nife                    = require('nife');
 const Path                    = require('path');
 const EventEmitter            = require('events');
@@ -13,8 +17,11 @@ const {
   walkDir,
 } = require('./utils');
 
+const MILLISECONDS_PER_SECOND = 1000;
+const TASK_MAX_FAIL_ATTEMPTS = 5;
+
 function nowInSeconds() {
-  return Date.now() / 1000;
+  return Date.now() / MILLISECONDS_PER_SECOND;
 }
 
 // Trace what is requesting the application exit
@@ -26,7 +33,7 @@ function nowInSeconds() {
 //   };
 // })(process.exit);
 
-var globalTaskRunID = 1;
+let globalTaskRunID = 1;
 
 class Application extends EventEmitter {
   static APP_NAME = 'mythix';
@@ -34,9 +41,9 @@ class Application extends EventEmitter {
   constructor(_opts) {
     super();
 
-    var ROOT_PATH = (_opts && _opts.rootPath) ? _opts.rootPath : Path.resolve(__dirname);
+    let ROOT_PATH = (_opts && _opts.rootPath) ? _opts.rootPath : Path.resolve(__dirname);
 
-    var opts = Nife.extend(true, {
+    let opts = Nife.extend(true, {
       appName:          this.constructor.APP_NAME,
       rootPath:         ROOT_PATH,
       configPath:       Path.resolve(ROOT_PATH, 'config'),
@@ -149,11 +156,11 @@ class Application extends EventEmitter {
   }
 
   async autoReload(_set, shuttingDown) {
-    var options = this.getOptions();
+    let options = this.getOptions();
     if (arguments.length === 0)
       return options.autoReload;
 
-    var set = !!_set;
+    let set = !!_set;
 
     if (!shuttingDown)
       options.autoReload = set;
@@ -172,7 +179,7 @@ class Application extends EventEmitter {
     if (!set)
       return;
 
-    var getFileScope = (path) => {
+    let getFileScope = (path) => {
       if (path.substring(0, options.controllersPath.length) === options.controllersPath)
         return 'controllers';
 
@@ -189,8 +196,8 @@ class Application extends EventEmitter {
       if (filesChangedTimeout)
         clearTimeout(filesChangedTimeout);
 
-      var scopeName = getFileScope(path);
-      var scope     = filesChangedQueue[scopeName];
+      let scopeName = getFileScope(path);
+      let scope     = filesChangedQueue[scopeName];
       if (!scope)
         scope = filesChangedQueue[scopeName] = {};
 
@@ -204,8 +211,8 @@ class Application extends EventEmitter {
       }, 500);
     };
 
-    var filesChangedQueue = {};
-    var filesChangedTimeout;
+    let filesChangedQueue = {};
+    let filesChangedTimeout;
 
     this.fileWatcher = chokidar.watch([ options.modelsPath, options.controllersPath, options.tasksPath ], {
       persistent:     true,
@@ -224,27 +231,29 @@ class Application extends EventEmitter {
     const flushRequireCache = (path) => {
       try {
         delete require.cache[require.resolve(path)];
-      } catch (error) {}
+      } catch (error) {
+        console.error('Error while trying to flush require cache to reload modified files: ', error);
+      }
     };
 
-    const flushRequireCacheForFiles = (type, files) => {
-      for (var i = 0, il = files.length; i < il; i++) {
-        var fileName = files[i];
+    const flushRequireCacheForFiles = (type, filesToFlushCache) => {
+      for (let i = 0, il = filesToFlushCache.length; i < il; i++) {
+        let fileName = filesToFlushCache[i];
         flushRequireCache(fileName);
 
         this.getLogger().info(`Loading ${type} ${fileName}...`);
       }
-    }
+    };
 
-    var options   = this.getOptions();
-    var handlers  = {
+    let options   = this.getOptions();
+    let handlers  = {
       'controllers': {
         type:           'controller',
         reloadHandler:  async () => {
           if (!this.server)
             return;
 
-          var controllers = await this.loadControllers(options.controllersPath, this.server);
+          let controllers = await this.loadControllers(options.controllersPath, this.server);
           this.controllers = controllers;
         },
       },
@@ -254,7 +263,7 @@ class Application extends EventEmitter {
           if (!options.database)
             return;
 
-          var models = await this.loadModels(options.modelsPath, options.database);
+          let models = await this.loadModels(options.modelsPath, options.database);
           this.models = models;
         },
       },
@@ -263,7 +272,7 @@ class Application extends EventEmitter {
         reloadHandler:  async () => {
           await this.waitForAllTasksToFinish();
 
-          var tasks = await this.loadTasks(options.tasksPath, options.database);
+          let tasks = await this.loadTasks(options.tasksPath, options.database);
 
           this.tasks    = tasks;
           this.taskInfo = { _startTime: nowInSeconds() };
@@ -273,17 +282,17 @@ class Application extends EventEmitter {
       },
     };
 
-    var handlerNames = Object.keys(handlers);
-    for (var i = 0, il = handlerNames.length; i < il; i++) {
-      var handlerName = handlerNames[i];
-      var handler     = handlers[handlerName];
-      var scope       = files[handlerName];
-      var fileNames   = Object.keys(scope || {});
+    let handlerNames = Object.keys(handlers);
+    for (let i = 0, il = handlerNames.length; i < il; i++) {
+      let handlerName = handlerNames[i];
+      let handler     = handlers[handlerName];
+      let scope       = files[handlerName];
+      let fileNames   = Object.keys(scope || {});
 
       if (Nife.isEmpty(fileNames))
         continue;
 
-      var {
+      let {
         type,
         reloadHandler,
       } = handler;
@@ -312,7 +321,7 @@ class Application extends EventEmitter {
     if (!opts)
       return;
 
-    var options = this.getOptions();
+    let options = this.getOptions();
     Nife.extend(true, options, opts);
 
     return this;
@@ -329,7 +338,7 @@ class Application extends EventEmitter {
   }
 
   getConfigValue(key, defaultValue, type) {
-    var result = this.config.ENV(key, defaultValue);
+    let result = this.config.ENV(key, defaultValue);
 
     // Coerce to type, if type was specified
     if (type)
@@ -348,7 +357,7 @@ class Application extends EventEmitter {
   }
 
   getApplicationName() {
-    var options = this.getOptions();
+    let options = this.getOptions();
     return options.appName;
   }
 
@@ -362,20 +371,20 @@ class Application extends EventEmitter {
           return false;
 
         return true;
-      }
+      },
     });
   }
 
   loadModels(modelsPath, dbConfig) {
-    var modelFiles  = this.getModelFilePaths(modelsPath);
-    var models      = {};
-    var args        = { application: this, Sequelize, connection: this.dbConnection, dbConfig };
+    let modelFiles  = this.getModelFilePaths(modelsPath);
+    let models      = {};
+    let args        = { application: this, Sequelize, connection: this.dbConnection, dbConfig };
 
-    for (var i = 0, il = modelFiles.length; i < il; i++) {
-      var modelFile = modelFiles[i];
+    for (let i = 0, il = modelFiles.length; i < il; i++) {
+      let modelFile = modelFiles[i];
 
       try {
-        var modelGenerator = require(modelFile);
+        let modelGenerator = require(modelFile);
         if (modelGenerator['default'] && typeof modelGenerator['default'] === 'function')
           modelGenerator = modelGenerator['default'];
 
@@ -401,7 +410,7 @@ class Application extends EventEmitter {
   }
 
   getModel(name) {
-    var models = this.models;
+    let models = this.models;
     return models[name];
   }
 
@@ -419,20 +428,20 @@ class Application extends EventEmitter {
           return false;
 
         return true;
-      }
+      },
     });
   }
 
   loadControllers(controllersPath, server) {
-    var controllerFiles = this.getControllerFilePaths(controllersPath);
-    var controllers     = {};
-    var args            = { application: this, server };
+    let controllerFiles = this.getControllerFilePaths(controllersPath);
+    let controllers     = {};
+    let args            = { application: this, server };
 
-    for (var i = 0, il = controllerFiles.length; i < il; i++) {
-      var controllerFile = controllerFiles[i];
+    for (let i = 0, il = controllerFiles.length; i < il; i++) {
+      let controllerFile = controllerFiles[i];
 
       try {
-        var controllerGenerator = require(controllerFile);
+        let controllerGenerator = require(controllerFile);
         if (controllerGenerator['default'] && typeof controllerGenerator['default'] === 'function')
           controllerGenerator = controllerGenerator['default'];
 
@@ -456,9 +465,9 @@ class Application extends EventEmitter {
   }
 
   getController(name) {
-    var controllers     = this.controllers;
-    var controllerName  = name.replace(/(.*?)\b\w+$/, '$1');
-    var methodName      = name.substring(controllerName.length);
+    let controllers     = this.controllers;
+    let controllerName  = name.replace(/(.*?)\b\w+$/, '$1');
+    let methodName      = name.substring(controllerName.length);
     if (!methodName)
       methodName = undefined;
 
@@ -475,12 +484,12 @@ class Application extends EventEmitter {
   }
 
   getCustomRouteParserTypes() {
-    var options = this.getOptions();
+    let options = this.getOptions();
     return options.routeParserTypes;
   }
 
   buildRoutes(server, routes) {
-    var customParserTypes = this.getCustomRouteParserTypes(server, routes);
+    let customParserTypes = this.getCustomRouteParserTypes(server, routes);
     return buildRoutes(routes, customParserTypes);
   }
 
@@ -494,20 +503,20 @@ class Application extends EventEmitter {
           return false;
 
         return true;
-      }
+      },
     });
   }
 
   loadTasks(tasksPath, dbConfig) {
-    var taskFiles = this.getTaskFilePaths(tasksPath);
-    var tasks     = {};
-    var args      = { application: this, Sequelize, connection: this.dbConnection, dbConfig };
+    let taskFiles = this.getTaskFilePaths(tasksPath);
+    let tasks     = {};
+    let args      = { application: this, Sequelize, connection: this.dbConnection, dbConfig };
 
-    for (var i = 0, il = taskFiles.length; i < il; i++) {
-      var taskFile = taskFiles[i];
+    for (let i = 0, il = taskFiles.length; i < il; i++) {
+      let taskFile = taskFiles[i];
 
       try {
-        var taskGenerator = require(taskFile);
+        let taskGenerator = require(taskFile);
         if (taskGenerator['default'] && typeof taskGenerator['default'] === 'function')
           taskGenerator = taskGenerator['default'];
 
@@ -533,7 +542,7 @@ class Application extends EventEmitter {
   async runTasks() {
     const executeTask = (TaskKlass, taskIndex, taskInfo, lastTime, currentTime, diff) => {
       const createTaskLogger = () => {
-        var logger = this.getLogger();
+        let logger = this.getLogger();
         return logger.clone({ formatter: (output) => `[[ Running task ${taskName}[${taskIndex}](${runID}) @ ${currentTime} ]]: ${output}`});
       };
 
@@ -543,7 +552,7 @@ class Application extends EventEmitter {
       };
 
       const errorResult = (error) => {
-        var thisLogger = logger;
+        let thisLogger = logger;
         if (!thisLogger)
           thisLogger = this.getLogger();
 
@@ -553,32 +562,34 @@ class Application extends EventEmitter {
       };
 
       const runTask = () => {
-        var result = taskInstance.execute(lastTime, currentTime, diff);
+        let result = taskInstance.execute(lastTime, currentTime, diff);
 
         if (Nife.instanceOf(result, 'promise')) {
           result.then(
             successResult,
             errorResult,
           );
-        } else {
+        } else
           promise.resolve(result);
-        }
+
       };
 
-      var taskName      = TaskKlass.taskName;
-      var promise       = Nife.createResolvable();
-      var taskInstance  = taskInfo.taskInstance;
-      var runID;
-      var logger;
+      let taskName      = TaskKlass.taskName;
+      let promise       = Nife.createResolvable();
+      let taskInstance  = taskInfo.taskInstance;
+      let runID;
+      let logger;
 
       if (!TaskKlass.keepAlive || !taskInstance) {
         globalTaskRunID++;
+
+        // eslint-disable-next-line no-magic-numbers
         runID = `${Math.floor(Date.now() + (Math.random() * 1000000)) + globalTaskRunID}-${taskIndex}`;
       }
 
       taskInfo.runID = runID;
 
-       // No op, since promises are handled differently here
+      // No op, since promises are handled differently here
       promise.then(() => {}, () => {});
 
       try {
@@ -601,10 +612,10 @@ class Application extends EventEmitter {
     };
 
     const handleTask = (taskName, taskKlass, taskInfo, taskIndex, failAfterAttempts) => {
-      var lastTime      = taskInfo.lastTime;
-      var startTime     = lastTime || allTasksInfo._startTime;
-      var diff          = (currentTime - startTime);
-      var lastRunStatus = (taskInfo && taskInfo.promise && taskInfo.promise.status());
+      let lastTime      = taskInfo.lastTime;
+      let startTime     = lastTime || allTasksInfo._startTime;
+      let diff          = (currentTime - startTime);
+      let lastRunStatus = (taskInfo && taskInfo.promise && taskInfo.promise.status());
 
       if (lastRunStatus === 'pending')
         return;
@@ -630,11 +641,11 @@ class Application extends EventEmitter {
     };
 
     const handleTaskQueue = (taskName, taskKlass, infoForTasks) => {
-      var failAfterAttempts = taskKlass.failAfterAttempts || 5;
-      var workers           = taskKlass.workers || 1;
+      let failAfterAttempts = taskKlass.failAfterAttempts || TASK_MAX_FAIL_ATTEMPTS;
+      let workers           = taskKlass.workers || 1;
 
-      for (var taskIndex = 0; taskIndex < workers; taskIndex++) {
-        var taskInfo = infoForTasks[taskIndex];
+      for (let taskIndex = 0; taskIndex < workers; taskIndex++) {
+        let taskInfo = infoForTasks[taskIndex];
         if (!taskInfo)
           taskInfo = infoForTasks[taskIndex] = { failedCount: 0, promise: null, stop: false };
 
@@ -643,20 +654,20 @@ class Application extends EventEmitter {
 
         handleTask(taskName, taskKlass, taskInfo, taskIndex, failAfterAttempts);
       }
-    }
+    };
 
-    var currentTime   = nowInSeconds();
-    var allTasksInfo  = this.taskInfo;
-    var tasks         = this.tasks;
-    var taskNames     = Object.keys(tasks);
+    let currentTime   = nowInSeconds();
+    let allTasksInfo  = this.taskInfo;
+    let tasks         = this.tasks;
+    let taskNames     = Object.keys(tasks);
 
-    for (var i = 0, il = taskNames.length; i < il; i++) {
-      var taskName  = taskNames[i];
-      var taskKlass = tasks[taskName];
+    for (let i = 0, il = taskNames.length; i < il; i++) {
+      let taskName  = taskNames[i];
+      let taskKlass = tasks[taskName];
       if (taskKlass.enabled === false)
         continue;
 
-      var tasksInfo = allTasksInfo[taskName];
+      let tasksInfo = allTasksInfo[taskName];
       if (!tasksInfo)
         tasksInfo = allTasksInfo[taskName] = [];
 
@@ -665,7 +676,7 @@ class Application extends EventEmitter {
   }
 
   stopTasks() {
-    var intervalTimerID = (this.tasks && this.tasks._intervalTimerID);
+    let intervalTimerID = (this.tasks && this.tasks._intervalTimerID);
     if (intervalTimerID) {
       clearInterval(intervalTimerID);
       this.tasks._intervalTimerID = null;
@@ -683,40 +694,40 @@ class Application extends EventEmitter {
         writable:     true,
         enumberable:  false,
         configurable: true,
-        value:        setInterval(this.runTasks.bind(this), 1000),
+        value:        setInterval(this.runTasks.bind(this), 1 * MILLISECONDS_PER_SECOND),
       },
     });
 
-    if (flushTaskInfo !== false) {
+    if (flushTaskInfo !== false)
       this.taskInfo = { _startTime: nowInSeconds() };
-    } else {
+    else
       this.taskInfo._startTime = nowInSeconds();
-    }
+
   }
 
   iterateAllTaskInfos(callback) {
-    var tasks         = this.tasks;
-    var allTasksInfo  = this.taskInfo;
-    var taskNames     = Object.keys(tasks);
+    let tasks         = this.tasks;
+    let allTasksInfo  = this.taskInfo;
+    let taskNames     = Object.keys(tasks);
 
-    for (var i = 0, il = taskNames.length; i < il; i++) {
-      var taskName  = taskNames[i];
-      var tasksInfo = allTasksInfo[taskName];
+    for (let i = 0, il = taskNames.length; i < il; i++) {
+      let taskName  = taskNames[i];
+      let tasksInfo = allTasksInfo[taskName];
       if (!tasksInfo)
         continue;
 
-      for (var j = 0, jl = tasksInfo.length; j < jl; j++) {
-        var taskInfo = tasksInfo[j];
+      for (let j = 0, jl = tasksInfo.length; j < jl; j++) {
+        let taskInfo = tasksInfo[j];
         callback(taskInfo, j, taskName);
       }
     }
   }
 
   getAllTaskPromises() {
-    var promises = [];
+    let promises = [];
 
     this.iterateAllTaskInfos((taskInfo) => {
-      var promise = taskInfo.promise;
+      let promise = taskInfo.promise;
       if (promise)
         promises.push(promise);
     });
@@ -732,7 +743,7 @@ class Application extends EventEmitter {
     this.stopTasks();
 
     // Await on all running tasks to complete
-    var promises = this.getAllTaskPromises();
+    let promises = this.getAllTaskPromises();
     if (promises && promises.length) {
       try {
         await Promise.allSettled(promises);
@@ -744,7 +755,7 @@ class Application extends EventEmitter {
     promises = [];
 
     this.iterateAllTaskInfos((taskInfo) => {
-      var taskInstance = taskInfo.taskInstance;
+      let taskInstance = taskInfo.taskInstance;
       if (!taskInstance)
         return;
 
@@ -760,8 +771,8 @@ class Application extends EventEmitter {
     }
   }
 
-  createLogger(loggerOpts, Logger) {
-    return new Logger(loggerOpts);
+  createLogger(loggerOpts, LoggerClass) {
+    return new LoggerClass(loggerOpts);
   }
 
   getLogger() {
@@ -773,12 +784,12 @@ class Application extends EventEmitter {
 
   async connectToDatabase(databaseConfig) {
     if (!databaseConfig) {
-      this.getLogger().error(`Error: database connection options not defined`);
+      this.getLogger().error('Error: database connection options not defined');
       return;
     }
 
-    var sequelize = new Sequelize(databaseConfig);
-    var dbConnectionString;
+    let sequelize = new Sequelize(databaseConfig);
+    let dbConnectionString;
 
     if (Nife.instanceOf(databaseConfig, 'string'))
       dbConnectionString = databaseConfig;
@@ -802,7 +813,7 @@ class Application extends EventEmitter {
   }
 
   async createHTTPServer(options) {
-    var server = new HTTPServer(this, options);
+    let server = new HTTPServer(this, options);
 
     await server.start();
 
@@ -817,9 +828,9 @@ class Application extends EventEmitter {
   }
 
   async start() {
-    var options = this.getOptions();
+    let options = this.getOptions();
 
-    var databaseConfig = this.getConfigValue('database.{environment}');
+    let databaseConfig = this.getConfigValue('database.{environment}');
     if (!databaseConfig)
       databaseConfig = this.getConfigValue('database');
 
@@ -831,11 +842,11 @@ class Application extends EventEmitter {
         return;
       }
 
-      if (options.testMode) {
+      if (options.testMode)
         databaseConfig.logging = false;
-      } else {
+      else
         databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;
-      }
+
 
       databaseConfig.tablePrefix = this.getDBTablePrefix(databaseConfig.tablePrefix);
 
@@ -845,7 +856,7 @@ class Application extends EventEmitter {
     }
 
     if (options.httpServer !== false) {
-      var httpServerConfig = this.getConfigValue('httpServer.{environment}');
+      let httpServerConfig = this.getConfigValue('httpServer.{environment}');
       if (!httpServerConfig)
         httpServerConfig = this.getConfigValue('httpServer');
 
@@ -861,20 +872,20 @@ class Application extends EventEmitter {
     }
 
     if (options.database !== false) {
-      var models = await this.loadModels(options.modelsPath, databaseConfig);
+      let models = await this.loadModels(options.modelsPath, databaseConfig);
       this.models = models;
     }
 
     if (options.httpServer !== false) {
-      var controllers = await this.loadControllers(options.controllersPath, this.server);
+      let controllers = await this.loadControllers(options.controllersPath, this.server);
       this.controllers = controllers;
 
-      var routes = await this.buildRoutes(this.server, this.getRoutes());
+      let routes = await this.buildRoutes(this.server, this.getRoutes());
       this.server.setRoutes(routes);
     }
 
     if (options.runTasks !== false) {
-      var tasks = await this.loadTasks(options.tasksPath, databaseConfig);
+      let tasks = await this.loadTasks(options.tasksPath, databaseConfig);
       this.tasks = tasks;
 
       this.startTasks();
@@ -933,9 +944,9 @@ class Application extends EventEmitter {
 
       this.emit('stop');
 
-      var options = this.getOptions();
+      let options = this.getOptions();
       if (options.exitOnShutdown != null || exitCode != null) {
-        var code = (exitCode != null) ? exitCode : options.exitOnShutdown;
+        let code = (exitCode != null) ? exitCode : options.exitOnShutdown;
         this.emit('exit', code);
         process.exit(code);
       }

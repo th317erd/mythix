@@ -5,7 +5,7 @@ function getConfigKey(CONFIG, key) {
     if (!CONFIG.hasOwnProperty(name))
       return new TypeError(`ENV.getConfigKey: error, attempt to expand config value "{${name}}", but no such key exists`);
 
-    var value = CONFIG[name];
+    let value = CONFIG[name];
     if (!Nife.instanceOf(value, 'number', 'string', 'boolean', 'bigint'))
       throw new TypeError(`ENV.getConfigKey: error, attempt to expand config value "{${name}}", but value is wrong type: ${typeof value}`);
 
@@ -14,8 +14,8 @@ function getConfigKey(CONFIG, key) {
 }
 
 function ENV(_key, defaultValue) {
-  var key   = getConfigKey(this, _key);
-  var value = Nife.get(this, key);
+  let key   = getConfigKey(this, _key);
+  let value = Nife.get(this, key);
 
   if (value === undefined && process.env.hasOwnProperty(key))
     value = process.env[key];

@@ -1,3 +1,5 @@
+'use strict';
+
 class TaskBase {
   constructor(application, logger, runID) {
     Object.defineProperties(this, {
@@ -34,9 +36,9 @@ class TaskBase {
   }
 
   getLogger() {
-    var logger = this.logger;
+    let logger = this.logger;
     if (!logger) {
-      var application = this.getApplication();
+      let application = this.getApplication();
       logger = application.getLogger();
     }
 
@@ -48,22 +50,22 @@ class TaskBase {
   }
 
   getNumberOfWorkers() {
-    var workers = this.constructor.workers || 1;
+    let workers = this.constructor.workers || 1;
     return workers;
   }
 
   getModel(name) {
-    var application = this.application;
+    let application = this.application;
     return application.getModel(name);
   }
 
   getModels() {
-    var application = this.application;
+    let application = this.application;
     return application.getModels();
   }
 
   getDBConnection() {
-    var application = this.application;
+    let application = this.application;
     return application.getDBConnection();
   }
 
@@ -83,17 +85,17 @@ class TaskBase {
     return Klass;
   }
 
-  static getFrequency(Task, taskIndex) {
+  static getFrequency(Task /*, taskIndex */) {
     return Task._frequency || 0;
   }
 
   static getStartDelay(Task, taskIndex) {
-    var workers     = Task.workers || 1;
-    var frequency   = Task.getFrequency(taskIndex);
-    var startDelay  = Task._startDelay || 0;
+    let workers     = Task.workers || 1;
+    let frequency   = Task.getFrequency(taskIndex);
+    let startDelay  = Task._startDelay || 0;
 
     if (workers > 1) {
-      var shift = (frequency / workers);
+      let shift = (frequency / workers);
       startDelay = startDelay + (shift * taskIndex);
     }
 

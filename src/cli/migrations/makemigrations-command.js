@@ -1,11 +1,14 @@
-const Path              = require("path");
-const FileSystem        = require("fs");
+'use strict';
+
+const Path              = require('path');
+const FileSystem        = require('fs');
 const { defineCommand } = require('../cli-utils');
 const MigrationUtils    = require('./migration-utils');
 
 module.exports = defineCommand('makemigrations', ({ Parent }) => {
   return class MakeMigrationsCommand extends Parent {
     static description      = 'Create migration for current model schema';
+
     static commandArguments = `
       [-p,-preview:boolean(Preview what the generated migration would look like without migrating anything)]
       [-n,-name:string(Specify a name for your migration)]
@@ -13,28 +16,28 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
     `;
 
     getRevisionNumber() {
-      var date = new Date();
+      let date = new Date();
       return date.toISOString().replace(/\.[^.]+$/, '').replace(/\D/g, '');
     }
 
     execute(args) {
-      var application         = this.getApplication();
-      var applicationOptions  = application.getOptions();
-      var migrationsPath      = applicationOptions.migrationsPath;
+      let application         = this.getApplication();
+      let applicationOptions  = application.getOptions();
+      let migrationsPath      = applicationOptions.migrationsPath;
 
       // current state
-      var currentState = {
+      let currentState = {
         tables:   {},
         revision: this.getRevisionNumber(),
       };
 
       // load last state
-      var previousState = {
+      let previousState = {
         tables:   {},
         version:  0,
       };
 
-      var hasMigrations = true;
+      let hasMigrations = true;
 
       // try {
       //   previousState = JSON.parse(FileSystem.readFileSync(Path.join(migrationsPath, '_current.json')));
@@ -42,14 +45,14 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       //   hasMigrations = false;
       // }
 
-      var dbConnection = application.getDBConnection();
-      var models       = dbConnection.models;
+      let dbConnection = application.getDBConnection();
+      let models       = dbConnection.models;
 
       currentState.tables = MigrationUtils.reverseModels(dbConnection, models);
 
-      var upActions   = MigrationUtils.sortActions(MigrationUtils.parseDifference(previousState.tables, currentState.tables));
-      var downActions = MigrationUtils.sortActions(MigrationUtils.parseDifference(currentState.tables, previousState.tables), true);
-      var migration   = MigrationUtils.getMigration(upActions, downActions);
+      let upActions   = MigrationUtils.sortActions(MigrationUtils.parseDifference(previousState.tables, currentState.tables));
+      let downActions = MigrationUtils.sortActions(MigrationUtils.parseDifference(currentState.tables, previousState.tables), true);
+      let migration   = MigrationUtils.getMigration(upActions, downActions);
 
       if (migration.commandsUp.length === 0) {
         console.log('No changes found');
@@ -63,7 +66,7 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
 
       if (args.preview) {
         console.log('Migration result:');
-        console.log(`[ \n${migration.commandsUp.join(", \n")} \n];\n`);
+        console.log(`[ \n${migration.commandsUp.join(', \n')} \n];\n`);
         return;
       }
 
@@ -79,12 +82,16 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       currentState.version = previousState.version + 1;
       FileSystem.writeFileSync(Path.join(migrationsPath, '_current.json'), JSON.stringify(currentState, null, 2));
 
+      let migrationName = args.name;
+      if (!migrationName)
+        migrationName = (hasMigrations) ? 'noname' : 'initial';
+
       // write migration to file
-      var info = MigrationUtils.writeMigration(
+      let info = MigrationUtils.writeMigration(
         currentState.revision,
         migration,
         migrationsPath,
-        (args.name) ? args.name : (hasMigrations) ? 'noname' : 'initial',
+        migrationName,
         (args.comment) ? args.comment : '',
       );
 

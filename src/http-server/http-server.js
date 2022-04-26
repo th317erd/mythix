@@ -1,3 +1,7 @@
+'use strict';
+
+/* global process */
+
 const OS            = require('os');
 const Path          = require('path');
 const FileSystem    = require('fs');
@@ -20,16 +24,19 @@ const {
   statusCodeToMessage,
 } = require('./http-utils');
 
+const REQUEST_ID_POSTFIX_LENGTH = 4;
+const REQUEST_TIME_RESOLUTION = 3;
+
 class HTTPServer {
   constructor(application, _opts) {
-    var appName = application.getApplicationName();
+    let appName = application.getApplicationName();
 
-    var uploadPath = Path.resolve(OS.tmpdir(), appName.replace(/[^\w-]/g, ''), ('' + process.pid));
+    let uploadPath = Path.resolve(OS.tmpdir(), appName.replace(/[^\w-]/g, ''), ('' + process.pid));
 
-    var opts = Nife.extend(true, {
-      host:   'localhost',
-      port:   '8000',
-      https:  false,
+    let opts = Nife.extend(true, {
+      host:    'localhost',
+      port:    '8000',
+      https:   false,
       uploads: {
         upload:       true,
         path:         uploadPath,
@@ -76,7 +83,7 @@ class HTTPServer {
   }
 
   getLogger() {
-    var application = this.getApplication();
+    let application = this.getApplication();
     return application.getLogger();
   }
 
@@ -85,11 +92,11 @@ class HTTPServer {
   }
 
   getHTTPSCredentials(options) {
-    var keyContent = options.key;
+    let keyContent = options.key;
     if (!keyContent && options.keyPath)
       keyContent = FileSystem.readFileSync(options.keyPath, 'latin1');
 
-    var certContent = options.cert;
+    let certContent = options.cert;
     if (!certContent && options.certPath)
       certContent = FileSystem.readFileSync(options.certPath, 'latin1');
 
@@ -105,31 +112,33 @@ class HTTPServer {
 
   executeMiddleware(middleware, request, response) {
     return new Promise((resolve, reject) => {
-      if (Nife.isEmpty(middleware))
-        return resolve();
+      if (Nife.isEmpty(middleware)) {
+        resolve();
+        return;
+      }
 
-      var application = this.getApplication();
+      let application = this.getApplication();
       if (!request.mythixApplication)
         request.mythixApplication = application;
 
-      var logger = request.mythixLogger;
+      let logger = request.mythixLogger;
       if (!logger)
         logger = request.mythixLogger = this.createRequestLogger(application, request);
 
       if (!request.Sequelize)
         request.Sequelize = Sequelize;
 
-      var middlewareIndex = 0;
+      let middlewareIndex = 0;
       const next = async () => {
         if (middlewareIndex >= middleware.length)
           return resolve();
 
-        var middlewareFunc = middleware[middlewareIndex++];
+        let middlewareFunc = middleware[middlewareIndex++];
 
         try {
           await middlewareFunc.call(this, request, response, next);
         } catch (error) {
-          var statusCode  = error.statusCode || error.status_code || 500;
+          let statusCode  = error.statusCode || error.status_code || 500;
 
           if (error instanceof HTTPBaseError) {
             logger.log(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
@@ -153,7 +162,7 @@ class HTTPServer {
   }
 
   baseMiddleware(request, response, rootNext) {
-    var middleware = this.middleware;
+    let middleware = this.middleware;
     if (Nife.isEmpty(middleware))
       return rootNext();
 
@@ -162,13 +171,13 @@ class HTTPServer {
       (error) => {
         if (!(error instanceof HTTPBaseError))
           this.getApplication().error('Error in middleware: ', error);
-      }
+      },
     );
   }
 
   findFirstMatchingRoute(request, _routes) {
     const routeMatcher = (route, method, path, contentType) => {
-      var {
+      let {
         methodMatcher,
         contentTypeMatcher,
         pathMatcher,
@@ -177,7 +186,7 @@ class HTTPServer {
       if (typeof methodMatcher === 'function' && !methodMatcher(method))
         return;
 
-      var result = (typeof pathMatcher !== 'function') ? false : pathMatcher(path);
+      let result = (typeof pathMatcher !== 'function') ? false : pathMatcher(path);
       if (!result)
         return;
 
@@ -187,14 +196,14 @@ class HTTPServer {
       return result;
     };
 
-    var routes      = _routes || [];
-    var method      = request.method;
-    var contentType = Nife.get(request, 'headers.content-type');
-    var path        = request.path;
+    let routes      = _routes || [];
+    let method      = request.method;
+    let contentType = Nife.get(request, 'headers.content-type');
+    let path        = request.path;
 
-    for (var i = 0, il = routes.length; i < il; i++) {
-      var route   = routes[i];
-      var result  = routeMatcher(route, method, path, contentType);
+    for (let i = 0, il = routes.length; i < il; i++) {
+      let route   = routes[i];
+      let result  = routeMatcher(route, method, path, contentType);
       if (!result)
         continue;
 
@@ -205,7 +214,7 @@ class HTTPServer {
   }
 
   getRouteController(_controller, route, params, request) {
-    var controller = _controller;
+    let controller = _controller;
 
     if (typeof controller === 'function') {
       if (controller.constructor === Function.prototype.constructor) {
@@ -214,30 +223,30 @@ class HTTPServer {
           controller = this.getApplication().getController(controller);
         else if (typeof controller === 'function')
           controller = { controller };
-      } else {
+      } else
         controller = { controller };
-      }
+
     } else if (Nife.instanceOf(controller, 'string'))
       controller = this.getApplication().getController(controller);
 
     return controller;
   }
 
-  createRequestLogger(application, request, context) {
+  createRequestLogger(application, request /*, context */) {
     if (request.mythixLogger)
       return request.mythixLogger;
 
-    var logger        = application.getLogger();
-    var loggerMethod  = ('' + request.method).toUpperCase();
-    var loggerURL     = ('' + request.path);
-    var requestID     = (Date.now() + Math.random()).toFixed(4);
-    var ipAddress     = Nife.get(request, 'client.remoteAddress', '<unknown IP address>');
+    let logger        = application.getLogger();
+    let loggerMethod  = ('' + request.method).toUpperCase();
+    let loggerURL     = ('' + request.path);
+    let requestID     = (Date.now() + Math.random()).toFixed(REQUEST_ID_POSTFIX_LENGTH);
+    let ipAddress     = Nife.get(request, 'client.remoteAddress', '<unknown IP address>');
 
     return logger.clone({ formatter: (output) => `{${ipAddress}} - [#${requestID} ${loggerMethod} ${loggerURL}]: ${output}`});
   }
 
   validateQueryParam(route, query, paramName, queryValue, queryParams) {
-    var { validate } = queryParams;
+    let { validate } = queryParams;
     if (!validate)
       return true;
 
@@ -250,27 +259,27 @@ class HTTPServer {
   }
 
   compileQueryParams(route, query, queryParams) {
-    var finalQuery = Object.assign({}, query || {});
+    let finalQuery = Object.assign({}, query || {});
 
-    var paramNames = Object.keys(queryParams || {});
-    for (var i = 0, il = paramNames.length; i < il; i++) {
-      var paramName   = paramNames[i];
-      var queryParam  = queryParams[paramName];
+    let paramNames = Object.keys(queryParams || {});
+    for (let i = 0, il = paramNames.length; i < il; i++) {
+      let paramName   = paramNames[i];
+      let queryParam  = queryParams[paramName];
       if (!queryParam)
         continue;
 
-      var queryValue = finalQuery[paramName];
+      let queryValue = finalQuery[paramName];
       if (queryValue == null) {
         if (queryParam.required)
           throw new HTTPBadRequestError(route, `Query param "${paramName}" is required`);
 
-        if (queryParam.hasOwnProperty('defaultValue'))
+        if (Object.prototype.hasOwnProperty.call(queryParam, 'defaultValue'))
           finalQuery[paramName] = queryParam['defaultValue'];
       } else {
         if (!this.validateQueryParam(route, finalQuery, paramName, queryValue, queryParam))
           throw new HTTPBadRequestError(route, `Query param "${paramName}" is invalid`);
 
-        if (queryParam.hasOwnProperty('type'))
+        if (Object.prototype.hasOwnProperty.call(queryParam, 'type'))
           finalQuery[paramName] = Nife.coerceValue(queryValue, queryParam['type']);
       }
     }
@@ -278,44 +287,46 @@ class HTTPServer {
     return finalQuery;
   }
 
-  async sendRequestToController(...args) {
-    var context             = args[2];
-    var controllerInstance  = context.controllerInstance;
+  async sendRequestToController(request, response, context) {
+    let controllerInstance = context.controllerInstance;
 
     // Compile query params
     context.query = this.compileQueryParams(context.route, context.query, (context.route && context.route.queryParams));
 
-    var route = context.route;
+    let route = context.route;
 
     // Execute middleware if any exists
-    var middleware = (typeof controllerInstance.getMiddleware === 'function') ? controllerInstance.getMiddleware.call(controllerInstance, context) : [];
+    let middleware = (typeof controllerInstance.getMiddleware === 'function') ? controllerInstance.getMiddleware.call(controllerInstance, context) : [];
     if (route && Nife.instanceOf(route.middleware, 'array') && Nife.isNotEmpty(route.middleware))
       middleware = route.middleware.concat((middleware) ? middleware : []);
 
     if (Nife.isNotEmpty(middleware))
       await this.executeMiddleware(middleware, request, response);
 
-    return await controllerInstance.handleIncomingRequest.apply(controllerInstance, args);
+    return await controllerInstance.handleIncomingRequest.apply(controllerInstance, [ request, response, context ]);
   }
 
   async baseRouter(request, response, next) {
-    var startTime   = Nife.now();
-    var application = this.getApplication();
+    let startTime   = Nife.now();
+    let application = this.getApplication();
+    let controllerInstance;
+    let logger;
 
     try {
-      var logger = this.createRequestLogger(application, request, { controller, controllerMethod });
-
-      logger.log(`Starting request`);
-
-      var { route, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
+      let { route, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
 
       request.params = params || {};
 
-      var controller = this.getRouteController(route.controller, route, params, request);
-      var {
+      let _controller = this.getRouteController(route.controller, route, params, request);
+      let {
         controller,
         controllerMethod,
-      } = (controller || {});
+      } = (_controller || {});
+
+      let ControllerConstructor = controller;
+
+      logger = this.createRequestLogger(application, request, { controller, controllerMethod });
+      logger.log('Starting request');
 
       if (!controller)
         throw new HTTPInternalServerError(route, `Controller not found for route ${route.url}`);
@@ -323,9 +334,9 @@ class HTTPServer {
       if (Nife.isEmpty(controllerMethod))
         controllerMethod = (request.method || 'get').toLowerCase();
 
-      var controllerInstance = new controller(application, logger || application.getLogger(), request, response);
+      controllerInstance = new ControllerConstructor(application, logger || application.getLogger(), request, response);
 
-      var context = {
+      let context = {
         params: request.params,
         query:  request.query,
         route,
@@ -335,52 +346,57 @@ class HTTPServer {
         startTime,
       };
 
-      var controllerResult = await this.sendRequestToController(request, response, context);
+      let controllerResult = await this.sendRequestToController(request, response, context);
 
       if (!(response.finished || response.statusMessage))
         await controllerInstance.handleOutgoingResponse(controllerResult, request, response, context);
       else if (!response.finished)
         response.end();
 
-      var statusCode  = response.statusCode || 200;
-      var requestTime = Nife.now() - startTime;
-      logger.log(`Completed request in ${requestTime.toFixed(3)}ms: ${statusCode} ${response.statusMessage || statusCodeToMessage(statusCode)}`);
+      let statusCode  = response.statusCode || 200;
+      let requestTime = Nife.now() - startTime;
+
+      logger.log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: ${statusCode} ${response.statusMessage || statusCodeToMessage(statusCode)}`);
     } catch (error) {
       if ((error instanceof HTTPInternalServerError || !(error instanceof HTTPBaseError)) && application.getOptions().testMode)
         console.error(error);
 
+      let requestTime = Nife.now() - startTime;
+      let statusCode;
+
       try {
-        var statusCode  = error.statusCode || error.status_code || 500;
-        var requestTime = Nife.now() - startTime;
+        statusCode = error.statusCode || error.status_code || 500;
 
         if (controllerInstance && typeof controllerInstance.errorHandler === 'function')
           await controllerInstance.errorHandler(error, statusCode, request, response);
-        else if (error instanceof HTTPBaseError) {
+        else if (error instanceof HTTPBaseError)
           await this.errorHandler(error.getMessage(), statusCode, response, request);
-        } else {
+        else
           await this.errorHandler(error.message, statusCode, response, request);
-        }
+
       } catch (error2) {
-        var statusCode = error.statusCode || error.status_code || 500;
+        statusCode = error.statusCode || error.status_code || 500;
+
         await this.errorHandler(error.message, statusCode, response, request);
 
-        logger.log(`Completed request in ${requestTime.toFixed(3)}ms: ${statusCode} ${statusCodeToMessage(statusCode)}`, error2);
+        logger.log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: ${statusCode} ${statusCodeToMessage(statusCode)}`, error2);
 
         return;
       }
 
-      logger.log(`Completed request in ${requestTime.toFixed(3)}ms: ${statusCode} ${statusCodeToMessage(statusCode)}`, error);
+      logger.log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: ${statusCode} ${statusCodeToMessage(statusCode)}`, error);
     }
 
     return next();
   }
 
-  errorHandler(message, statusCode, response, request) {
+  errorHandler(message, statusCode, response /*, request */) {
     response.status(statusCode || 500).send(message || statusCodeToMessage(statusCode) || 'Internal Server Error');
   }
 
   createExpressApplication(options) {
-    var app = Express();
+    // eslint-disable-next-line new-cap
+    let app = Express();
 
     ExpressBusBoy.extend(app, options.uploads);
 
@@ -388,10 +404,10 @@ class HTTPServer {
   }
 
   async start() {
-    var options     = this.getOptions();
-    var app         = this.createExpressApplication(options);
-    var portString  = (options.port) ? `:${options.port}` : '';
-    var server;
+    let options     = this.getOptions();
+    let app         = this.createExpressApplication(options);
+    let portString  = (options.port) ? `:${options.port}` : '';
+    let server;
 
     app.use(this.baseMiddleware.bind(this));
     app.all('*', this.baseRouter.bind(this));
@@ -399,24 +415,24 @@ class HTTPServer {
     this.getLogger().log(`Starting ${(options.https) ? 'HTTPS' : 'HTTP'} server ${(options.https) ? 'https' : 'http'}://${options.host}${portString}...`);
 
     if (options.https) {
-      var credentials = await this.getHTTPSCredentials(options.https);
+      let credentials = await this.getHTTPSCredentials(options.https);
       server = HTTPS.createServer(credentials, app);
-    } else {
+    } else
       server = HTTP.createServer(app);
-    }
+
 
     server.listen(options.port);
 
     this.server = server;
 
-    var listeningPort = server.address().port;
+    let listeningPort = server.address().port;
     this.getLogger().log(`Web server listening at ${(options.https) ? 'https' : 'http'}://${options.host}:${listeningPort}`);
 
     return server;
   }
 
   async stop() {
-    var server = this.server;
+    let server = this.server;
     if (!server)
       return;
 

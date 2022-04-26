@@ -1,11 +1,16 @@
-const Path              = require("path");
+'use strict';
+
+const Path              = require('path');
 const { defineCommand } = require('../cli-utils');
 const MigrationUtils    = require('./migration-utils');
 const { walkDir }       = require('../../utils/file-utils');
 
+const TIMESTAMP_LENGTH = 14;
+
 module.exports = defineCommand('migrate', ({ Parent }) => {
   return class MigrateCommand extends Parent {
     static description      = 'Run all migrations that have not yet been ran';
+
     static commandArguments = `
       [-r,-revision:string(Start operation at revision specified. For rollbacks, this specifies the revision to stop at [inclusive])]
       [-rollback:boolean(Reverse migration order, rolling back each migration from latest to specified revision)=false(Default is false)]
@@ -14,7 +19,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
 
     getMigrationFiles(migrationsPath) {
       try {
-        var files = walkDir(migrationsPath, {
+        let files = walkDir(migrationsPath, {
           filter: (fullFileName, fileName, stats) => {
             if (fileName.match(/^_/) && stats.isDirectory())
               return false;
@@ -23,7 +28,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
               return false;
 
             return true;
-          }
+          },
         });
 
         return files.sort();
@@ -38,12 +43,12 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
     }
 
     getMigrationFilesFromRevision(migrationFiles, _revision) {
-      var revision = ('' + _revision);
+      let revision = ('' + _revision);
 
-      var index = migrationFiles.findIndex((fullFileName) => {
-        var fileName = Path.basename(fullFileName);
+      let index = migrationFiles.findIndex((fullFileName) => {
+        let fileName = Path.basename(fullFileName);
 
-        if (fileName.substring(0, 14) === revision)
+        if (fileName.substring(0, TIMESTAMP_LENGTH) === revision)
           return true;
 
         return false;
@@ -58,11 +63,11 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
     // TODO: Needs better tracking against DB
     execute(args) {
       const nextMigration = (doneCallback, _index) => {
-        var index = _index || 0;
+        let index = _index || 0;
         if (index >= migrationFiles.length)
           return doneCallback();
 
-        var migrationFileName = migrationFiles[index];
+        let migrationFileName = migrationFiles[index];
 
         if (rollback)
           console.log(`Undoing migration ${migrationFileName}...`);
@@ -74,16 +79,16 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
           (error) => {
             console.error(`Error while running migration ${migrationFileName}: `, error);
             doneCallback(error);
-          }
+          },
         );
       };
 
-      var application         = this.getApplication();
-      var applicationOptions  = application.getOptions();
-      var migrationsPath      = applicationOptions.migrationsPath;
-      var migrationFiles      = this.getMigrationFiles(migrationsPath);
-      var useTransaction      = args.transaction;
-      var rollback            = args.rollback;
+      let application         = this.getApplication();
+      let applicationOptions  = application.getOptions();
+      let migrationsPath      = applicationOptions.migrationsPath;
+      let migrationFiles      = this.getMigrationFiles(migrationsPath);
+      let useTransaction      = args.transaction;
+      let rollback            = args.rollback;
 
       console.log('USING TRANSACTION: ', useTransaction, args['transaction'], rollback, typeof rollback);
 
@@ -93,8 +98,8 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       if (args.rollback)
         migrationFiles = migrationFiles.reverse();
 
-      var dbConnection    = application.getDBConnection();
-      var queryInterface  = dbConnection.getQueryInterface();
+      let dbConnection    = application.getDBConnection();
+      let queryInterface  = dbConnection.getQueryInterface();
 
       return new Promise((resolve, reject) => {
         nextMigration((error) => {

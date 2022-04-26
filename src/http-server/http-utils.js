@@ -1,5 +1,7 @@
+'use strict';
+
 function statusCodeToMessage(statusCode) {
-  var codes = {
+  let codes = {
     200: 'OK',
     204: 'No Content',
     304: 'Not Modified',
@@ -13,7 +15,7 @@ function statusCodeToMessage(statusCode) {
     501: 'Not Implemented',
   };
 
-  var code = codes[statusCode];
+  let code = codes[statusCode];
 
   return code || 'Unknown';
 }

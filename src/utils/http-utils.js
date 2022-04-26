@@ -2,8 +2,8 @@ const Nife    = require('nife');
 const http    = require('http');
 const { URL } = require('url');
 
-var defaultURL;
-var defaultHeaders;
+let defaultURL;
+let defaultHeaders;
 
 function getDefaultURL() {
   return defaultURL;
@@ -38,10 +38,10 @@ function setDefaultHeaders(headers) {
   if (!defaultHeaders)
     defaultHeaders = {};
 
-  var keys = Object.keys(headers);
-  for (var i = 0, il = keys.length; i < il; i++) {
-    var key   = keys[i];
-    var value = headers[key];
+  let keys = Object.keys(headers);
+  for (let i = 0, il = keys.length; i < il; i++) {
+    let key   = keys[i];
+    let value = headers[key];
 
     if (value == null)
       continue;
@@ -55,11 +55,11 @@ function makeRequest(requestOptions) {
     if (Nife.isEmpty(requestOptions.url))
       reject('"url" key not found and is required');
 
-    var method      = (requestOptions.method || 'GET').toUpperCase();
-    var url         = new URL(requestOptions.url);
-    var data        = (!method.match(/^(GET|HEAD)$/i) && requestOptions.data) ? requestOptions.data : undefined;
-    var extraConfig = {};
-    var headers     = Object.assign({
+    let method      = (requestOptions.method || 'GET').toUpperCase();
+    let url         = new URL(requestOptions.url);
+    let data        = (!method.match(/^(GET|HEAD)$/i) && requestOptions.data) ? requestOptions.data : undefined;
+    let extraConfig = {};
+    let headers     = Object.assign({
       'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36',
     }, defaultHeaders || {}, requestOptions.headers || {});
 
@@ -85,8 +85,8 @@ function makeRequest(requestOptions) {
 
     delete options.data;
 
-    var request = http.request(options, (response) => {
-      var data = Buffer.alloc(0);
+    let request = http.request(options, (response) => {
+      let data = Buffer.alloc(0);
 
       response.on('data', (chunk) => {
         data = Buffer.concat([ data, chunk ]);
@@ -100,7 +100,7 @@ function makeRequest(requestOptions) {
         response.rawBody = response.body = data;
 
         try {
-          var contentType = response.headers['content-type'];
+          let contentType = response.headers['content-type'];
           if (contentType && contentType.match(/application\/json/))
             response.body = JSON.parse(data.toString('utf8'));
           else if (contentType && contentType.match(/text\/(plain|html)/))
@@ -117,24 +117,24 @@ function makeRequest(requestOptions) {
       reject(error);
     });
 
-    if (data) {
+    if (data)
       request.write(data);
-    }
+
 
     request.end();
   });
 }
 
 function getRequestOptions(_url, _options, method) {
-  var url     = _url;
-  var options = _options;
+  let url     = _url;
+  let options = _options;
 
   if (Nife.instanceOf(url, 'object')) {
     options = url;
     url     = options.url;
   }
 
-  var finalOptions = Nife.extend({}, options || {}, { url });
+  let finalOptions = Nife.extend({}, options || {}, { url });
 
   if (defaultURL && finalOptions.url.charAt(0) === '/')
     finalOptions.url = defaultURL + finalOptions.url;

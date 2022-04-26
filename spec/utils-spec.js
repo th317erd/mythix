@@ -1,3 +1,7 @@
+'use strict';
+
+/* global describe, it, expect */
+
 const Utils = require('../src/utils');
 
 describe('file-utils', function() {

@@ -1,8 +1,10 @@
+'use strict';
+
 const Nife                = require('nife');
 const { ControllerBase }  = require('./controller-base');
 
 function defineController(controllerName, definer, _parent) {
-  var parentKlass = _parent || ControllerBase;
+  let parentKlass = _parent || ControllerBase;
 
   return function({ application, server }) {
     const Klass = definer({
@@ -26,19 +28,21 @@ const ROUTE_PROPERTIES = [
 ];
 
 function buildPatternMatcher(_patterns, _opts) {
-  var opts          = _opts || {};
-  var patterns      = _patterns;
-  var sanitizeFunc  = opts.sanitize;
-  var strict        = opts.strict;
-  var flags         = (Nife.instanceOf(opts.flags, 'string') && Nife.isNotEmpty(opts.flags)) ? opts.flags : 'i';
+  let opts          = _opts || {};
+  let patterns      = _patterns;
+  let sanitizeFunc  = opts.sanitize;
+  let strict        = opts.strict;
+  let flags         = (Nife.instanceOf(opts.flags, 'string') && Nife.isNotEmpty(opts.flags)) ? opts.flags : 'i';
+  let matchRE;
+  let matchFunc;
 
   if (Nife.instanceOf(patterns, 'array'))
     patterns = Nife.uniq(patterns);
 
   if (patterns === '*' || (Nife.instanceOf(patterns, 'array') && patterns.indexOf('*') >= 0) || patterns instanceof RegExp) {
-    var matchRE = (patterns instanceof RegExp) ? patterns : /.*/i;
+    matchRE = (patterns instanceof RegExp) ? patterns : /.*/i;
 
-    var matchFunc = function patternMatcher(value) {
+    matchFunc = function patternMatcher(value) {
       if (!value || !Nife.instanceOf(value, 'string'))
         return true;
 
@@ -66,20 +70,20 @@ function buildPatternMatcher(_patterns, _opts) {
   if (!Nife.instanceOf(patterns, 'array'))
     patterns = [ patterns ];
 
-  var parts           = [];
-  var directPatterns  = [];
+  let parts           = [];
+  let directPatterns  = [];
 
-  for (var i = 0, il = patterns.length; i < il; i++) {
-    var part = patterns[i];
+  for (let i = 0, il = patterns.length; i < il; i++) {
+    let part = patterns[i];
 
     if (part instanceof RegExp) {
       directPatterns.push(part);
       continue;
     }
 
-    if (typeof sanitizeFunc === 'function') {
+    if (typeof sanitizeFunc === 'function')
       part = sanitizeFunc(part);
-    } else {
+    else {
       part = part.replace(/\*/g, '@@@WILD_MATCH@@@');
       part = Nife.regexpEscape(part);
       part = part.replace(/@@@WILD_MATCH@@@/g, '.*?');
@@ -88,18 +92,16 @@ function buildPatternMatcher(_patterns, _opts) {
     parts.push(part);
   }
 
-  var matchRE;
-
   if (parts && parts.length)
     matchRE = new RegExp((strict) ? `^(${parts.join('|')})$` : `(${parts.join('|')})`, flags);
 
-  var matchFunc = function patternMatcher(value) {
+  matchFunc = function patternMatcher(value) {
     if (!value || !Nife.instanceOf(value, 'string'))
       return false;
 
     if (directPatterns && directPatterns.length) {
-      for (var i = 0, il = directPatterns.length; i < il; i++) {
-        var pattern = directPatterns[i];
+      for (let j = 0, jl = directPatterns.length; j < jl; j++) {
+        let pattern = directPatterns[j];
         if (value.match(pattern))
           return true;
       }
@@ -138,9 +140,9 @@ function buildContentTypeMatcher(contentTypePatterns) {
 }
 
 function buildPathMatcher(routeName, customParserTypes) {
-  var params      = [];
-  var parts       = [];
-  var lastOffset  = 0;
+  let params      = [];
+  let parts       = [];
+  let lastOffset  = 0;
 
   routeName.replace(/<\s*([^\s:]+?\??)\s*(:\w+?)?\s*(=\s*[^>]+)?>/g, function(m, _name, _type, _defaultValue, offset, str) {
     if (offset > lastOffset) {
@@ -148,26 +150,26 @@ function buildPathMatcher(routeName, customParserTypes) {
       lastOffset = offset + m.length;
     }
 
-    var defaultValue  = _defaultValue;
-    var type          = _type;
-    var optional      = false;
-    var name          = _name;
+    let defaultValue  = _defaultValue;
+    let type          = _type;
+    let optional      = false;
+    let name          = _name;
 
     if (name.match(/\?$/)) {
       optional = true;
       name = name.substring(0, name.length - 1);
     }
 
-    if (type) {
+    if (type)
       type = type.replace(/\W/g, '');
-    }
+
 
     if (defaultValue) {
       defaultValue = defaultValue.trim().replace(/^=\s*/, '');
       defaultValue = Nife.coerceValue(defaultValue, type);
     }
 
-    var matcher;
+    let matcher;
 
     if (type === 'number' || type === 'int' || type === 'integer' || type === 'bigint')
       matcher = '([\\d.e-]+)';
@@ -179,7 +181,7 @@ function buildPathMatcher(routeName, customParserTypes) {
     if (optional)
       matcher = matcher + '?';
 
-    var param = {
+    let param = {
       startOffset:  offset,
       endOffset:    offset + m.length,
       name,
@@ -198,8 +200,8 @@ function buildPathMatcher(routeName, customParserTypes) {
   if (lastOffset < routeName.length)
     parts.push(routeName.substring(lastOffset));
 
-  var finalRegExpStr = parts.reduce((items, _item, index) => {
-    var item = _item;
+  let finalRegExpStr = parts.reduce((items, _item, index) => {
+    let item = _item;
 
     if (typeof item === 'string') {
       item = item.replace(/\?/g, '@@@CHAR_MATCH@@@').replace(/\*/g, '@@@WILD_MATCH@@@').replace(/\/+/g, '@@@FORWARD_SLASH@@@');
@@ -207,37 +209,37 @@ function buildPathMatcher(routeName, customParserTypes) {
       item = item.replace(/@@@CHAR_MATCH@@@/g, '.').replace(/@@@WILD_MATCH@@@/g, '.*?').replace(/@@@FORWARD_SLASH@@@/g, '/');
 
       if (item.match(/\/$/)) {
-        var nextItem = parts[index + 1];
+        let nextItem = parts[index + 1];
         if (nextItem && typeof nextItem !== 'string' && nextItem.optional)
           item = item + '?';
       }
 
       items.push(item);
-    } else {
+    } else
       items.push(item.matcher);
-    }
+
 
     return items;
   }, []).join('');
 
-  var matcherRE = new RegExp(`^${finalRegExpStr}$`);
-  var matchFunc = function routeMatcher(pathPart) {
-    var match = pathPart.match(matcherRE);
+  let matcherRE = new RegExp(`^${finalRegExpStr}$`);
+  let matchFunc = function routeMatcher(pathPart) {
+    let match = pathPart.match(matcherRE);
     if (!match)
       return;
 
-    var result = {};
-    for (var i = 1, il = match.length; i < il; i++) {
-      var part = match[i];
+    let result = {};
+    for (let i = 1, il = match.length; i < il; i++) {
+      let part = match[i];
       if (!part)
         continue;
 
-      var paramIndex  = i - 1;
-      var param       = params[paramIndex];
+      let paramIndex  = i - 1;
+      let param       = params[paramIndex];
       if (!param)
         continue;
 
-      if (customParserTypes && customParserTypes.hasOwnProperty(param.type))
+      if (customParserTypes && Object.prototype.hasOwnProperty.call(customParserTypes, param.type))
         result[param.name] = customParserTypes[param.type](part, param, paramIndex);
       else
         result[param.name] = Nife.coerceValue(part, param.type);
@@ -265,11 +267,11 @@ function buildPathMatcher(routeName, customParserTypes) {
 }
 
 function getRouteProperties(route) {
-  var props = {};
+  let props = {};
 
-  for (var i = 0, il = ROUTE_PROPERTIES.length; i < il; i++) {
-    var propName  = ROUTE_PROPERTIES[i];
-    var value     = route[propName];
+  for (let i = 0, il = ROUTE_PROPERTIES.length; i < il; i++) {
+    let propName  = ROUTE_PROPERTIES[i];
+    let value     = route[propName];
     if (value === undefined)
       continue;
 
@@ -280,10 +282,10 @@ function getRouteProperties(route) {
 }
 
 function compileRoutes(routes, customParserTypes, _context) {
-  const sortRoutes = (routes) => {
-    return routes.sort((a, b) => {
-      var pathA = a.path;
-      var pathB = b.path;
+  const sortRoutes = (routesToSort) => {
+    return routesToSort.sort((a, b) => {
+      let pathA = a.path;
+      let pathB = b.path;
 
       if (Nife.arrayUnion(a.methods, b.methods).length > 0) {
         // If the routes are at the same level
@@ -291,8 +293,8 @@ function compileRoutes(routes, customParserTypes, _context) {
         // then the one without a capture parameter comes first.
         // If we don't do this, then the capture parameter wild-card
         // might match the route name of the non-parameter route
-        var lastForwardSlashIndexA = pathA.lastIndexOf('/');
-        var lastForwardSlashIndexB = pathB.lastIndexOf('/');
+        let lastForwardSlashIndexA = pathA.lastIndexOf('/');
+        let lastForwardSlashIndexB = pathB.lastIndexOf('/');
 
         if (lastForwardSlashIndexA >= 0 && lastForwardSlashIndexB >= 0 && pathA.substring(0, lastForwardSlashIndexA) === pathB.substring(0, lastForwardSlashIndexB)) {
           if (pathA.indexOf('<', lastForwardSlashIndexA) >= 0 && pathB.indexOf('<', lastForwardSlashIndexB) < 0)
@@ -302,8 +304,8 @@ function compileRoutes(routes, customParserTypes, _context) {
         }
       }
 
-      var x = a.priority;
-      var y = b.priority;
+      let x = a.priority;
+      let y = b.priority;
 
       if (x === y)
         return 0;
@@ -313,7 +315,7 @@ function compileRoutes(routes, customParserTypes, _context) {
   };
 
   const addRoute = (theseRoutes, route, path, priority) => {
-    var newRoute = Object.assign(
+    let newRoute = Object.assign(
       {
         methods:  'GET',
         accept:   '*',
@@ -327,9 +329,9 @@ function compileRoutes(routes, customParserTypes, _context) {
 
     if (Nife.instanceOf(newRoute.methods, 'array')) {
       newRoute.methods = Nife
-                        .uniq(newRoute.methods)
-                        .filter((method) => ((typeof method === 'string' || method instanceof String) && Nife.isNotEmpty(method)))
-                        .map((method) => method.toUpperCase());
+        .uniq(newRoute.methods)
+        .filter((method) => ((typeof method === 'string' || method instanceof String) && Nife.isNotEmpty(method)))
+        .map((method) => method.toUpperCase());
 
       if (newRoute.methods.indexOf('*') >= 0)
         newRoute.methods = '*';
@@ -343,10 +345,10 @@ function compileRoutes(routes, customParserTypes, _context) {
     theseRoutes.push(newRoute);
   };
 
-  var context     = _context || {};
-  var theseRoutes = [];
-  var isArray     = (routes instanceof Array);
-  var {
+  let context     = _context || {};
+  let theseRoutes = [];
+  let isArray     = (routes instanceof Array);
+  let {
     routeName,
     path,
     alreadyVisited,
@@ -372,26 +374,27 @@ function compileRoutes(routes, customParserTypes, _context) {
 
   path = path.replace(/\/{2,}/g, '/');
 
-  var keys = Object.keys(routes);
-  var basePriority = 1000000 - (depth * 1000);
+  // eslint-disable-next-line no-magic-numbers
+  let basePriority = 1000000 - (depth * 1000);
+  let keys = Object.keys(routes);
 
-  for (var i = 0, il = keys.length; i < il; i++) {
-    var key   = keys[i];
-    var route = routes[key];
+  for (let i = 0, il = keys.length; i < il; i++) {
+    let key   = keys[i];
+    let route = routes[key];
 
     if (route && Nife.isNotEmpty(route.controller)) {
-      var newPath = (isArray) ? path : `${path}/${key}`;
+      let newPath = (isArray) ? path : `${path}/${key}`;
       addRoute(theseRoutes, route, newPath, basePriority + i);
     }
 
     if (ROUTE_PROPERTIES.indexOf(key) >= 0)
       continue;
 
-    var thisRouteName = (isArray) ? routeName : key;
-    var newPath       = (isArray) ? path : `${path}/${key}`;
+    let thisRouteName = (isArray) ? routeName : key;
+    let newPath       = (isArray) ? path : `${path}/${key}`;
 
     if (Nife.instanceOf(route, 'object', 'array')) {
-      var subRoutes = compileRoutes(route, customParserTypes, {
+      let subRoutes = compileRoutes(route, customParserTypes, {
         routeName:  thisRouteName,
         path:       newPath,
         priority:   i,
@@ -410,18 +413,18 @@ function compileRoutes(routes, customParserTypes, _context) {
 }
 
 function buildRoutes(_routes, customParserTypes) {
-  var routes = compileRoutes(_routes, customParserTypes);
+  let routes = compileRoutes(_routes, customParserTypes);
 
   return routes.map((route) => {
     // Filter out priority key
-    var route = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(priority)$/), {}, route);
+    let thisRoute = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(priority)$/), {}, route);
 
     // Inject route matchers
-    route.methodMatcher       = buildMethodMatcher(route.methods || '*');
-    route.contentTypeMatcher  = buildContentTypeMatcher(route.accept || '*');
-    route.pathMatcher         = buildPathMatcher(route.path, customParserTypes);
+    thisRoute.methodMatcher       = buildMethodMatcher(thisRoute.methods || '*');
+    thisRoute.contentTypeMatcher  = buildContentTypeMatcher(thisRoute.accept || '*');
+    thisRoute.pathMatcher         = buildPathMatcher(thisRoute.path, customParserTypes);
 
-    return route;
+    return thisRoute;
   });
 }
 

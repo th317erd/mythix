@@ -1,3 +1,5 @@
+'use strict';
+
 const {
   HTTPServer,
 } = require('./http-server');

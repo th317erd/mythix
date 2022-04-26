@@ -1,8 +1,12 @@
+/* eslint-disable max-classes-per-file */
+
+'use strict';
+
 const { statusCodeToMessage } = require('./http-utils');
 
 class HTTPBaseError extends Error {
   constructor(route, message, _statusCode) {
-    var statusCode  = _statusCode || 500;
+    let statusCode  = _statusCode || 500;
 
     super(message || statusCodeToMessage(statusCode));
 
@@ -33,24 +37,24 @@ class HTTPBadContentTypeError extends HTTPBaseError {
   }
 
   getMessage() {
-    var route = this.route;
+    let route = this.route;
     if (!route)
       return this.message;
 
-    var accept = route.accept;
+    let accept = route.accept;
     if (!(accept instanceof Array))
       accept = [ accept ];
 
     accept = accept
-              .filter((part) => {
-                if (!(typeof part === 'string' || part instanceof String) && !(part instanceof RegExp))
-                  return false;
+      .filter((part) => {
+        if (!(typeof part === 'string' || part instanceof String) && !(part instanceof RegExp))
+          return false;
 
-                return true;
-              })
-              .map((part) => {
-                return `'${part}'`;
-              });
+        return true;
+      })
+      .map((part) => {
+        return `'${part}'`;
+      });
 
     if (this.message)
       return `${this.message}: Accepted Content-Types are [ ${accept.join(', ')} ]`;

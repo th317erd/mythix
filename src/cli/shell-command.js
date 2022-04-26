@@ -1,3 +1,5 @@
+'use strict';
+
 const Nife              = require('nife');
 const OS                = require('os');
 const Path              = require('path');
@@ -5,13 +7,12 @@ const REPL              = require('repl');
 const UUIDV4            = require('uuid').v4;
 const { Sequelize }     = require('sequelize');
 const { defineCommand } = require('./cli-utils');
-const http              = require('http');
-const { URL }           = require('url');
 const { HTTPUtils }     = require('../utils');
 
 module.exports = defineCommand('shell', ({ Parent }) => {
   return class ShellCommand extends Parent {
     static description    = 'Drop into an application shell to execute commands directly';
+
     static nodeArguments  = [ '--experimental-repl-await', '--experimental-top-level-await' ];
 
     constructor(...args) {
@@ -33,11 +34,11 @@ module.exports = defineCommand('shell', ({ Parent }) => {
       });
     }
 
-    execute(args) {
-      return new Promise((resolve, reject) => {
-        var application = this.getApplication();
-        var environment = application.getConfigValue('environment', 'development');
-        var appName     = application.getApplicationName();
+    execute() {
+      return new Promise((resolve) => {
+        let application = this.getApplication();
+        let environment = application.getConfigValue('environment', 'development');
+        let appName     = application.getApplicationName();
 
         const interactiveShell = REPL.start({
           prompt: `${appName} (${environment}) > `,
@@ -47,7 +48,7 @@ module.exports = defineCommand('shell', ({ Parent }) => {
           resolve(0);
         });
 
-        interactiveShell.setupHistory(Path.join(OS.homedir(), `.${appName}-${environment}-history`), (error, server) => {});
+        interactiveShell.setupHistory(Path.join(OS.homedir(), `.${appName}-${environment}-history`), () => {});
 
         interactiveShell.context.UUIDV4 = UUIDV4;
         interactiveShell.context.Sequelize = Sequelize;

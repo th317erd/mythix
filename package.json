@@ -32,6 +32,8 @@
     "sequelize": "^6.18.0",
     "sqlite3": "^4.2.0",
     "pg": "^8.7.3",
-    "pg-hstore": "^2.3.4"
+    "pg-hstore": "^2.3.4",
+    "@spothero/eslint-plugin-spothero": "github:spothero/eslint-plugin-spothero",
+    "eslint": "^8.13.0"
   }
 }

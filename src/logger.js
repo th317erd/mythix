@@ -12,8 +12,8 @@ function errorStackToString(rootPath, error) {
 }
 
 function writeToWriterObject(writer, type, _output) {
-  var method = writer[type],
-      output = _output;
+  let method = writer[type];
+  let output = _output;
 
   if (this._customWriter || typeof method !== 'function') {
     method = writer.write;
@@ -25,18 +25,18 @@ function writeToWriterObject(writer, type, _output) {
 }
 
 function logToWriter(type, ..._args) {
-  var args = (_args.map((_arg) => {
-    var arg = _arg;
+  let args = (_args.map((_arg) => {
+    let arg = _arg;
 
     if (arg instanceof Error) {
-      var formattedStack = (typeof this._errorStackFormatter === 'function')
-                              ? this._errorStackFormatter.call(this, this._rootPath, arg)
-                              : errorStackToString.call(this, this._rootPath, arg);
+      let formattedStack = (typeof this._errorStackFormatter === 'function')
+        ? this._errorStackFormatter.call(this, this._rootPath, arg)
+        : errorStackToString.call(this, this._rootPath, arg);
 
       arg = `${arg.name}: ${arg.message}: ${formattedStack}`;
-    } else if (arg && typeof arg.valueOf() === 'function') {
+    } else if (arg && typeof arg.valueOf() === 'function')
       arg = arg.valueOf();
-    }
+
 
     if (arg === true)
       return 'true';
@@ -59,17 +59,17 @@ function logToWriter(type, ..._args) {
     return arg;
   }));
 
-  var formatter = this._formatter;
-  var writer    = this._writer;
-  var content   = args.join(' ');
-  var output    = `${type.charAt(0).toUpperCase()}, [${(new Date()).toISOString()} #${this._pid}] -- : ${(typeof formatter === 'function') ? formatter(content) : content}`;
+  let formatter = this._formatter;
+  let writer    = this._writer;
+  let content   = args.join(' ');
+  let output    = `${type.charAt(0).toUpperCase()}, [${(new Date()).toISOString()} #${this._pid}] -- : ${(typeof formatter === 'function') ? formatter(content) : content}`;
 
   writeToWriterObject.call(this, (!writer) ? console : writer, type, output);
 }
 
 class Logger {
   constructor(_opts) {
-    var opts = Object.assign({
+    let opts = Object.assign({
       level:                LEVEL_INFO,
       writer:               null,
       rootPath:             process.cwd(),
@@ -79,7 +79,7 @@ class Logger {
     });
 
     // If string, assume file path
-    var customWriter = false;
+    let customWriter = false;
     if (typeof opts.writer === 'string') {
       opts.writer = FileSystem.createWriteStream(opts.writer, {
         flags:      'a',
@@ -205,9 +205,9 @@ class Logger {
 
           resolve();
         });
-      } else {
+      } else
         resolve();
-      }
+
     });
   }
 }

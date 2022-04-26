@@ -1,3 +1,5 @@
+'use strict';
+
 const { ControllerBase } = require('./controller-base');
 
 const {
