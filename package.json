@@ -23,13 +23,15 @@
   "dependencies": {
     "chokidar": "^3.5.3",
     "deep-diff": "^1.0.2",
-    "express": "^4.17.2",
-    "express-busboy": "^8.0.0",
-    "inflection": "^1.13.1",
+    "express": "^4.17.3",
+    "express-busboy": "^8.0.2",
+    "inflection": "^1.13.2",
     "lodash": "^4.17.21",
-    "nife": "^1.5.0",
-    "object-hash": "^2.2.0",
-    "sequelize": "^6.13.0",
-    "sqlite3": "^5.0.2"
+    "nife": "^1.6.0",
+    "object-hash": "^3.0.0",
+    "sequelize": "^6.18.0",
+    "sqlite3": "^4.2.0",
+    "pg": "^8.7.3",
+    "pg-hstore": "^2.3.4"
   }
 }

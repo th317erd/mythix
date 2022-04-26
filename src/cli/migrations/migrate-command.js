@@ -63,7 +63,11 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
           return doneCallback();
 
         var migrationFileName = migrationFiles[index];
-        console.log(`Running migration ${migrationFileName}...`);
+
+        if (rollback)
+          console.log(`Undoing migration ${migrationFileName}...`);
+        else
+          console.log(`Running migration ${migrationFileName}...`);
 
         MigrationUtils.executeMigration(queryInterface, migrationFileName, useTransaction, 0, rollback).then(
           () => nextMigration(doneCallback, index + 1),
@@ -78,10 +82,10 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       var applicationOptions  = application.getOptions();
       var migrationsPath      = applicationOptions.migrationsPath;
       var migrationFiles      = this.getMigrationFiles(migrationsPath);
-      var useTransaction      = (args['transaction']) ? true : false;
+      var useTransaction      = args.transaction;
       var rollback            = args.rollback;
 
-      console.log('USING TRANSACTION: ', useTransaction, args['transaction']);
+      console.log('USING TRANSACTION: ', useTransaction, args['transaction'], rollback, typeof rollback);
 
       if (args.revision)
         migrationFiles = this.getMigrationFilesFromRevision(migrationFiles, args.revision);

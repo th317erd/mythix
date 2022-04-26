@@ -2,16 +2,30 @@ const Nife        = require('nife');
 const Inflection  = require('inflection');
 const { Model }   = require('./model');
 
-function relationHelper(type) {
+function relationHelper(modelName, type) {
   return function(target, _options) {
     const getName = () => {
       if (options.name)
         return options.name;
 
       if (type.match(/many/i))
-        return Inflection.pluralize(target);
+        return Inflection.pluralize(target.toLowerCase());
       else
         return target.toLowerCase();
+
+      //return { singular: target.toLowerCase(), plural: Inflection.pluralize(target.toLowerCase()) };
+    };
+
+    const getFieldName = () => {
+      if (options.field)
+        return options.field;
+
+      if (type.match(/many/i))
+        return Inflection.pluralize(target.toLowerCase());
+      else
+        return target.toLowerCase();
+
+      //return { singular: target.toLowerCase(), plural: Inflection.pluralize(target.toLowerCase()) };
     };
 
     var options               = _options || {};
@@ -31,12 +45,23 @@ function relationHelper(type) {
   };
 }
 
-const RELATION_HELPERS = {
-  hasOne:         relationHelper('hasOne'),
-  belongsTo:      relationHelper('belongsTo'),
-  hasMany:        relationHelper('hasMany'),
-  belongsToMany:  relationHelper('belongsToMany'),
-};
+const RELATION_HELPERS = [
+  'hasOne',
+  'belongsTo',
+  'hasMany',
+  'belongsToMany',
+];
+
+function getRelationHelpers(modelName) {
+  var obj = {};
+
+  for (var i = 0, il = RELATION_HELPERS.length; i < il; i++) {
+    var type = RELATION_HELPERS[i];
+    obj[type] = relationHelper(modelName, type);
+  }
+
+  return obj;
+}
 
 function preciseNow() {
   var janFirst2022      = 1640995200000;
@@ -171,7 +196,7 @@ function defineModel(modelName, definer, _parent) {
     var definerArgs = {
       Parent:   (_parent) ? _parent : Model,
       Type:     Sequelize.DataTypes,
-      Relation: RELATION_HELPERS,
+      Relation: getRelationHelpers(modelName),
       Sequelize,
       connection,
       modelName,
@@ -207,6 +232,10 @@ function defineModel(modelName, definer, _parent) {
       tableName,
       modelName,
       indexes,
+      name: {
+        singular: modelName.toLowerCase(),
+        plural: Inflection.pluralize(modelName.toLowerCase()),
+      }
     });
 
     Klass.getApplication = () => application;
@@ -251,28 +280,37 @@ function buildModelRelations(models) {
       var fieldName       = Nife.camelCaseToSnakeCase(relation.field);
       var targetModelName = relation.target;
       var targetModel     = models[targetModelName];
+      var belongsType     = !!type.match(/^belongs/);
 
       if (!targetModel)
         throw new Error(`${modelName} relation error: target model ${targetModelName} not found`);
 
       var primaryKeyField;
 
-      if (type.match(/^belongs/)) {
+      if (belongsType) {
         primaryKeyField = getModelPrimaryKeyField(targetModel);
 
         if (!primaryKeyField)
           throw new Error(`${modelName} relation error: primary key for model ${targetModelName} not found`);
 
+        var pkFieldName = primaryKeyField.field;
+        if (pkFieldName === 'id')
+          pkFieldName = 'ID';
+
         if (!fieldName)
-          fieldName = `${Nife.camelCaseToSnakeCase(targetModelName)}_${primaryKeyField.field}`;
+          fieldName = `${Nife.camelCaseToSnakeCase(targetModelName)}${Nife.snakeCaseToCamelCase(pkFieldName, true)}`;
       } else {
         primaryKeyField = getModelPrimaryKeyField(model);
 
         if (!primaryKeyField)
           throw new Error(`${modelName} relation error: primary key for model ${modelName} not found`);
 
+        var pkFieldName = primaryKeyField.field;
+        if (pkFieldName === 'id')
+          pkFieldName = 'ID';
+
         if (!fieldName)
-          fieldName = `${Nife.camelCaseToSnakeCase(modelName)}_${primaryKeyField.field}`;
+          fieldName = `${Nife.camelCaseToSnakeCase(modelName)}${Nife.snakeCaseToCamelCase(pkFieldName, true)}`;
       }
 
       var pkFieldCopy = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(field|primaryKey)$/), {}, primaryKeyField);
@@ -281,10 +319,11 @@ function buildModelRelations(models) {
       var options = {
         onDelete:   relation.onDelete,
         onUpdate:   relation.onUpdate,
-        foreignKey: Object.assign(pkFieldCopy, { name: relation.name, field: fieldName }),
+        foreignKey: Object.assign(pkFieldCopy, { name: fieldName, as: relation.name, field: Nife.camelCaseToSnakeCase(fieldName) }),
       };
 
       // Set relation on model
+      // console.log(`Creating model relation (${modelName} -> ${targetModelName}): `, type, options);
       model[type](targetModel, options);
     }
   }
