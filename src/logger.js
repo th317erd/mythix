@@ -1,5 +1,8 @@
-const Path        = require('path');
-const FileSystem  = require('fs');
+'use strict';
+
+/* global process */
+
+const FileSystem = require('fs');
 
 const LEVEL_ERROR   = 1;
 const LEVEL_LOG     = 2;
@@ -50,7 +53,7 @@ function logToWriter(type, ..._args) {
     try {
       arg = JSON.stringify(arg);
     } catch (error) {
-      if (error.message = 'Converting circular structure to JSON')
+      if (error.message === 'Converting circular structure to JSON')
         return '<circular>';
 
       return `<LOGGER_ERROR: ${error.message}>`;
