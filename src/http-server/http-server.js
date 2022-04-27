@@ -391,6 +391,9 @@ class HTTPServer {
   }
 
   errorHandler(message, statusCode, response /*, request */) {
+    if (response.statusMessage)
+      return;
+
     response.status(statusCode || 500).send(message || statusCodeToMessage(statusCode) || 'Internal Server Error');
   }
 
