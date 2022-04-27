@@ -1,3 +1,5 @@
+'use strict';
+
 const Nife        = require('nife');
 const { Logger }  = require('../logger');
 const HTTPUtils   = require('./http-utils');
@@ -40,8 +42,8 @@ function createTestApplication(Application) {
       });
     }
 
-    createLogger(loggerOpts, Logger) {
-      return super.createLogger(this.getTestingLoggerConfig(loggerOpts), Logger);
+    createLogger(loggerOpts, LoggerClass) {
+      return super.createLogger(this.getTestingLoggerConfig(loggerOpts), LoggerClass);
     }
 
     async connectToDatabase() {
