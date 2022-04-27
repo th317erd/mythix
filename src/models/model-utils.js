@@ -205,7 +205,7 @@ function defineModel(modelName, definer, _parent) {
 
     let Klass = definer(definerArgs);
 
-    Klass.name = modelName;
+    Klass.customName = modelName;
 
     if (typeof Klass.onModelClassCreate === 'function')
       Klass = Klass.onModelClassCreate(Klass, definerArgs);
