@@ -91,6 +91,9 @@ function defineModel(modelName, definer, _parent) {
         field.field = columnName;
       }
 
+      if (!Object.prototype.hasOwnProperty.call(field, 'defaultValue'))
+        field.defaultValue = null;
+
       // If using SQLite, which doesn't support autoincrement
       // on anything except the primary key, then create our
       // own auto-incrementor for this field

@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 // Many thanks to the authors of "sequelize-auto-migrations" for most of the following code
 
 'use strict';
@@ -15,112 +16,114 @@ function reverseSequelizeColType(col, prefix = 'Sequelize.') {
   let attrObj               = col.type;
   let options               = (col['type']['options']) ? col['type']['options'] : {};
   let DataTypes             = Sequelize.DataTypes;
+  let type;
+  let arrayType;
 
   // TODO: Change this based on the database being used
   let databaseLiteralQuote  = '\'';
 
   switch (attrName) {
-  case DataTypes.CHAR.key:
-    // CHAR(length, binary)
-    if (options.binary)
-      return `${prefix}CHAR.BINARY`;
+    case DataTypes.CHAR.key:
+      // CHAR(length, binary)
+      if (options.binary)
+        return `${prefix}CHAR.BINARY`;
 
-    return `${prefix}CHAR(${options.length})`;
+      return `${prefix}CHAR(${options.length})`;
 
-  case DataTypes.STRING.key:
-    // STRING(length, binary).BINARY
-    return `${prefix}STRING${(options.length) ? `(${options.length})` : ''}${(options.binary) ? '.BINARY' : ''}`;
+    case DataTypes.STRING.key:
+      // STRING(length, binary).BINARY
+      return `${prefix}STRING${(options.length) ? `(${options.length})` : ''}${(options.binary) ? '.BINARY' : ''}`;
 
-  case DataTypes.TEXT.key:
-    // TEXT(length)
-    if (!options.length)
-      return `${prefix}TEXT`;
+    case DataTypes.TEXT.key:
+      // TEXT(length)
+      if (!options.length)
+        return `${prefix}TEXT`;
 
-    return `${prefix}TEXT(${('' + options.length).toLowerCase()})`;
+      return `${prefix}TEXT(${('' + options.length).toLowerCase()})`;
 
-  case DataTypes.NUMBER.key:
-  case DataTypes.TINYINT.key:
-  case DataTypes.SMALLINT.key:
-  case DataTypes.MEDIUMINT.key:
-  case DataTypes.BIGINT.key:
-  case DataTypes.FLOAT.key:
-  case DataTypes.REAL.key:
-  case DataTypes.DOUBLE.key:
-  case DataTypes.DECIMAL.key:
-  case DataTypes.INTEGER.key: {
-    // NUMBER(length, decimals).UNSIGNED.ZEROFILL
-    let finalResult = attrName;
+    case DataTypes.NUMBER.key:
+    case DataTypes.TINYINT.key:
+    case DataTypes.SMALLINT.key:
+    case DataTypes.MEDIUMINT.key:
+    case DataTypes.BIGINT.key:
+    case DataTypes.FLOAT.key:
+    case DataTypes.REAL.key:
+    case DataTypes.DOUBLE.key:
+    case DataTypes.DECIMAL.key:
+    case DataTypes.INTEGER.key: {
+      // NUMBER(length, decimals).UNSIGNED.ZEROFILL
+      let finalResult = attrName;
 
-    if (options.length)
-      finalResult = `${finalResult}(${options.length}${(options.decimals) ? `, ${options.decimals}` : ''})`;
+      if (options.length)
+        finalResult = `${finalResult}(${options.length}${(options.decimals) ? `, ${options.decimals}` : ''})`;
 
-    if (options.precision)
-      finalResult = `${finalResult}(${options.precision}${(options.scale) ? `, ${options.scale}` : ''})`;
+      if (options.precision)
+        finalResult = `${finalResult}(${options.precision}${(options.scale) ? `, ${options.scale}` : ''})`;
 
-    finalResult = [ finalResult ];
+      finalResult = [ finalResult ];
 
-    if (options.zerofill)
-      finalResult.push('ZEROFILL');
+      if (options.zerofill)
+        finalResult.push('ZEROFILL');
 
-    if (options.unsigned)
-      finalResult.push('UNSIGNED');
+      if (options.unsigned)
+        finalResult.push('UNSIGNED');
 
-    return `${prefix}${finalResult.join('.')}`;
-  }
-
-  case DataTypes.ENUM.key:
-    return `${prefix}ENUM(${databaseLiteralQuote}${options.values.join(`${databaseLiteralQuote}, ${databaseLiteralQuote}`)}${databaseLiteralQuote})`;
-
-  case DataTypes.BLOB.key:
-    if (!options.length)
-      return `${prefix}BLOB`;
-
-    return `${prefix}BLOB(${('' + options.length).toLowerCase()})`;
-
-  case DataTypes.GEOMETRY.key:
-    if (options.type) {
-      if (options.srid)
-        return `${prefix}GEOMETRY(${databaseLiteralQuote}${options.type}${databaseLiteralQuote}, ${options.srid})`;
-      else
-        return `${prefix}GEOMETRY(${databaseLiteralQuote}${options.type}${databaseLiteralQuote})`;
+      return `${prefix}${finalResult.join('.')}`;
     }
 
-    return `${prefix}GEOMETRY`;
+    case DataTypes.ENUM.key:
+      return `${prefix}ENUM(${databaseLiteralQuote}${options.values.join(`${databaseLiteralQuote}, ${databaseLiteralQuote}`)}${databaseLiteralQuote})`;
 
-  case DataTypes.GEOGRAPHY.key:
-    return `${prefix}GEOGRAPHY`;
+    case DataTypes.BLOB.key:
+      if (!options.length)
+        return `${prefix}BLOB`;
 
-  case DataTypes.ARRAY.key:
-    let type = attrObj.toString();
-    let arrayType;
+      return `${prefix}BLOB(${('' + options.length).toLowerCase()})`;
 
-    if (type === 'INTEGER[]' || type === 'STRING[]')
-      arrayType = `${prefix}${type.replace('[]', '')}`;
-    else
-      arrayType = (col.seqType === 'Sequelize.ARRAY(Sequelize.INTEGER)') ? `${prefix}INTEGER` : `${prefix}STRING`;
+    case DataTypes.GEOMETRY.key:
+      if (options.type) {
+        if (options.srid)
+          return `${prefix}GEOMETRY(${databaseLiteralQuote}${options.type}${databaseLiteralQuote}, ${options.srid})`;
+        else
+          return `${prefix}GEOMETRY(${databaseLiteralQuote}${options.type}${databaseLiteralQuote})`;
+      }
+
+      return `${prefix}GEOMETRY`;
+
+    case DataTypes.GEOGRAPHY.key:
+      return `${prefix}GEOGRAPHY`;
+
+    case DataTypes.ARRAY.key:
+      type = attrObj.toString();
+      arrayType;
+
+      if (type === 'INTEGER[]' || type === 'STRING[]')
+        arrayType = `${prefix}${type.replace('[]', '')}`;
+      else
+        arrayType = (col.seqType === 'Sequelize.ARRAY(Sequelize.INTEGER)') ? `${prefix}INTEGER` : `${prefix}STRING`;
 
 
-    return prefix + `ARRAY(${arrayType})`;
+      return prefix + `ARRAY(${arrayType})`;
 
-  case DataTypes.RANGE.key:
-    console.warn(`${attrName} type not supported, so we are going to guess...`);
-    return `${prefix}${attrObj.toSql()}`;
+    case DataTypes.RANGE.key:
+      console.warn(`${attrName} type not supported, so we are going to guess...`);
+      return `${prefix}${attrObj.toSql()}`;
 
-  default:
-    // BOOLEAN
-    // TIME
-    // DATE
-    // DATEONLY
-    // HSTORE
-    // JSONB
-    // UUID
-    // UUIDV1
-    // UUIDV4
-    // VIRTUAL
-    // INET
-    // MACADDR
+    default:
+      // BOOLEAN
+      // TIME
+      // DATE
+      // DATEONLY
+      // HSTORE
+      // JSONB
+      // UUID
+      // UUIDV1
+      // UUIDV4
+      // VIRTUAL
+      // INET
+      // MACADDR
 
-    return `${prefix}${attrName}`;
+      return `${prefix}${attrName}`;
   }
 }
 
@@ -180,41 +183,52 @@ function reverseModels(sequelize, models) {
   delete models.default;
 
   for (let model in models) {
-    let attributes = models[model].attributes || models[model].rawAttributes;
+    if (!Object.prototype.hasOwnProperty.call(models, model))
+      continue;
+
+    let thisModel = models[model];
+    let attributes = thisModel.attributes || thisModel.rawAttributes;
 
     for (let column in attributes) {
+      if (!Object.prototype.hasOwnProperty.call(attributes, column))
+        continue;
+
       delete attributes[column].Model;
       delete attributes[column].fieldName;
       // delete attributes[column].field;
 
-      for (let property in attributes[column]) {
+      let thisAttribute = attributes[column];
+      for (let property in thisAttribute) {
+        if (!Object.prototype.hasOwnProperty.call(thisAttribute, property))
+          continue;
+
         if (property.startsWith('_')) {
-          delete attributes[column][property];
+          delete thisAttribute[property];
           continue;
         }
 
         if (property === 'defaultValue') {
-          let value = reverseSequelizeDefValueType(attributes[column][property]);
+          let value = reverseSequelizeDefValueType(thisAttribute[property]);
           if (value.notSupported) {
             log(`[Not supported] Skip defaultValue column of attribute ${model}:${column}`);
-            delete attributes[column][property];
+            delete thisAttribute[property];
             continue;
           }
 
-          attributes[column][property] = value;
+          thisAttribute[property] = value;
         }
 
         if (property === 'validate')
-          delete attributes[column][property];
+          delete thisAttribute[property];
 
 
         // remove getters, setters...
-        if (typeof attributes[column][property] === 'function')
-          delete attributes[column][property];
+        if (typeof thisAttribute[property] === 'function')
+          delete thisAttribute[property];
       }
 
-      if (typeof attributes[column]['type'] === 'undefined') {
-        if (!attributes[column]['seqType']) {
+      if (typeof thisAttribute['type'] === 'undefined') {
+        if (!thisAttribute['seqType']) {
           log(`[Not supported] Skip column with undefined type ${model}:${column}`);
           delete attributes[column];
           continue;
@@ -253,15 +267,20 @@ function reverseModels(sequelize, models) {
       delete attributes[column].values; // ENUM
     }
 
-    tables[models[model].tableName] = {
-      tableName:  models[model].tableName,
+    tables[thisModel.tableName] = {
+      tableName:  thisModel.tableName,
       schema:     attributes,
     };
 
-    if (models[model].options.indexes.length > 0) {
+    let indexes = thisModel.options.indexes;
+    if (indexes.length > 0) {
       let indexOut = {};
-      for (let i in models[model].options.indexes) {
-        let index = parseIndex(models[model].options.indexes[i]);
+
+      for (let i in indexes) {
+        if (!Object.prototype.hasOwnProperty.call(indexes, i))
+          continue;
+
+        let index = parseIndex(indexes[i]);
         indexOut[index.hash + ''] = index;
         delete index.hash;
 
@@ -269,14 +288,13 @@ function reverseModels(sequelize, models) {
         Object.freeze(index);
       }
 
-      models[model].options.indexes = indexOut;
+      thisModel.options.indexes = indexOut;
     }
 
-    if (typeof models[model].options.charset !== 'undefined')
-      tables[models[model].tableName].charset = models[model].options.charset;
+    if (typeof thisModel.options.charset !== 'undefined')
+      tables[thisModel.tableName].charset = thisModel.options.charset;
 
-
-    tables[models[model].tableName].indexes = models[model].options.indexes;
+    tables[thisModel.tableName].indexes = thisModel.options.indexes;
   }
 
   return tables;
@@ -313,13 +331,17 @@ function parseDifference(previousState, currentState) {
       });
 
       // create indexes
-      if (difference.rhs.indexes) {
-        for (let i in difference.rhs.indexes) {
+      let indexes = difference.rhs.indexes;
+      if (indexes) {
+        for (let i in indexes) {
+          if (!Object.prototype.hasOwnProperty.call(indexes, i))
+            continue;
+
           actions.push(_.extend({
             actionType: 'addIndex',
             tableName:  tableName,
             depends:    [ tableName ],
-          }, _.clone(difference.rhs.indexes[i])));
+          }, _.clone(indexes[i])));
         }
       }
 
@@ -366,12 +388,12 @@ function parseDifference(previousState, currentState) {
 
     // new index
     if (difference.path[1] === 'indexes') {
-      let tableName = difference.path[0];
-      let index     = _.clone(difference.rhs);
+      let differenceTableName = difference.path[0];
+      let index               = _.clone(difference.rhs);
 
       index.actionType  = 'addIndex';
-      index.tableName   = tableName;
-      index.depends     = [tableName];
+      index.tableName   = differenceTableName;
+      index.depends     = [ differenceTableName ];
 
       actions.push(index);
     }
@@ -461,19 +483,22 @@ function parseDifference(previousState, currentState) {
     // updated index
     // only support updating and dropping indexes
     if (difference.path[1] === 'indexes') {
-      let tableName = difference.path[0];
-      let keys      = Object.keys(difference.rhs);
+      let differenceTableName = difference.path[0];
+      let keys                = Object.keys(difference.rhs);
 
       for (let k in keys) {
+        if (!Object.prototype.hasOwnProperty.call(keys, k))
+          continue;
+
         let key = keys[k];
         // let index = _.clone(difference.rhs[key]);
 
         actions.push({
           actionType: 'addIndex',
-          tableName:  tableName,
+          tableName:  differenceTableName,
           fields:     difference.rhs[key].fields,
           options:    difference.rhs[key].options,
-          depends:    [ tableName ],
+          depends:    [ differenceTableName ],
         });
 
         break;
@@ -481,15 +506,18 @@ function parseDifference(previousState, currentState) {
 
       keys = Object.keys(difference.lhs);
       for (let k in keys) {
+        if (!Object.prototype.hasOwnProperty.call(keys, k))
+          continue;
+
         let key = keys[k];
         // let index = _.clone(difference.lhs[key]);
 
         actions.push({
           actionType: 'removeIndex',
-          tableName:  tableName,
+          tableName:  differenceTableName,
           fields:     difference.lhs[key].fields,
           options:    difference.lhs[key].options,
-          depends:    [ tableName ],
+          depends:    [ differenceTableName ],
         });
 
         break;
@@ -501,24 +529,27 @@ function parseDifference(previousState, currentState) {
   let differences = diff(previousState, currentState);
 
   for (let key in differences) {
+    if (!Object.prototype.hasOwnProperty.call(differences, key))
+      continue;
+
     let difference = differences[key];
 
     switch (difference.kind) {
-    case 'N':
-      addAction(actions, difference);
-      break;
-    case 'D':
-      dropAction(actions, difference);
-      break;
-    case 'E':
-      editAction(actions, difference);
-      break;
-    case 'A':
-      // array change indexes
-      log('[Not supported] Array model changes! Problems are possible. Please, check result more carefully!');
-      log('[Not supported] Difference: ');
-      log(JSON.stringify(difference, null, 2));
-      break;
+      case 'N':
+        addAction(actions, difference);
+        break;
+      case 'D':
+        dropAction(actions, difference);
+        break;
+      case 'E':
+        editAction(actions, difference);
+        break;
+      case 'A':
+        // array change indexes
+        log('[Not supported] Array model changes! Problems are possible. Please, check result more carefully!');
+        log('[Not supported] Difference: ');
+        log(JSON.stringify(difference, null, 2));
+        break;
     }
   }
 
@@ -796,30 +827,33 @@ function getPartialMigration(actions) {
   let consoleOut  = [];
 
   for (let i in actions) {
+    if (!Object.prototype.hasOwnProperty.call(actions, i))
+      continue;
+
     let action = actions[i];
 
     switch (action.actionType) {
-    case 'createTable':
-      createTableAction(action);
-      break;
-    case 'dropTable':
-      dropTableAction(action);
-      break;
-    case 'addColumn':
-      addColumnAction(action);
-      break;
-    case 'removeColumn':
-      removeColumnAction(action);
-      break;
-    case 'changeColumn':
-      changeColumnAction(action);
-      break;
-    case 'addIndex':
-      addIndexAction(action);
-      break;
-    case 'removeIndex':
-      removeIndexAction(action);
-      break;
+      case 'createTable':
+        createTableAction(action);
+        break;
+      case 'dropTable':
+        dropTableAction(action);
+        break;
+      case 'addColumn':
+        addColumnAction(action);
+        break;
+      case 'removeColumn':
+        removeColumnAction(action);
+        break;
+      case 'changeColumn':
+        changeColumnAction(action);
+        break;
+      case 'addIndex':
+        addIndexAction(action);
+        break;
+      case 'removeIndex':
+        removeIndexAction(action);
+        break;
     }
   }
 
