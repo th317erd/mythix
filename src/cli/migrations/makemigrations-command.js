@@ -27,7 +27,7 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
   return class MakeMigrationsCommand extends Parent {
     static description      = 'Create migration for current model schema';
 
-    // static nodeArguments    = [ '--inspect-brk' ];
+    static nodeArguments    = [ '--inspect-brk' ];
 
     static commandArguments = `
       [-p,-preview:boolean(Preview what the generated migration would look like without migrating anything)]
@@ -135,10 +135,27 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
     }
 
     calculateModelSchemaDifferences(connection, schemaInfo, options) {
-      let rawAttributes = schemaInfo.rawAttributes;
-      let dbAttributes  = schemaInfo.dbAttributes;
-      let fieldNames    = Object.keys(rawAttributes);
-      let diff          = {
+      let tableAttributes       = schemaInfo.tableAttributes;
+      let dbAttributes          = schemaInfo.dbAttributes;
+      let fieldNames            = Object.keys(tableAttributes);
+      let schemaChanged         = false;
+      let Model                 = schemaInfo.Model;
+      let fieldRawAttributesMap = Model.fieldRawAttributesMap;
+      let rawAttributeMapKeys   = Object.keys(fieldRawAttributesMap);
+
+      const fieldNameToDBColumnName = (fieldName) => {
+        for (let i = 0, il = rawAttributeMapKeys.length; i < il; i++) {
+          var columnName  = rawAttributeMapKeys[i];
+          var field       = fieldRawAttributesMap[columnName];
+
+          if (field.fieldName === fieldName)
+            return columnName;
+        }
+
+        return null;
+      };
+
+      let diff = {
         tables: {
           add:    [],
         },
@@ -161,51 +178,68 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
 
       if (dbAttributes == null) {
         // entire table doesn't exist
-        diff.tables.add.push(schemaInfo.Model);
+        diff.tables.add.push(Model);
         return diff;
       }
 
       for (let i = 0, il = fieldNames.length; i < il; i++) {
-        let fieldName = fieldNames[i];
-        let modelAttribute  = rawAttributes[fieldName];
-        let dbAttribute     = dbAttributes[fieldName];
+        let fieldName         = fieldNames[i];
+        let columnName        = fieldNameToDBColumnName(fieldName);
+        let columnDefinition  = tableAttributes[fieldName];
+        let dbAttribute       = dbAttributes[columnName];
 
         if (dbAttribute == null) {
+          schemaChanged = true;
+
           // add column
-          diff.columns.add.push({ [fieldName]: modelAttribute });
+          diff.columns.add.push({ Model, columnDefinition, fieldName, columnName });
         } else {
+          // schemaChanged = true;
           // alter column
         }
       }
 
       // check for removed columns
-      let dbFieldNames  = Object.keys(dbAttributes);
-      for (let i = 0, il = fieldNames.length; i < il; i++) {
-        let dbFieldName = dbFieldNames[i];
-        let modelAttribute  = rawAttributes[dbFieldName];
-        let dbAttribute     = dbAttributes[dbFieldName];
+      // let dbFieldNames  = Object.keys(dbAttributes);
+      // for (let i = 0, il = fieldNames.length; i < il; i++) {
+      //   let dbFieldName     = dbFieldNames[i];
+      //   let modelAttribute  = rawAttributes[dbFieldName];
+      //   let dbAttribute     = dbAttributes[dbFieldName];
 
-        if (modelAttribute == null) {
-          // remove column
-          diff.columns.remove.push({ [dbFieldName]: dbAttribute });
-        }
-      }
+      //   if (modelAttribute == null) {
+      //     schemaChanged = true;
+      //     // remove column
+      //     diff.columns.remove.push({ columnDefinition: modelAttribute, columnName: fieldName });
+      //   }
+      // }
+
+      if (schemaChanged === false)
+        return null;
 
       return diff;
     }
 
     calculateDBSchemaDifferences(connection, dbSchema, options) {
       let schemaDiff = [];
+      let schemaChanged = false;
 
       for (let i = 0, il = dbSchema.length; i < il; i++) {
         let schema  = dbSchema[i];
         let diff    = this.calculateModelSchemaDifferences(connection, schema, options);
+
+        if (diff == null)
+          continue;
+
+        schemaChanged = true;
 
         schemaDiff.push({
           schema,
           diff,
         });
       }
+
+      if (schemaChanged === false)
+        return null;
 
       return schemaDiff;
     }
@@ -217,6 +251,12 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       let connection          = application.getDBConnection();
       let dbSchema            = await this.getDBSchema(connection);
       let schemaDiff          = this.calculateDBSchemaDifferences(connection, dbSchema, options);
+
+      if (schemaDiff == null) {
+        console.log('No changes to schema detected. Aborting.');
+        return;
+      }
+
       let migrationsPath      = applicationOptions.migrationsPath;
       let migrationName       = args.name || 'noname';
       let migrationID         = this.getRevisionNumber();
@@ -284,6 +324,67 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         });
       };
 
+      const addColumn = async (Model, columnDefinition, columnName) => {
+        return await this._hijackConnection(connection, async () => {
+          let options     = Model.options;
+          let tableName   = Model.getTableName();
+
+          return await queryInterface.addColumn(tableName, columnName, columnDefinition, options);
+        });
+      };
+
+      const checkCreateTables = async (tablesToCreate) => {
+        if (!tablesToCreate || tablesToCreate.length === 0)
+          return;
+
+        // Right now we only ever have one table to create for a given model
+        let Model     = tablesToCreate[0];
+        let tableName = Model.getTableName();
+        let result    = await createTable(Model);
+
+        result.queries.forEach((sql) => {
+          upCodeParts.push(`    await connection.query('${sanitizeString(sql)}');\n`);
+          downCodeParts.push(`    await connection.query('DROP TABLE IF EXISTS ${sanitizeString(queryInterface.quoteIdentifier(tableName))};');\n`);
+        });
+      };
+
+      const checkAddColumns = async (columnsToAdd) => {
+        if (!columnsToAdd || columnsToAdd.length === 0)
+          return;
+
+        let promises = [];
+        for (let i = 0, il = columnsToAdd.length; i < il; i++) {
+          let columnToAdd = columnsToAdd[i];
+          if (columnToAdd == null)
+            continue;
+
+          let { Model, columnDefinition, columnName } = columnToAdd;
+          promises.push(addColumn(Model, columnDefinition, columnName));
+        }
+
+        let results = await Promise.allSettled(promises);
+        results = results.map((result) => {
+          if (result.status === 'rejected')
+            throw result.reason;
+
+          return result.value;
+        });
+
+        for (let i = 0, il = results.length; i < il; i++) {
+          let columnToAdd = columnsToAdd[i];
+          if (columnToAdd == null)
+            continue;
+
+          let { columnName }  = columnToAdd;
+          let result          = results[i];
+
+          result.queries.forEach((sql) => {
+            upCodeParts.push(`    await connection.query('${sanitizeString(sql)}');\n`);
+            downCodeParts.push(`    await connection.query('DROP COLUMN IF EXISTS ${sanitizeString(queryInterface.quoteIdentifier(columnName))};');\n`);
+          });
+        }
+      };
+
       let queryInterface  = connection.getQueryInterface();
       let upCodeParts     = [];
       let downCodeParts   = [];
@@ -292,18 +393,11 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         let thisDiff  = schemaDiff[i];
         let diff      = thisDiff.diff;
 
-        let currentScope = diff.tables.add;
-        if (currentScope && currentScope.length > 0) {
-          // create table
-          let Model     = currentScope[0];
-          let tableName = Model.getTableName();
-          let result    = await createTable(Model);
+        if (diff == null)
+          continue;
 
-          result.queries.forEach((sql) => {
-            upCodeParts.push(`    await connection.query('${sanitizeString(sql)}');\n`);
-            downCodeParts.push(`    await connection.query('DROP TABLE IF EXISTS ${sanitizeString(queryInterface.quoteIdentifier(tableName))};');\n`);
-          });
-        }
+        await checkCreateTables(diff.tables.add);
+        await checkAddColumns(diff.columns.add);
       }
 
       let template = generateMigration(migrationID, upCodeParts.join('').trimEnd(), downCodeParts.reverse().join('').trimEnd());
