@@ -81,9 +81,9 @@ function buildPatternMatcher(_patterns, _opts) {
       continue;
     }
 
-    if (typeof sanitizeFunc === 'function')
+    if (typeof sanitizeFunc === 'function') {
       part = sanitizeFunc(part);
-    else {
+    } else {
       part = part.replace(/\*/g, '@@@WILD_MATCH@@@');
       part = Nife.regexpEscape(part);
       part = part.replace(/@@@WILD_MATCH@@@/g, '.*?');
@@ -215,9 +215,9 @@ function buildPathMatcher(routeName, customParserTypes) {
       }
 
       items.push(item);
-    } else
+    } else {
       items.push(item.matcher);
-
+    }
 
     return items;
   }, []).join('');

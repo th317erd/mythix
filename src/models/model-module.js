@@ -1,5 +1,8 @@
 'use strict';
 
+/* global __dirname */
+
+const Path                    = require('path');
 const { Sequelize }           = require('sequelize');
 const { BaseModule }          = require('../modules/base-module');
 const { buildModelRelations } = require('./model-utils');
@@ -61,7 +64,7 @@ class ModelModule extends BaseModule {
   }
 
   getModelFilePaths(modelsPath) {
-    return walkDir(modelsPath, {
+    let modelFiles = walkDir(modelsPath, {
       filter: (fullFileName, fileName, stats) => {
         if (fileName.match(/^_/))
           return false;
@@ -72,6 +75,14 @@ class ModelModule extends BaseModule {
         return true;
       },
     });
+
+    let application = this.getApplication();
+    let options     = application.getOptions();
+
+    if (options.noInternalMigrationTable !== true)
+      modelFiles.push(Path.resolve(__dirname, 'migration-model.js'));
+
+    return modelFiles;
   }
 
   loadModels(modelsPath) {

@@ -37,9 +37,9 @@ function logToWriter(type, ..._args) {
         : errorStackToString.call(this, this._rootPath, arg);
 
       arg = `${arg.name}: ${arg.message}: ${formattedStack}`;
-    } else if (arg && typeof arg.valueOf() === 'function')
+    } else if (arg && typeof arg.valueOf() === 'function') {
       arg = arg.valueOf();
-
+    }
 
     if (arg === true)
       return 'true';
@@ -208,9 +208,9 @@ class Logger {
 
           resolve();
         });
-      } else
+      } else {
         resolve();
-
+      }
     });
   }
 }

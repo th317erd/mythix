@@ -223,11 +223,12 @@ class HTTPServer {
           controller = this.getApplication().getController(controller);
         else if (typeof controller === 'function')
           controller = { controller };
-      } else
+      } else {
         controller = { controller };
-
-    } else if (Nife.instanceOf(controller, 'string'))
+      }
+    } else if (Nife.instanceOf(controller, 'string')) {
       controller = this.getApplication().getController(controller);
+    }
 
     return controller;
   }
@@ -420,9 +421,9 @@ class HTTPServer {
     if (options.https) {
       let credentials = await this.getHTTPSCredentials(options.https);
       server = HTTPS.createServer(credentials, app);
-    } else
+    } else {
       server = HTTP.createServer(app);
-
+    }
 
     server.listen(options.port);
 

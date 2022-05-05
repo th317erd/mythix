@@ -53,15 +53,15 @@ class Model extends Sequelize.Model {
         invert  = true;
       }
 
-      if (typeof key === 'symbol')
+      if (typeof key === 'symbol') {
         finalQuery[key] = value;
-      else if (value === null)
+      } else if (value === null) {
         finalQuery[name] = (invert) ? { [Ops.not]: value } : { [Ops.is]: value };
-      else if (Nife.instanceOf(value, 'number', 'string', 'boolean', 'bigint'))
+      } else if (Nife.instanceOf(value, 'number', 'string', 'boolean', 'bigint')) {
         finalQuery[name] = (invert) ? { [Ops.ne]: value } : { [Ops.eq]: value };
-      else if (Nife.instanceOf(value, 'array') && Nife.isNotEmpty(value))
+      } else if (Nife.instanceOf(value, 'array') && Nife.isNotEmpty(value)) {
         finalQuery[name] = (invert) ? { [Ops.not]: { [Ops.in]: value } } : { [Ops.in]: value };
-      else if (Nife.isNotEmpty(value)) {
+      } else if (Nife.isNotEmpty(value)) {
         if (invert)
           throw new Error(`Model.prepareWhereStatement: Attempted to invert a custom matcher "${name}"`);
 
@@ -87,7 +87,7 @@ class Model extends Sequelize.Model {
   static onModelClassFinalized(Klass) {
     Klass.getDefaultOrderBy   = Klass.getDefaultOrderBy.bind(this, Klass);
     Klass.prepareQueryOptions = Klass.prepareQueryOptions.bind(this, Klass);
-    Klass.bulkUpdate           = Klass.bulkUpdate.bind(this, Klass);
+    Klass.bulkUpdate          = Klass.bulkUpdate.bind(this, Klass);
     Klass.all                 = Klass.all.bind(this, Klass);
     Klass.where               = Klass.where.bind(this, Klass);
     Klass.rowCount            = Klass.rowCount.bind(this, Klass);
@@ -109,25 +109,25 @@ class Model extends Sequelize.Model {
     if (conditions && Nife.isNotEmpty(conditions.where)) {
       query = conditions.where;
       options = Object.assign({}, conditions);
-    } else if (conditions)
+    } else if (conditions && conditions.where !== null) {
       query = ModelClass.prepareWhereStatement(conditions);
-
+    }
 
     let order = _order;
     if (!options && Nife.instanceOf(order, 'object')) {
       options = Object.assign({}, order);
-      order = undefined;
-    } else if (!options)
+      order = options.order;
+    } else if (!options) {
       options = {};
-
+    }
 
     if (Nife.isNotEmpty(query))
       options.where = query;
 
     if (!order && options.defaultOrder !== false) {
-      if (options.order)
+      if (options.order) {
         order = options.order;
-      else {
+      } else {
         if (typeof ModelClass.getDefaultOrderBy === 'function')
           order = ModelClass.getDefaultOrderBy();
         else
@@ -172,7 +172,7 @@ class Model extends Sequelize.Model {
   static async last(ModelClass, conditions, _order) {
     let order = _order;
     if (!order)
-      order = [ 'createdAt', 'DESC' ];
+      order = [ [ 'createdAt', 'DESC' ] ];
 
     return await ModelClass.first(conditions, order);
   }

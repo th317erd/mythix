@@ -1,3 +1,7 @@
+'use strict';
+
+/* global Buffer */
+
 const Nife    = require('nife');
 const http    = require('http');
 const { URL } = require('url');
@@ -85,11 +89,11 @@ function makeRequest(requestOptions) {
 
     delete options.data;
 
-    let request = http.request(options, (response) => {
-      let data = Buffer.alloc(0);
+    let thisRequest = http.request(options, (response) => {
+      let responseData = Buffer.alloc(0);
 
       response.on('data', (chunk) => {
-        data = Buffer.concat([ data, chunk ]);
+        responseData = Buffer.concat([ responseData, chunk ]);
       });
 
       response.on('error', (error) => {
@@ -97,14 +101,14 @@ function makeRequest(requestOptions) {
       });
 
       response.on('end', () => {
-        response.rawBody = response.body = data;
+        response.rawBody = response.body = responseData;
 
         try {
           let contentType = response.headers['content-type'];
           if (contentType && contentType.match(/application\/json/))
-            response.body = JSON.parse(data.toString('utf8'));
+            response.body = JSON.parse(responseData.toString('utf8'));
           else if (contentType && contentType.match(/text\/(plain|html)/))
-            response.body = data.toString('utf8');
+            response.body = responseData.toString('utf8');
         } catch (error) {
           return reject(error);
         }
@@ -113,15 +117,14 @@ function makeRequest(requestOptions) {
       });
     });
 
-    request.on('error', (error) => {
+    thisRequest.on('error', (error) => {
       reject(error);
     });
 
     if (data)
-      request.write(data);
+      thisRequest.write(data);
 
-
-    request.end();
+    thisRequest.end();
   });
 }
 

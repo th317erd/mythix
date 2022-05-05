@@ -43,29 +43,30 @@ class Application extends EventEmitter {
     let ROOT_PATH = (_opts && _opts.rootPath) ? _opts.rootPath : Path.resolve(__dirname);
 
     let opts = Nife.extend(true, {
-      appName:          this.constructor.APP_NAME,
-      rootPath:         ROOT_PATH,
-      configPath:       Path.resolve(ROOT_PATH, 'config'),
-      migrationsPath:   Path.resolve(ROOT_PATH, 'migrations'),
-      modelsPath:       Path.resolve(ROOT_PATH, 'models'),
-      seedersPath:      Path.resolve(ROOT_PATH, 'seeders'),
-      controllersPath:  Path.resolve(ROOT_PATH, 'controllers'),
-      templatesPath:    Path.resolve(ROOT_PATH, 'templates'),
-      commandsPath:     Path.resolve(ROOT_PATH, 'commands'),
-      tasksPath:        Path.resolve(ROOT_PATH, 'tasks'),
-      modules:          this.constructor.getDefaultModules(),
-      logger:           {
+      appName:                  this.constructor.APP_NAME,
+      rootPath:                 ROOT_PATH,
+      configPath:               Path.resolve(ROOT_PATH, 'config'),
+      migrationsPath:           Path.resolve(ROOT_PATH, 'migrations'),
+      modelsPath:               Path.resolve(ROOT_PATH, 'models'),
+      seedersPath:              Path.resolve(ROOT_PATH, 'seeders'),
+      controllersPath:          Path.resolve(ROOT_PATH, 'controllers'),
+      templatesPath:            Path.resolve(ROOT_PATH, 'templates'),
+      commandsPath:             Path.resolve(ROOT_PATH, 'commands'),
+      tasksPath:                Path.resolve(ROOT_PATH, 'tasks'),
+      modules:                  this.constructor.getDefaultModules(),
+      autoReload:               (process.env.NODE_ENV || 'development') === 'development',
+      exitOnShutdown:           null,
+      runTasks:                 true,
+      testMode:                 false,
+      noInternalMigrationTable: false,
+      logger:                   {
         rootPath: ROOT_PATH,
       },
-      database:   {},
-      httpServer: {
-        routeParserTypes: undefined,
-        middleware:       null,
+      database:                 {},
+      httpServer:               {
+        routeParserTypes:       undefined,
+        middleware:             null,
       },
-      autoReload:         (process.env.NODE_ENV || 'development') === 'development',
-      exitOnShutdown:     null,
-      runTasks:           true,
-      testMode:           false,
     }, _opts || {});
 
     Object.defineProperties(this, {

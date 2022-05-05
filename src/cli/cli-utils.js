@@ -299,9 +299,9 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
     if (error.code === 'ENOENT') {
       if (!mythixConfigPath.match(/[/\\]$/))
         mythixConfigPath = Path.dirname(mythixConfigPath);
-    } else
+    } else {
       throw error;
-
+    }
   }
 
   let appRootPath = (_appRootPath) ? Path.resolve(_appRootPath) : Path.resolve(mythixConfigPath, 'app');

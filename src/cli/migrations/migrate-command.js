@@ -1,18 +1,19 @@
 'use strict';
 
 const Path              = require('path');
+const Nife              = require('nife');
 const { defineCommand } = require('../cli-utils');
-const MigrationUtils    = require('./migration-utils');
 const { walkDir }       = require('../../utils/file-utils');
 
-const TIMESTAMP_LENGTH = 14;
+const TIMESTAMP_LENGTH        = 14;
+const MILLISECONDS_PER_SECOND = 1000.0;
 
 module.exports = defineCommand('migrate', ({ Parent }) => {
   return class MigrateCommand extends Parent {
     static description      = 'Run all migrations that have not yet been ran';
 
     static commandArguments = `
-      [-r,-revision:string(Start operation at revision specified. For rollbacks, this specifies the revision to stop at [inclusive])]
+      [-r,-revision:string(Start operation at revision specified. For rollbacks, this specifies the revision to stop at [non-inclusive])]
       [-rollback:boolean(Reverse migration order, rolling back each migration from latest to specified revision)=false(Default is false)]
       [-transaction:boolean(Use a DB transaction for migrations)=false(Default is false)]
     `;
@@ -57,11 +58,66 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       if (index < 0)
         throw new Error(`Error, migration revision ${revision} not found. Aborting...`);
 
-      return migrationFiles.slice(index);
+      return migrationFiles.slice(index + 1);
     }
 
-    // TODO: Needs better tracking against DB
-    execute(args) {
+    async executeMigration(dbConnection, migrationFileName, useTransaction, rollback) {
+      let migration = require(migrationFileName);
+      let startTime = Nife.now();
+
+      if (rollback) {
+        await migration.down(dbConnection);
+        await this.removeMigrationFromDB(migration.MIGRATION_ID);
+
+        let seconds = ((Nife.now() - startTime) / MILLISECONDS_PER_SECOND).toFixed(2);
+        console.log(`Rolled back migration ${migrationFileName} successfully in ${seconds} seconds`);
+      } else {
+        await migration.up(dbConnection);
+        await this.storeSuccessfulMigrationToDB(migration.MIGRATION_ID);
+
+        let seconds = ((Nife.now() - startTime) / MILLISECONDS_PER_SECOND).toFixed(2);
+        console.log(`Migration ${migrationFileName} completed successfully in ${seconds} seconds`);
+      }
+    }
+
+    async storeSuccessfulMigrationToDB(migrationID) {
+      let MigrationModel = this.getApplication().getModel('Migration');
+
+      await MigrationModel.create({ id: ('' + migrationID) });
+    }
+
+    async removeMigrationFromDB(migrationID) {
+      try {
+        let MigrationModel = this.getApplication().getModel('Migration');
+
+        await MigrationModel.destroy({
+          where: MigrationModel.prepareWhereStatement({ id: ('' + migrationID) }),
+          limit: 1,
+        });
+      } catch (error) {
+        return;
+      }
+    }
+
+    async fetchLastMigrationIDFromDB() {
+      try {
+        let MigrationModel = this.getApplication().getModel('Migration');
+
+        let lastMigrationModel = await MigrationModel.first(null, {
+          order: [ [ 'id', 'DESC' ] ],
+          limit: 1,
+        });
+
+        if (lastMigrationModel == null)
+          return null;
+
+        return lastMigrationModel.id;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async execute(args) {
       const nextMigration = (doneCallback, _index) => {
         let index = _index || 0;
         if (index >= migrationFiles.length)
@@ -74,7 +130,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
         else
           console.log(`Running migration ${migrationFileName}...`);
 
-        MigrationUtils.executeMigration(queryInterface, migrationFileName, useTransaction, 0, rollback).then(
+        this.executeMigration(dbConnection, migrationFileName, useTransaction, rollback).then(
           () => nextMigration(doneCallback, index + 1),
           (error) => {
             console.error(`Error while running migration ${migrationFileName}: `, error);
@@ -85,21 +141,26 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
 
       let application         = this.getApplication();
       let applicationOptions  = application.getOptions();
+      let dbConnection        = application.getDBConnection();
       let migrationsPath      = applicationOptions.migrationsPath;
       let migrationFiles      = this.getMigrationFiles(migrationsPath);
       let useTransaction      = args.transaction;
       let rollback            = args.rollback;
+      let migrationID         = args.revision;
 
-      // console.log('USING TRANSACTION: ', useTransaction, args['transaction'], rollback, typeof rollback);
+      if (!migrationID)
+        migrationID = await this.fetchLastMigrationIDFromDB(dbConnection);
 
-      if (args.revision)
-        migrationFiles = this.getMigrationFilesFromRevision(migrationFiles, args.revision);
+      if (migrationID)
+        migrationFiles = this.getMigrationFilesFromRevision(migrationFiles, migrationID);
 
       if (args.rollback)
         migrationFiles = migrationFiles.reverse();
 
-      let dbConnection    = application.getDBConnection();
-      let queryInterface  = dbConnection.getQueryInterface();
+      if (migrationFiles.length === 0) {
+        console.log('Nothing to migrate');
+        return;
+      }
 
       return new Promise((resolve, reject) => {
         nextMigration((error) => {

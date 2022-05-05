@@ -140,9 +140,9 @@ class TaskModule extends BaseModule {
             successResult,
             errorResult,
           );
-        } else
+        } else {
           promise.resolve(result);
-
+        }
       };
 
       let taskName      = TaskKlass.taskName;

@@ -1,3 +1,7 @@
+'use strict';
+
+/* global Buffer */
+
 const { createHash, randomFillSync } = require('crypto');
 
 function randomBytes(length) {

@@ -1,3 +1,5 @@
+'use strict';
+
 const Path        = require('path');
 const FileSystem  = require('fs');
 
@@ -20,9 +22,9 @@ function walkDir(rootPath, _options, _callback, _allFiles, _depth) {
       continue;
 
 
-    if (stats.isDirectory())
+    if (stats.isDirectory()) {
       walkDir(fullFileName, options, callback, allFiles, depth + 1);
-    else if (stats.isFile()) {
+    } else if (stats.isFile()) {
       if (typeof callback === 'function')
         callback(fullFileName, fileName, rootPath, depth, stats);
 

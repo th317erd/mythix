@@ -35,9 +35,9 @@ function conditional(middleware, conditions) {
           value = buildContentTypeMatcher(value);
         else
           value = buildPatternMatcher(value);
-      } else if (typeof value !== 'function')
+      } else if (typeof value !== 'function') {
         continue;
-
+      }
 
       matchers.push({
         matcher: value,

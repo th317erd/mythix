@@ -1,3 +1,5 @@
+'use strict';
+
 const { wrapConfig } = require('./config-utils');
 
 const {

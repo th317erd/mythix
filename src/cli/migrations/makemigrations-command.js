@@ -3,13 +3,31 @@
 const Path              = require('path');
 const FileSystem        = require('fs');
 const { defineCommand } = require('../cli-utils');
-const MigrationUtils    = require('./migration-utils');
+
+function generateMigration(migrationID, upCode, downCode) {
+  let template =
+`
+const MIGRATION_ID = '${migrationID}';
+
+module.exports = {
+  MIGRATION_ID,
+  up: async function(connection) {
+${upCode}
+  },
+  down: async function(connection) {
+${downCode}
+  },
+};
+`;
+
+  return template;
+}
 
 module.exports = defineCommand('makemigrations', ({ Parent }) => {
   return class MakeMigrationsCommand extends Parent {
     static description      = 'Create migration for current model schema';
 
-    static nodeArguments    = [ '--inspect-brk' ];
+    // static nodeArguments    = [ '--inspect-brk' ];
 
     static commandArguments = `
       [-p,-preview:boolean(Preview what the generated migration would look like without migrating anything)]
@@ -60,17 +78,21 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       return mappedAttributes;
     }
 
-    async getDBSchema(connection, models) {
+    async getDBSchema(connection) {
       let queryInterface  = connection.getQueryInterface();
       let promises        = [];
-      let modelNames      = Object.keys(models);
       let options         = {};
-      let dbSchema        = {};
+      let dbSchema        = [];
 
-      for (let i = 0, il = modelNames.length; i < il; i++) {
-        let modelName = modelNames[i];
-        let Model     = models[modelName];
+      connection.modelManager.forEachModel((Model) => {
+        let modelName = Model.customName || Model.name;
         let tableName = Model.getTableName(options);
+
+        dbSchema.push({
+          Model,
+          modelName,
+          tableName,
+        });
 
         promises.push(Promise.allSettled([
           queryInterface.describeTable(tableName, options),
@@ -78,10 +100,9 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
           queryInterface.showIndex(tableName, options),
           queryInterface.queryGenerator.attributesToSQL(Model.tableAttributes, options),
         ]));
-      }
+      });
 
       let results = await Promise.allSettled(promises);
-
       results = results.map((result) => {
         if (result.status === 'rejected')
           return null;
@@ -94,13 +115,12 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         });
       });
 
-      for (let i = 0, il = modelNames.length; i < il; i++) {
-        let modelName     = modelNames[i];
-        let Model         = models[modelName];
-        let tableName     = Model.getTableName(options);
+      for (let i = 0, il = dbSchema.length; i < il; i++) {
+        let schema        = dbSchema[i];
+        let Model         = schema.Model;
         let schemaResult  = results[i];
 
-        dbSchema[modelName] = {
+        dbSchema[i] = Object.assign({
           dbAttributes:     this.convertDBTypesToLocalTypes(connection.getDialect(), schemaResult[0]),
           dbForeignKeys:    schemaResult[1],
           dbIndexes:        schemaResult[2],
@@ -108,10 +128,7 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
           modelTypes:       schemaResult[3],
           tableAttributes:  Model.tableAttributes,
           rawAttributes:    Model.fieldRawAttributesMap,
-          modelName,
-          Model,
-          tableName,
-        };
+        }, schema);
       }
 
       return dbSchema;
@@ -123,28 +140,28 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       let fieldNames    = Object.keys(rawAttributes);
       let diff          = {
         tables: {
-          add:    {},
+          add:    [],
         },
         columns: {
-          add:    {},
-          remove: {},
-          alter:  {},
+          add:    [],
+          remove: [],
+          alter:  [],
         },
         indexes: {
-          add:    {},
-          remove: {},
-          alter:  {},
+          add:    [],
+          remove: [],
+          alter:  [],
         },
         forignKeys: {
-          add:    {},
-          remove: {},
-          alter:  {},
+          add:    [],
+          remove: [],
+          alter:  [],
         },
       };
 
       if (dbAttributes == null) {
         // entire table doesn't exist
-        diff.tables.add[schemaInfo.tableName] = schemaInfo.Model;
+        diff.tables.add.push(schemaInfo.Model);
         return diff;
       }
 
@@ -155,7 +172,7 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
 
         if (dbAttribute == null) {
           // add column
-          diff.columns.add[fieldName] = modelAttribute;
+          diff.columns.add.push({ [fieldName]: modelAttribute });
         } else {
           // alter column
         }
@@ -170,48 +187,127 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
 
         if (modelAttribute == null) {
           // remove column
-          diff.columns.remove[dbFieldName] = dbAttribute;
+          diff.columns.remove.push({ [dbFieldName]: dbAttribute });
         }
       }
-
-      debugger;
 
       return diff;
     }
 
-    calculateDBSchemaDifferences(connection, models, dbSchema, options) {
-      let modelNames  = Object.keys(models);
-      let schemaDiff  = {};
+    calculateDBSchemaDifferences(connection, dbSchema, options) {
+      let schemaDiff = [];
 
-      for (let i = 0, il = modelNames.length; i < il; i++) {
-        let modelName = modelNames[i];
-        let Model     = models[modelName];
-        let tableName = Model.getTableName(options);
-        let diff      = this.calculateModelSchemaDifferences(connection, dbSchema[modelName], options);
+      for (let i = 0, il = dbSchema.length; i < il; i++) {
+        let schema  = dbSchema[i];
+        let diff    = this.calculateModelSchemaDifferences(connection, schema, options);
+
+        schemaDiff.push({
+          schema,
+          diff,
+        });
       }
+
+      return schemaDiff;
     }
 
     async execute(args) {
       let options             = {};
       let application         = this.getApplication();
       let applicationOptions  = application.getOptions();
-      let migrationsPath      = applicationOptions.migrationsPath;
       let connection          = application.getDBConnection();
-      let models              = application.getModels();
+      let dbSchema            = await this.getDBSchema(connection);
+      let schemaDiff          = this.calculateDBSchemaDifferences(connection, dbSchema, options);
+      let migrationsPath      = applicationOptions.migrationsPath;
       let migrationName       = args.name || 'noname';
-      let dbSchema            = await this.getDBSchema(connection, models);
-      let schemaDiff          = this.calculateDBSchemaDifferences(connection, models, dbSchema, options);
+      let migrationID         = this.getRevisionNumber();
+      let migrationWritePath  = Path.join(migrationsPath, `${migrationID}-${migrationName}.js`);
+      let migrationSource     = await this.generateMigrationFromDiff(connection, schemaDiff, migrationID);
 
-      // write migration to file
-      // let info = MigrationUtils.writeMigration(
-      //   currentState.revision,
-      //   migration,
-      //   migrationsPath,
-      //   migrationName,
-      //   (args.comment) ? args.comment : '',
-      // );
+      FileSystem.writeFileSync(migrationWritePath, migrationSource, 'utf8');
 
-      // console.log(`New migration to revision ${currentState.revision} has been saved to file '${info.filename}'`);
+      console.log(`New migration to revision ${migrationID} has been written to file '${migrationWritePath}'`);
+    }
+
+    async _hijackConnection(dbConnection, callback) {
+      let DialectQueryClass = dbConnection.dialect.Query;
+
+      try {
+        let sqlQueries = [];
+
+        dbConnection.dialect.Query = class Query extends dbConnection.dialect.Query {
+          constructor(connection, ...args) {
+            let originalQuery = connection.query;
+
+            connection.query = function(..._queryArgs) {
+              let queryArgs     = _queryArgs.slice();
+              let sql           = queryArgs[0];
+
+              // eslint-disable-next-line no-magic-numbers
+              let callbackIndex = (queryArgs.length === 3) ? 2 : 1;
+              let cb            = queryArgs[callbackIndex];
+
+              if (sql.match(/^\s*SELECT/)) {
+                return originalQuery.apply(this, queryArgs);
+              } else {
+                sqlQueries.push(sql);
+                cb(null, { rows: [] });
+              }
+            };
+
+            super(connection, ...args);
+          }
+        };
+
+        let result = await callback(dbConnection);
+
+        return {
+          queries: sqlQueries,
+          result,
+        };
+      } finally {
+        dbConnection.dialect.Query = DialectQueryClass;
+      }
+    }
+
+    async generateMigrationFromDiff(connection, schemaDiff, migrationID) {
+      const sanitizeString = (str) => {
+        return str.replace(/'/g, '\\\'');
+      };
+
+      const createTable = async (Model) => {
+        return await this._hijackConnection(connection, async () => {
+          let attributes  = Model.tableAttributes;
+          let options     = Model.options;
+          let tableName   = Model.getTableName();
+
+          return await queryInterface.createTable(tableName, attributes, options, Model);
+        });
+      };
+
+      let queryInterface  = connection.getQueryInterface();
+      let upCodeParts     = [];
+      let downCodeParts   = [];
+
+      for (let i = 0, il = schemaDiff.length; i < il; i++) {
+        let thisDiff  = schemaDiff[i];
+        let diff      = thisDiff.diff;
+
+        let currentScope = diff.tables.add;
+        if (currentScope && currentScope.length > 0) {
+          // create table
+          let Model     = currentScope[0];
+          let tableName = Model.getTableName();
+          let result    = await createTable(Model);
+
+          result.queries.forEach((sql) => {
+            upCodeParts.push(`    await connection.query('${sanitizeString(sql)}');\n`);
+            downCodeParts.push(`    await connection.query('DROP TABLE IF EXISTS ${sanitizeString(queryInterface.quoteIdentifier(tableName))};');\n`);
+          });
+        }
+      }
+
+      let template = generateMigration(migrationID, upCodeParts.join('').trimEnd(), downCodeParts.reverse().join('').trimEnd());
+      return template;
     }
   };
 });

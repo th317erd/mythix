@@ -1,3 +1,5 @@
+'use strict';
+
 const { Application }   = require('./application');
 const Models            = require('./models');
 const HTTPServerScope   = require('./http-server');
