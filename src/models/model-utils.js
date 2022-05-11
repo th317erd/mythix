@@ -91,8 +91,8 @@ function defineModel(modelName, definer, _parent) {
         field.field = columnName;
       }
 
-      // if (!Object.prototype.hasOwnProperty.call(field, 'defaultValue'))
-      //   field.defaultValue = null;
+      if (!Object.prototype.hasOwnProperty.call(field, 'allowNull'))
+        field.allowNull = (field.primaryKey) ? false : true;
 
       // If using SQLite, which doesn't support autoincrement
       // on anything except the primary key, then create our
@@ -224,9 +224,10 @@ function defineModel(modelName, definer, _parent) {
     Klass.fields = cleanModelFields(Klass, connection);
 
     let applicationOptions = application.getOptions();
-    let tableName;
+    let tableName = Klass.tableName;
 
-    tableName = (`${Nife.get(applicationOptions, 'database.tablePrefix', '')}${Nife.camelCaseToSnakeCase(pluralName)}`).toLowerCase();
+    if (!tableName)
+      tableName = (`${Nife.get(applicationOptions, 'database.tablePrefix', '')}${Nife.camelCaseToSnakeCase(pluralName)}`).toLowerCase();
 
     Klass.init(Klass.fields, {
       underscored:      true,
@@ -322,6 +323,7 @@ function buildModelRelations(models) {
       let options = {
         onDelete:   relation.onDelete,
         onUpdate:   relation.onUpdate,
+        allowNull:  (relation.allowNull == null) ? true : relation.allowNull,
         foreignKey: Object.assign(pkFieldCopy, { name: fieldName, as: relation.name, field: Nife.camelCaseToSnakeCase(fieldName) }),
       };
 

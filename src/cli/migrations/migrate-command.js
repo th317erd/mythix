@@ -13,7 +13,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
     static description      = 'Run all migrations that have not yet been ran';
 
     static commandArguments = `
-      [-r,-revision:string(Start operation at revision specified. For rollbacks, this specifies the revision to stop at [non-inclusive])]
+      [-r,-revision:string(Start operation at revision specified. For rollbacks, this specifies the revision to stop at [inclusive])]
       [-rollback:boolean(Reverse migration order, rolling back each migration from latest to specified revision)=false(Default is false)]
       [-transaction:boolean(Use a DB transaction for migrations)=false(Default is false)]
     `;
@@ -43,7 +43,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       }
     }
 
-    getMigrationFilesFromRevision(migrationFiles, _revision) {
+    getMigrationFilesFromRevision(migrationFiles, _revision, isRollback) {
       let revision = ('' + _revision);
 
       let index = migrationFiles.findIndex((fullFileName) => {
@@ -58,7 +58,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       if (index < 0)
         throw new Error(`Error, migration revision ${revision} not found. Aborting...`);
 
-      return migrationFiles.slice(index + 1);
+      return migrationFiles.slice((isRollback) ? index : index + 1);
     }
 
     async executeMigration(dbConnection, migrationFileName, useTransaction, rollback) {
@@ -152,7 +152,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
         migrationID = await this.fetchLastMigrationIDFromDB(dbConnection);
 
       if (migrationID)
-        migrationFiles = this.getMigrationFilesFromRevision(migrationFiles, migrationID);
+        migrationFiles = this.getMigrationFilesFromRevision(migrationFiles, migrationID, rollback);
 
       if (args.rollback)
         migrationFiles = migrationFiles.reverse();

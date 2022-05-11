@@ -64,7 +64,7 @@ module.exports = {
     'no-promise-executor-return':             'error',
     'no-return-assign':                       'error',
     'no-sequences':                           'error',
-    'no-shadow':                              'warn',
+    'no-shadow':                              0,
     'no-throw-literal':                       'warn',
     'no-trailing-spaces':                     'error',
     'no-unmodified-loop-condition':           'warn',
