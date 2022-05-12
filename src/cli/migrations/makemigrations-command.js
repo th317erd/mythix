@@ -6,7 +6,7 @@ const prompts           = require('prompts');
 const Nife              = require('nife');
 const { defineCommand } = require('../cli-utils');
 
-function generateMigration(migrationID, upCode, downCode) {
+function generateMigration(migrationID, upCode, downCode, preCode, postCode) {
   let template =
 `
 const MIGRATION_ID = '${migrationID}';
@@ -14,10 +14,20 @@ const MIGRATION_ID = '${migrationID}';
 module.exports = {
   MIGRATION_ID,
   up: async function(connection) {
+${preCode}
+    try {
 ${upCode}
+    } finally {
+${postCode}
+    }
   },
   down: async function(connection) {
+${preCode}
+    try {
 ${downCode}
+    } finally {
+${postCode}
+    }
   },
 };
 `;
@@ -29,7 +39,7 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
   return class MakeMigrationsCommand extends Parent {
     static description      = 'Create migration for current model schema';
 
-    // static nodeArguments    = [ '--inspect-brk' ];
+    static nodeArguments    = [ '--inspect-brk' ];
 
     static commandArguments = `
       [-p,-preview:boolean(Preview what the generated migration would look like without migrating anything)]
@@ -169,8 +179,6 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         return false;
       };
 
-      debugger;
-
       let tableAttributes       = modelSchema.tableAttributes;
       let Model                 = modelSchema.Model;
       let tableName             = Model.getTableName();
@@ -244,6 +252,175 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         return null;
       };
 
+      const getFieldIndexes = (columnName) => {
+        let allIndexes    = Model.options.indexes;
+        let foundIndexes  = [];
+
+        for (let i = 0, il = allIndexes.length; i < il; i++) {
+          let index = allIndexes[i];
+          if (!index || !index.fields)
+            continue;
+
+          if (index.fields.indexOf(columnName) >= 0) {
+            let mappedIndex = { ...index, primary: index.primary || false, unique: index.unique || false };
+            foundIndexes.push(mappedIndex);
+          }
+        }
+
+        return foundIndexes;
+      };
+
+      const getDBFieldIndexes = (columnName) => {
+        let allIndexes    = dbTableInfo.indexes;
+        let foundIndexes  = [];
+
+        for (let i = 0, il = allIndexes.length; i < il; i++) {
+          let index = allIndexes[i];
+          if (!index || !index.fields)
+            continue;
+
+          if (index.fields.findIndex((fieldInfo) => fieldInfo.attribute === columnName) >= 0) {
+            let mappedIndex = { ...index, fields: index.fields.map((fieldInfo) => fieldInfo.attribute) };
+            foundIndexes.push(mappedIndex);
+          }
+        }
+
+        return foundIndexes;
+      };
+
+      const indexDiffers = (index1, index2) => {
+        if (index1.name !== index2.name)
+          return true;
+
+        if (index2.primary !== index2.primary)
+          return true;
+
+        if (index2.unique !== index2.unique)
+          return true;
+
+        if (Nife.propsDiffer(index1.fields.sort(), index2.fields.sort()))
+          return true;
+
+        return false;
+      };
+
+      const calculateIndexDiff = (fieldIndexes, dbFieldIndexes) => {
+        const findIndex = (indexList, indexName) => {
+          return indexList.find((index) => index.name === indexName);
+        };
+
+        // Calculate from the perspective of fields
+        for (let i = 0, il = fieldIndexes.length; i < il; i++) {
+          let index   = fieldIndexes[i];
+          let dbIndex = findIndex(dbFieldIndexes, index.name);
+
+          if (!dbIndex) {
+            if (index.primary)
+              continue;
+
+            diff.indexes.add.push({ Model, index });
+            schemaChanged = true;
+          } else if (indexDiffers(index, dbIndex)) {
+            diff.indexes.remove.push({ Model, index: dbIndex });
+            diff.indexes.add.push({ Model, index });
+            schemaChanged = true;
+          }
+        }
+
+        // Calculate from the perspective of the DB
+        for (let i = 0, il = dbFieldIndexes.length; i < il; i++) {
+          let dbIndex = dbFieldIndexes[i];
+          if (dbIndex.primary)
+            continue;
+
+          let index = findIndex(fieldIndexes, dbIndex.name);
+          if (!index) {
+            diff.indexes.remove.push({ Model, index: dbIndex });
+            schemaChanged = true;
+          }
+        }
+      };
+
+      const findModelByTableName = (tableName) => {
+        return dbSchema.models.map((modelInfo) => modelInfo.Model).find((thisModel) => thisModel.getTableName() === tableName);
+      };
+
+      const calculateForeignKeysDiff = () => {
+        const findDBForeignKey = (tableName, columnName) => {
+          let thisTableInfo = dbSchema.dbTableSchema[tableName];
+          if (!thisTableInfo)
+            return;
+
+          let foreignKeys = thisTableInfo.foreignKeys;
+          if (!foreignKeys)
+            return;
+
+          return foreignKeys.find((fk) => fk.columnName === columnName);
+        };
+
+        const findModelForeignKey = (tableName, columnName) => {
+          let thisModel     = findModelByTableName(tableName);
+          if (!thisModel)
+            return;
+
+          let associations  = thisModel.associations;
+          let keys          = Object.keys(associations);
+
+          for (let i = 0, il = keys.length; i < il; i++) {
+            let key         = keys[i];
+            let association = associations[key];
+            if (association.identifierField === columnName)
+              return association;
+          }
+        };
+
+        // See if any foreign keys need to be added
+        let associations  = Model.associations;
+        let keys          = Object.keys(associations);
+
+        // debugger;
+
+        for (let i = 0, il = keys.length; i < il; i++) {
+          let key         = keys[i];
+          let association = associations[key];
+          let targetModel;
+
+          if (!association.targetIdentifier) {
+            // field exists on target
+            targetModel = association.target;
+          } else {
+            // field exists on source
+            targetModel = association.source;
+          }
+
+          let identifierField = association.identifierField;
+          let dbAssociation   = findDBForeignKey(targetModel.getTableName(), identifierField);
+          if (!dbAssociation) {
+            diff.foreignKeys.add.push({ Model: targetModel, foreignKey: association });
+            schemaChanged = true;
+          }
+        }
+
+        // Now check if any foreign keys need to be removed
+        let thisTableInfo = dbSchema.dbTableSchema[tableName];
+        if (!thisTableInfo)
+          return;
+
+        let foreignKeys = thisTableInfo.foreignKeys;
+        if (!foreignKeys)
+          return;
+
+        for (let i = 0, il = foreignKeys.length; i < il; i++) {
+          let foreignKey      = foreignKeys[i];
+          let modelForeignKey = findModelForeignKey(foreignKey.tableName, foreignKey.columnName);
+
+          if (!modelForeignKey) {
+            diff.foreignKeys.remove.push({ Model, foreignKey });
+            schemaChanged = true;
+          }
+        }
+      };
+
       let diff = {
         tables: {
           add:    [],
@@ -257,12 +434,10 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         indexes: {
           add:    [],
           remove: [],
-          alter:  [],
         },
-        forignKeys: {
+        foreignKeys: {
           add:    [],
           remove: [],
-          alter:  [],
         },
       };
 
@@ -317,6 +492,13 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         } else {
           // entire table doesn't exist
           diff.tables.add.push(Model);
+          diff.indexes.add = Model.options.indexes.map((index) => {
+            return {
+              Model,
+              index,
+            };
+          });
+
           return diff;
         }
       }
@@ -328,6 +510,8 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         let columnDefinition    = tableAttributes[fieldName];
         let dbColumnDefinition  = (dbAttributes) ? dbAttributes[columnName] : null;
         let columnIsNew         = isNewColumn(dbAttributes, columnName);
+        let fieldIndexes        = getFieldIndexes(columnName);
+        let dbFieldIndexes      = getDBFieldIndexes(columnName);
 
         if (dbColumnDefinition == null && columnIsNew == null) {
           const response = await prompts([
@@ -371,7 +555,9 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
             diff.columns.alter.push({ operation: 'rename', Model, oldColumnName, newColumnName, dbColumnDefinition, columnDefinition });
           } else {
             schemaChanged = true;
-            diff.columns.add.push({ Model, columnDefinition, dbColumnDefinition, fieldName, columnName, tableName });
+            diff.columns.add.push({ operation: 'add', Model, columnDefinition, dbColumnDefinition, fieldName, columnName, tableName });
+            diff.indexes.add = diff.indexes.add.concat(fieldIndexes);
+
             continue;
           }
         }
@@ -386,6 +572,8 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
           schemaChanged = true;
           diff.columns.alter.push({ operation: 'alter', Model, columnDefinition, dbColumnDefinition, fieldName, columnName, tableName });
         }
+
+        calculateIndexDiff(fieldIndexes, dbFieldIndexes);
       }
 
       if (dbAttributes != null) {
@@ -394,14 +582,21 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         for (let i = 0, il = dbFieldNames.length; i < il; i++) {
           let dbFieldName     = dbFieldNames[i];
           let modelAttribute  = fieldRawAttributesMap[dbFieldName];
+          let fieldIndexes    = getFieldIndexes(dbFieldName);
+          let dbFieldIndexes  = getDBFieldIndexes(dbFieldName);
 
           if (modelAttribute == null) {
             schemaChanged = true;
+
             // remove column
             diff.columns.remove.push({ operation: 'remove', Model, columnDefinition: dbAttributes[dbFieldName], columnName: dbFieldName });
+
+            calculateIndexDiff(fieldIndexes, dbFieldIndexes);
           }
         }
       }
+
+      calculateForeignKeysDiff();
 
       if (schemaChanged === false)
         return null;
@@ -435,35 +630,55 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       return schemaDiff;
     }
 
-    async execute(args) {
-      let options             = {};
-      let application         = this.getApplication();
-      let applicationOptions  = application.getOptions();
-      let connection          = application.getDBConnection();
-      let dbSchema            = await this.getDBSchema(connection);
-      let schemaDiff          = await this.calculateDBSchemaDifferences(connection, dbSchema, options);
+    forignKeyChecksQuery(connection, tableName, constraints, disable) {
+      let dialect     = connection.getDialect();
+      let queryParts  = [];
 
-      if (schemaDiff == null) {
-        console.log('No changes to schema detected. Aborting.');
-        return;
+      if (disable) {
+        switch (dialect) {
+          case 'postgres':
+            queryParts.push('SET CONSTRAINTS ALL DEFERRED;');
+            break;
+          case 'db2':
+            for (let i = 0, il = constraints.length; i < il; i++) {
+              let constraint = constraints[i];
+              queryParts.push(`ALTER TABLE "${constraint.tableName}" ALTER FOREIGN KEY "${constraint.constraintName}" NOT ENFORCED`);
+            }
+
+            break;
+          case 'ibmi':
+          case 'mssql':
+          case 'mariadb':
+            queryParts.push('SET FOREIGN_KEY_CHECKS = 0;');
+            break;
+          case 'sqlite':
+            queryParts.push('PRAGMA foreign_keys = OFF;');
+            break;
+        }
+      } else {
+        switch (dialect) {
+          case 'postgres':
+            queryParts.push('SET CONSTRAINTS ALL IMMEDIATE;');
+            break;
+          case 'db2':
+            for (let i = 0, il = constraints.length; i < il; i++) {
+              let constraint = constraints[i];
+              queryParts.push(`ALTER TABLE "${constraint.tableName}" ALTER FOREIGN KEY "${constraint.constraintName}" ENFORCED`);
+            }
+
+            break;
+          case 'ibmi':
+          case 'mssql':
+          case 'mariadb':
+            queryParts.push('SET FOREIGN_KEY_CHECKS = 1;');
+            break;
+          case 'sqlite':
+            queryParts.push('PRAGMA foreign_keys = ON;');
+            break;
+        }
       }
 
-      let migrationName = args.name;
-      if (Nife.isEmpty(migrationName)) {
-        console.error('Migration "name" required. Please supply the migration name via the "--name" argument and try again.');
-        return;
-      }
-
-      migrationName = migrationName.replace(/\W+/g, '-').toLowerCase();
-
-      let migrationsPath      = applicationOptions.migrationsPath;
-      let migrationID         = this.getRevisionNumber();
-      let migrationWritePath  = Path.join(migrationsPath, `${migrationID}-${migrationName}.js`);
-      let migrationSource     = await this.generateMigrationFromDiff(connection, schemaDiff, migrationID);
-
-      FileSystem.writeFileSync(migrationWritePath, migrationSource, 'utf8');
-
-      console.log(`New migration to revision ${migrationID} has been written to file '${migrationWritePath}'`);
+      return queryParts.join(';');
     }
 
     async _hijackConnection(dbConnection, callback) {
@@ -507,18 +722,20 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       }
     }
 
-    async generateMigrationFromDiff(connection, schemaDiff, migrationID) {
-      const sanitizeString = (str) => {
-        return str.replace(/'/g, '\\\'');
-      };
+    sanitizeString(str) {
+      return str.replace(/'/g, '\\\'');
+    }
+
+    async generateMigrationFromDiff(connection, dbSchema, schemaDiff, migrationID) {
+      const PREFIX_WHITESPACE = '      ';
 
       const generateUpAndDownFromResults = (_results) => {
-        var results = _results;
+        let results = _results;
 
         for (let i = 0, il = results.length; i < il; i++) {
           let result = results[i];
           result.up.queries.forEach((sql) => {
-            upCodeParts.push(`    await connection.query('${sanitizeString(sql)}');\n`);
+            upCodeParts.push(`${PREFIX_WHITESPACE}await connection.query('${this.sanitizeString(sql)}');\n`);
           });
         }
 
@@ -527,7 +744,7 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         for (let i = 0, il = results.length; i < il; i++) {
           let result = results[i];
           result.down.queries.forEach((sql) => {
-            downCodeParts.push(`    await connection.query('${sanitizeString(sql)}');\n`);
+            downCodeParts.push(`${PREFIX_WHITESPACE}await connection.query('${this.sanitizeString(sql)}');\n`);
           });
         }
       };
@@ -592,6 +809,85 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         });
       };
 
+      const addIndex = async (Model, index) => {
+        return await this._hijackConnection(connection, async () => {
+          let tableName = Model.getTableName();
+
+          return await queryInterface.addIndex(tableName, index.fields, { ...index, concurrently: true }, tableName);
+        });
+      };
+
+      const removeIndex = async (Model, index) => {
+        return await this._hijackConnection(connection, async () => {
+          let options   = Model.options;
+          let tableName = Model.getTableName();
+
+          return await queryInterface.removeIndex(tableName, index.name, options);
+        });
+      };
+
+      const findModelByTableName = (tableName) => {
+        return dbSchema.models.map((modelInfo) => modelInfo.Model).find((thisModel) => thisModel.getTableName() === tableName);
+      };
+
+      const addForeignKey = async (foreignKey) => {
+        return await this._hijackConnection(connection, async () => {
+          let sourceTableName;
+          let targetTableName;
+          let fieldName;
+          let targetField;
+          let onDelete = 'NO ACTION';
+          let onUpdate = 'NO ACTION';
+
+          if (foreignKey.options) {
+            let options     = foreignKey.options;
+            let targetModel = (foreignKey.targetIdentifier) ? foreignKey.target : foreignKey.source;
+            let sourceModel = (foreignKey.targetIdentifier) ? foreignKey.source : foreignKey.target;
+
+            fieldName = options.field;
+            sourceTableName = sourceModel.getTableName();
+            targetTableName = targetModel.getTableName();
+            targetField = (foreignKey.targetIdentifier) ? foreignKey.targetKeyField : foreignKey.sourceKeyField;
+            onDelete = options.onDelete;
+            onUpdate = options.onUpdate;
+          } else {
+            fieldName = foreignKey.columnName;
+            sourceTableName = foreignKey.tableName;
+            targetTableName = foreignKey.referencedTableName;
+            targetField = foreignKey.referencedColumnName;
+          }
+
+          return await queryInterface.addConstraint(sourceTableName, {
+            type:       'FOREIGN KEY',
+            fields:     [ fieldName ],
+            name:       `${sourceTableName}_${fieldName}_fkey`,
+            references: {
+              table: targetTableName,
+              field: targetField,
+            },
+            onDelete,
+            onUpdate,
+          });
+        });
+      };
+
+      const removeForeignKey = async (foreignKey) => {
+        return await this._hijackConnection(connection, async () => {
+          if (foreignKey.options) {
+            let options         = foreignKey.options;
+            let sourceModel     = (foreignKey.targetIdentifier) ? foreignKey.source : foreignKey.target;
+            let constraintName  = `${sourceModel.getTableName()}_${options.field}_fkey`;
+
+            return await queryInterface.removeConstraint(sourceModel.getTableName(), constraintName, sourceModel.options);
+          } else {
+            let Model     = findModelByTableName(foreignKey.tableName);
+            let options   = Model.options;
+
+            return await queryInterface.removeConstraint(foreignKey.tableName, foreignKey.constraintName, options);
+          }
+        });
+      };
+
       const checkCreateTables = async (tablesToCreate) => {
         if (!tablesToCreate || tablesToCreate.length === 0)
           return;
@@ -602,8 +898,8 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         let result    = await createTable(Model);
 
         result.queries.forEach((sql) => {
-          upCodeParts.push(`    await connection.query('${sanitizeString(sql)}');\n`);
-          downCodeParts.push(`    await connection.query('DROP TABLE IF EXISTS ${sanitizeString(queryInterface.quoteIdentifier(tableName))};');\n`);
+          upCodeParts.push(`${PREFIX_WHITESPACE}await connection.query('${this.sanitizeString(sql)}');\n`);
+          downCodeParts.push(`${PREFIX_WHITESPACE}await connection.query('DROP TABLE IF EXISTS ${this.sanitizeString(queryInterface.quoteIdentifier(tableName))};');\n`);
         });
       };
 
@@ -656,8 +952,8 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
           let result                    = results[i];
 
           result.queries.forEach((sql) => {
-            upCodeParts.push(`    await connection.query('${sanitizeString(sql)}');\n`);
-            downCodeParts.push(`    await connection.query('ALTER TABLE ${sanitizeString(queryInterface.quoteIdentifier(tableName))} DROP COLUMN IF EXISTS ${sanitizeString(queryInterface.quoteIdentifier(columnName))} CASCADE;');\n`);
+            upCodeParts.push(`${PREFIX_WHITESPACE}await connection.query('${this.sanitizeString(sql)}');\n`);
+            downCodeParts.push(`${PREFIX_WHITESPACE}await connection.query('ALTER TABLE ${this.sanitizeString(queryInterface.quoteIdentifier(tableName))} DROP COLUMN IF EXISTS ${this.sanitizeString(queryInterface.quoteIdentifier(columnName))} CASCADE;');\n`);
           });
         }
       };
@@ -665,6 +961,8 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       const checkAlterColumns = async (columnsToAlter) => {
         if (!columnsToAlter || columnsToAlter.length === 0)
           return;
+
+        disableForeignKeyChecks = true;
 
         let results = [];
         for (let i = 0, il = columnsToAlter.length; i < il; i++) {
@@ -706,6 +1004,8 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         if (!columnsToRemove || columnsToRemove.length === 0)
           return;
 
+        disableForeignKeyChecks = true;
+
         let results = [];
         for (let i = 0, il = columnsToRemove.length; i < il; i++) {
           let columnToAdd = columnsToRemove[i];
@@ -724,14 +1024,109 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         generateUpAndDownFromResults(results);
       };
 
+      const checkAddIndexes = async (indexesToAdd) => {
+        if (!indexesToAdd || indexesToAdd.length === 0)
+          return;
+
+        let results = [];
+        for (let i = 0, il = indexesToAdd.length; i < il; i++) {
+          let indexToAdd = indexesToAdd[i];
+          if (indexToAdd == null)
+            continue;
+
+          let { Model, index } = indexToAdd;
+          let result = {
+            up:   await addIndex(Model, index),
+            down: await removeIndex(Model, index),
+          };
+
+          results.push(result);
+        }
+
+        generateUpAndDownFromResults(results);
+      };
+
+      const checkRemoveIndexes = async (indexesToRemove) => {
+        if (!indexesToRemove || indexesToRemove.length === 0)
+          return;
+
+        let results = [];
+        for (let i = 0, il = indexesToRemove.length; i < il; i++) {
+          let indexToRemove = indexesToRemove[i];
+          if (indexToRemove == null)
+            continue;
+
+          let { Model, index } = indexToRemove;
+          let result = {
+            up:   await removeIndex(Model, index),
+            down: await addIndex(Model, index),
+          };
+
+          results.push(result);
+        }
+
+        generateUpAndDownFromResults(results);
+      };
+
+      const checkAddForeignKeys = async (foreignKeysToAdd) => {
+        if (!foreignKeysToAdd || foreignKeysToAdd.length === 0)
+          return;
+
+        let results = [];
+        for (let i = 0, il = foreignKeysToAdd.length; i < il; i++) {
+          let foreignKeyToAdd = foreignKeysToAdd[i];
+          if (foreignKeyToAdd == null)
+            continue;
+
+          let { foreignKey } = foreignKeyToAdd;
+          let result = {
+            up:   await addForeignKey(foreignKey),
+            down: await removeForeignKey(foreignKey),
+          };
+
+          results.push(result);
+        }
+
+        generateUpAndDownFromResults(results);
+      };
+
+      const checkRemoveForeignKeys = async (foreignKeysToRemove) => {
+        if (!foreignKeysToRemove || foreignKeysToRemove.length === 0)
+          return;
+
+        let results = [];
+        for (let i = 0, il = foreignKeysToRemove.length; i < il; i++) {
+          let foreignKeyToRemove = foreignKeysToRemove[i];
+          if (foreignKeyToRemove == null)
+            continue;
+
+          let { foreignKey } = foreignKeyToRemove;
+          let result = {
+            up:   await removeForeignKey(foreignKey),
+            down: await addForeignKey(foreignKey),
+          };
+
+          results.push(result);
+        }
+
+        generateUpAndDownFromResults(results);
+      };
+
+      let disableForeignKeyChecks = false;
       let queryInterface  = connection.getQueryInterface();
       let upCodeParts     = [];
       let downCodeParts   = [];
+      let preCodeParts    = [];
+      let postCodeParts   = [];
+      let models          = dbSchema.models;
+      let dbTableSchema   = dbSchema.dbTableSchema;
 
+      debugger;
+
+      // Now create migration
       for (let i = 0, il = schemaDiff.length; i < il; i++) {
         let thisDiff  = schemaDiff[i];
         let diff      = thisDiff.diff;
-
         if (diff == null)
           continue;
 
@@ -740,10 +1135,77 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
         await checkAddColumns(diff.columns.add);
         await checkAlterColumns(diff.columns.alter);
         await checkRemoveColumns(diff.columns.remove);
+        await checkAddIndexes(diff.indexes.add);
+        await checkRemoveIndexes(diff.indexes.remove);
       }
 
-      let template = generateMigration(migrationID, upCodeParts.join('').trimEnd(), downCodeParts.reverse().join('').trimEnd());
+      // Constraints go last
+      for (let i = 0, il = schemaDiff.length; i < il; i++) {
+        let thisDiff  = schemaDiff[i];
+        let diff      = thisDiff.diff;
+        if (diff == null)
+          continue;
+
+        await checkRemoveForeignKeys(diff.foreignKeys.remove);
+        await checkAddForeignKeys(diff.foreignKeys.add);
+      }
+
+      if (disableForeignKeyChecks) {
+        // Setup pre and post migration code
+        for (let i = 0, il = models.length; i < il; i++) {
+          let modelSchema   = models[i];
+          let tableName     = modelSchema.tableName;
+          let dbSchemaInfo  = dbTableSchema[tableName];
+
+          preCodeParts.push(this.forignKeyChecksQuery(connection, tableName, (dbSchemaInfo) ? dbSchemaInfo.foreignKeys : [], true));
+          postCodeParts.push(this.forignKeyChecksQuery(connection, tableName, (dbSchemaInfo) ? dbSchemaInfo.foreignKeys : [], false));
+        }
+
+        preCodeParts = Nife.uniq(preCodeParts).map((value) => `    await connection.query('${this.sanitizeString(value)}');`);
+        postCodeParts = Nife.uniq(postCodeParts).map((value) => `${PREFIX_WHITESPACE}await connection.query('${this.sanitizeString(value)}');`);
+      }
+
+      // Now generate the migration file contents
+      let template = generateMigration(
+        migrationID,
+        upCodeParts.join('').trimEnd(),
+        downCodeParts.reverse().join('').trimEnd(),
+        preCodeParts.join('').trimEnd(),
+        postCodeParts.reverse().join('').trimEnd(),
+      );
+
       return template;
+    }
+
+    async execute(args) {
+      let options             = {};
+      let application         = this.getApplication();
+      let applicationOptions  = application.getOptions();
+      let connection          = application.getDBConnection();
+      let dbSchema            = await this.getDBSchema(connection);
+      let schemaDiff          = await this.calculateDBSchemaDifferences(connection, dbSchema, options);
+
+      if (schemaDiff == null) {
+        console.log('No changes to schema detected. Aborting.');
+        return;
+      }
+
+      let migrationName = args.name;
+      if (Nife.isEmpty(migrationName)) {
+        console.error('Migration "name" required. Please supply the migration name via the "--name" argument and try again.');
+        return;
+      }
+
+      migrationName = migrationName.replace(/\W+/g, '-').toLowerCase();
+
+      let migrationsPath      = applicationOptions.migrationsPath;
+      let migrationID         = this.getRevisionNumber();
+      let migrationWritePath  = Path.join(migrationsPath, `${migrationID}-${migrationName}.js`);
+      let migrationSource     = await this.generateMigrationFromDiff(connection, dbSchema, schemaDiff, migrationID);
+
+      FileSystem.writeFileSync(migrationWritePath, migrationSource, 'utf8');
+
+      console.log(`New migration to revision ${migrationID} has been written to file '${migrationWritePath}'`);
     }
   };
 });
