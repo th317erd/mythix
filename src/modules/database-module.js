@@ -61,7 +61,34 @@ class DatabaseModule extends BaseModule {
     return this.databaseConfig;
   }
 
-  getTablePrefix(userSpecifiedPrefix) {
+  getDatabaseConfig() {
+    if (this.databaseConfig)
+      return this.databaseConfig;
+
+    let app     = this.getApplication();
+    let options = app.getOptions();
+
+    let databaseConfig = this.getConfigValue('database.{environment}');
+    if (!databaseConfig)
+      databaseConfig = this.getConfigValue('database');
+
+    databaseConfig = Nife.extend(true, {}, databaseConfig || {}, options.database || {});
+
+    if (Nife.isEmpty(databaseConfig)) {
+      this.getLogger().error(`Error: database connection for "${this.getConfigValue('environment')}" not defined`);
+      return;
+    }
+
+    if (options.testMode)
+      databaseConfig.logging = false;
+    else
+      databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;
+
+    return databaseConfig;
+  }
+
+  getTablePrefix() {
+    let userSpecifiedPrefix = (this.databaseConfig) ? this.databaseConfig.tablePrefix : undefined;
     if (Nife.isNotEmpty(userSpecifiedPrefix))
       return userSpecifiedPrefix;
 
@@ -102,25 +129,9 @@ class DatabaseModule extends BaseModule {
     if (options.database === false)
       return;
 
-    let databaseConfig = this.getConfigValue('database.{environment}');
-    if (!databaseConfig)
-      databaseConfig = this.getConfigValue('database');
+    let databaseConfig = this.databaseConfig = this.getDatabaseConfig();
 
-    databaseConfig = Nife.extend(true, {}, databaseConfig || {}, options.database || {});
-
-    if (Nife.isEmpty(databaseConfig)) {
-      this.getLogger().error(`Error: database connection for "${this.getConfigValue('environment')}" not defined`);
-      return;
-    }
-
-    this.databaseConfig = databaseConfig;
-
-    if (options.testMode)
-      databaseConfig.logging = false;
-    else
-      databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;
-
-    databaseConfig.tablePrefix = this.getTablePrefix(databaseConfig.tablePrefix);
+    databaseConfig.tablePrefix = this.getTablePrefix();
 
     this.connection = await this.connectToDatabase(databaseConfig);
 

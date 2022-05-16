@@ -56,7 +56,23 @@ class HTTPServerModule extends BaseModule {
   }
 
   getHTTPServerConfig() {
-    return this.httpServerConfig;
+    if (this.httpServerConfig)
+      return this.httpServerConfig;
+
+    let app     = this.getApplication();
+    let options = app.getOptions();
+
+    let httpServerConfig = this.getConfigValue('httpServer.{environment}');
+    if (!httpServerConfig)
+      httpServerConfig = this.getConfigValue('httpServer');
+
+    httpServerConfig = Nife.extend(true, {}, httpServerConfig || {}, options.httpServer || {});
+    if (Nife.isEmpty(httpServerConfig)) {
+      this.getLogger().error(`Error: httpServer options for "${this.getConfigValue('environment')}" not defined`);
+      return;
+    }
+
+    return httpServerConfig;
   }
 
   async createHTTPServer(httpServerConfig) {
@@ -70,19 +86,10 @@ class HTTPServerModule extends BaseModule {
     if (options.httpServer === false)
       return;
 
-    let httpServerConfig = this.getConfigValue('httpServer.{environment}');
-    if (!httpServerConfig)
-      httpServerConfig = this.getConfigValue('httpServer');
-
-    httpServerConfig = Nife.extend(true, {}, httpServerConfig || {}, options.httpServer || {});
-    if (Nife.isEmpty(httpServerConfig)) {
-      this.getLogger().error(`Error: httpServer options for "${this.getConfigValue('environment')}" not defined`);
-      return;
-    }
+    let httpServerConfig = this.httpServerConfig = this.getHTTPServerConfig();
 
     this.server = await this.createHTTPServer(httpServerConfig);
 
-    this.httpServerConfig = httpServerConfig;
     this.getApplication().setOptions({ httpServer: httpServerConfig });
   }
 

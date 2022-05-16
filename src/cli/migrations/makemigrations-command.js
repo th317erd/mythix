@@ -39,7 +39,7 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
   return class MakeMigrationsCommand extends Parent {
     static description      = 'Create migration for current model schema';
 
-    static nodeArguments    = [ '--inspect-brk' ];
+    // static nodeArguments    = [ '--inspect-brk' ];
 
     static commandArguments = `
       [-p,-preview:boolean(Preview what the generated migration would look like without migrating anything)]
@@ -1132,21 +1132,12 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
 
         await checkCreateTables(diff.tables.add);
         await checkAlterTables(diff.tables.alter);
+        await checkRemoveForeignKeys(diff.foreignKeys.remove);
         await checkAddColumns(diff.columns.add);
         await checkAlterColumns(diff.columns.alter);
         await checkRemoveColumns(diff.columns.remove);
         await checkAddIndexes(diff.indexes.add);
         await checkRemoveIndexes(diff.indexes.remove);
-      }
-
-      // Constraints go last
-      for (let i = 0, il = schemaDiff.length; i < il; i++) {
-        let thisDiff  = schemaDiff[i];
-        let diff      = thisDiff.diff;
-        if (diff == null)
-          continue;
-
-        await checkRemoveForeignKeys(diff.foreignKeys.remove);
         await checkAddForeignKeys(diff.foreignKeys.add);
       }
 

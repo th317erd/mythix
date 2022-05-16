@@ -1,12 +1,56 @@
 'use strict';
 
-const Nife        = require('nife');
-const { Logger }  = require('../logger');
-const HTTPUtils   = require('./http-utils');
+const Nife                  = require('nife');
+const { Logger }            = require('../logger');
+const HTTPUtils             = require('./http-utils');
+const { DatabaseModule }    = require('../modules/database-module');
+const { HTTPServerModule }  = require('../http-server/http-server-module');
+
+class TestDatabaseModule extends DatabaseModule {
+  getDatabaseConfig() {
+    let config = super.getDatabaseConfig();
+    return Object.assign({}, config, { dialect: 'sqlite', logging: false });
+  }
+
+  getTablePrefix() {
+    let prefix = super.getTablePrefix();
+    return `${prefix.replace(/_test/g, '')}_test_`.replace(/_+/g, '_');
+  }
+}
+
+class TestHTTPServerModule extends HTTPServerModule {
+  getHTTPServerConfig() {
+    let httpServerConfig = super.getHTTPServerConfig();
+
+    return Object.assign({}, httpServerConfig, {
+      host:   'localhost',
+      port:   0, // Select a random port
+      https:  false,
+    });
+  }
+}
 
 function createTestApplication(Application) {
   const Klass = class TestApplication extends Application {
     static APP_NAME = `${(Nife.isNotEmpty(Application.APP_NAME)) ? Application.APP_NAME : 'mythix'}_test`;
+
+    // Swap out modules for test config
+    static getDefaultModules() {
+      const replaceModule = (modules, moduleKlass, replacementModuleClass) => {
+        let index = modules.findIndex((thisModuleClass) => thisModuleClass === moduleKlass);
+        if (index >= 0)
+          modules[index] = replacementModuleClass;
+
+        return modules;
+      };
+
+      let defaultModules = Application.getDefaultModules();
+
+      defaultModules = replaceModule(defaultModules, DatabaseModule, TestDatabaseModule);
+      defaultModules = replaceModule(defaultModules, HTTPServerModule, TestHTTPServerModule);
+
+      return defaultModules;
+    }
 
     constructor(_opts) {
       let opts = Nife.extend(true, {
@@ -16,23 +60,6 @@ function createTestApplication(Application) {
       }, _opts || {});
 
       super(opts);
-    }
-
-    getDBTablePrefix(userSpecifiedPrefix) {
-      let prefix = super.getDBTablePrefix(userSpecifiedPrefix);
-      return `${prefix.replace(/_test/g, '')}_test_`.replace(/_+/g, '_');
-    }
-
-    getTestingDatabaseConfig() {
-      return { dialect: 'sqlite', logging: false };
-    }
-
-    getTestingHTTPServerConfig(options) {
-      return Object.assign({}, options || {}, {
-        host:   'localhost',
-        port:   0, // Select a random port
-        https:  false,
-      });
     }
 
     getTestingLoggerConfig(loggerOpts) {

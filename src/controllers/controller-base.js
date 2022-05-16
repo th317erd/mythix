@@ -36,6 +36,14 @@ class ControllerBase {
         configurable: true,
         value:        null,
       },
+      'method': {
+        enumberable:  false,
+        configurable: true,
+        get:          () => {
+          return this.request.method.toUpperCase();
+        },
+        set:          () => {},
+      },
     });
   }
 
@@ -84,6 +92,35 @@ class ControllerBase {
     throw new HTTPErrors.HTTPInternalServerError(this.route, message);
   }
 
+  redirectTo(url, status = 302) {
+    this.response.header('Location', url);
+    this.response.status(status).send('');
+  }
+
+  getCookie(name) {
+    return this.request.cookies[name];
+  }
+
+  setCookie(name, value, options) {
+    this.response.cookie(name, ('' + value), options || {});
+  }
+
+  setHeader(name, value) {
+    this.response.header(name, value);
+  }
+
+  setHeaders(headers) {
+    let keys = Object.keys(headers || {});
+    for (let i = 0, il = keys.length; i < il; i++) {
+      let key   = keys[i];
+      let value = headers[key];
+      if (value == null)
+        continue;
+
+      this.response.header(key, value);
+    }
+  }
+
   async handleIncomingRequest(request, response, { route, controllerMethod, startTime, params, query /* , controller, controllerInstance, */ }) {
     this.route = route;
 
@@ -91,6 +128,10 @@ class ControllerBase {
   }
 
   async handleOutgoingResponse(_controllerResult, request, response /*, { route, controller, controllerMethod, controllerInstance, startTime, params } */) {
+    // Has a response already been sent?
+    if (response.statusMessage)
+      return;
+
     let controllerResult  = _controllerResult;
     let contentType       = Nife.get(request, 'headers.content-type');
 

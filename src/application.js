@@ -207,7 +207,7 @@ class Application extends EventEmitter {
 
     // Coerce to type, if type was specified
     if (type)
-      Nife.coerceValue(result, type);
+      return Nife.coerceValue(result, type);
 
     return result;
   }
