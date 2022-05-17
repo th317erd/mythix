@@ -14,7 +14,7 @@ const {
 class ModelModule extends BaseModule {
   static fileWatcherQueueName = 'models';
 
-  static getName() {
+  static getModuleName() {
     return 'ModelModule';
   }
 

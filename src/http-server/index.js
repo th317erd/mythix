@@ -8,12 +8,14 @@ const {
   statusCodeToMessage,
 } = require('./http-utils');
 
-const HTTPErrors  = require('./http-errors');
-const Middleware  = require('./middleware');
+const HTTPErrors            = require('./http-errors');
+const Middleware            = require('./middleware');
+const { HTTPServerModule }  = require('./http-server-module');
 
 module.exports = {
-  HTTPServer,
-  statusCodeToMessage,
   HTTPErrors,
+  HTTPServer,
+  HTTPServerModule,
   Middleware,
+  statusCodeToMessage,
 };

@@ -2,7 +2,7 @@
 
 const Nife            = require('nife');
 const { BaseModule }  = require('../modules/base-module');
-const { HTTPServer }  = require('./index');
+const { HTTPServer }  = require('./http-server');
 
 class HTTPServerModule extends BaseModule {
   static shouldUse(options) {
@@ -12,7 +12,7 @@ class HTTPServerModule extends BaseModule {
     return true;
   }
 
-  static getName() {
+  static getModuleName() {
     return 'HTTPServerModule';
   }
 

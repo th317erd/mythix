@@ -18,6 +18,10 @@ function nowInSeconds() {
 }
 
 class TaskModule extends BaseModule {
+  static getModuleName() {
+    return 'TaskModule';
+  }
+
   static fileWatcherQueueName = 'tasks';
 
   static shouldUse(options) {

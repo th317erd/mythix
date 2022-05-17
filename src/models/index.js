@@ -1,6 +1,7 @@
 'use strict';
 
-const { Model } = require('./model');
+const { Model }       = require('./model');
+const { ModelModule } = require('./model-module');
 
 const {
   defineModel,
@@ -9,8 +10,9 @@ const {
 } = require('./model-utils');
 
 module.exports = {
-  Model,
+  buildModelRelations,
   defineModel,
   getModelPrimaryKeyField,
-  buildModelRelations,
+  Model,
+  ModelModule,
 };

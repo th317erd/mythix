@@ -5,7 +5,7 @@ const Nife            = require('nife');
 const { BaseModule }  = require('../modules/base-module');
 
 class FileWatcherModule extends BaseModule {
-  static getName() {
+  static getModuleName() {
     return 'FileWatcherModule';
   }
 

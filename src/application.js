@@ -37,6 +37,31 @@ class Application extends EventEmitter {
     ];
   }
 
+  static findModuleIndex(modules, moduleKlass) {
+    let index = -1;
+
+    if (typeof moduleKlass.getModuleName === 'function') {
+      let moduleKlassName = moduleKlass.getModuleName();
+      index = modules.findIndex((thisModuleClass) => {
+        return (thisModuleClass.getModuleName() === moduleKlassName);
+      });
+    } else {
+      index = modules.findIndex((thisModuleClass) => thisModuleClass === moduleKlass);
+    }
+
+    return index;
+  }
+
+  static replaceModule(modules, moduleKlass, replacementModuleKlass) {
+    let index = this.findModuleIndex(modules, moduleKlass);
+    if (index >= 0)
+      modules[index] = replacementModuleKlass;
+    else
+      throw new Error('Application::replaceModule: Unable to find and replace requested module');
+
+    return modules;
+  }
+
   constructor(_opts) {
     super();
 

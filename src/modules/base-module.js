@@ -1,6 +1,10 @@
 'use strict';
 
 class BaseModule {
+  static getModuleName() {
+    throw new Error('BaseModule::getModuleName: Should not have been called. Child module must implement "static getModuleName(){}"');
+  }
+
   constructor(application) {
     Object.defineProperties(this, {
       'application': {

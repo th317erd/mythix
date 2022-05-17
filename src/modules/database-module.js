@@ -5,7 +5,7 @@ const { Sequelize }   = require('sequelize');
 const { BaseModule }  = require('../modules/base-module');
 
 class DatabaseModule extends BaseModule {
-  static getName() {
+  static getModuleName() {
     return 'DatabaseModule';
   }
 

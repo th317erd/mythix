@@ -9,7 +9,7 @@ const { HTTPServerModule }  = require('../http-server/http-server-module');
 class TestDatabaseModule extends DatabaseModule {
   getDatabaseConfig() {
     let config = super.getDatabaseConfig();
-    return Object.assign({}, config, { dialect: 'sqlite', logging: false });
+    return Object.assign({}, config, { dialect: 'sqlite', storage: ':memory:', logging: false });
   }
 
   getTablePrefix() {
@@ -28,6 +28,26 @@ class TestHTTPServerModule extends HTTPServerModule {
       https:  false,
     });
   }
+
+  async createHTTPServer(httpServerConfig) {
+    let server = await super.createHTTPServer(httpServerConfig);
+
+    Object.defineProperties(this, {
+      'host': {
+        writable:     true,
+        enumberable:  false,
+        configurable: true,
+        value:        {
+          hostname: httpServerConfig.host,
+          port:     server.server.address().port,
+        },
+      },
+    });
+
+    this.getApplication().setDefaultURL(`http://${this.host.hostname}:${this.host.port}/`);
+
+    return server;
+  }
 }
 
 function createTestApplication(Application) {
@@ -36,18 +56,10 @@ function createTestApplication(Application) {
 
     // Swap out modules for test config
     static getDefaultModules() {
-      const replaceModule = (modules, moduleKlass, replacementModuleClass) => {
-        let index = modules.findIndex((thisModuleClass) => thisModuleClass === moduleKlass);
-        if (index >= 0)
-          modules[index] = replacementModuleClass;
-
-        return modules;
-      };
-
       let defaultModules = Application.getDefaultModules();
 
-      defaultModules = replaceModule(defaultModules, DatabaseModule, TestDatabaseModule);
-      defaultModules = replaceModule(defaultModules, HTTPServerModule, TestHTTPServerModule);
+      defaultModules = Application.replaceModule(defaultModules, DatabaseModule, TestDatabaseModule);
+      defaultModules = Application.replaceModule(defaultModules, HTTPServerModule, TestHTTPServerModule);
 
       return defaultModules;
     }
@@ -73,32 +85,6 @@ function createTestApplication(Application) {
       return super.createLogger(this.getTestingLoggerConfig(loggerOpts), LoggerClass);
     }
 
-    async connectToDatabase() {
-      let connection = await super.connectToDatabase(this.getTestingDatabaseConfig());
-      return connection;
-    }
-
-    async createHTTPServer(options) {
-      let httpServerConfig  = this.getTestingHTTPServerConfig(options);
-      let server            = await super.createHTTPServer(httpServerConfig);
-
-      Object.defineProperties(this, {
-        'host': {
-          writable:     true,
-          enumberable:  false,
-          configurable: true,
-          value:        {
-            hostname: httpServerConfig.host,
-            port:     server.server.address().port,
-          },
-        },
-      });
-
-      this.setDefaultURL(`http://${this.host.hostname}:${this.host.port}/`);
-
-      return server;
-    }
-
     async start(...args) {
       let result = await super.start(...args);
 
@@ -122,9 +108,10 @@ function createTestApplication(Application) {
             continue;
 
           let model = models[modelName];
-          await dbConnection.query(`DELETE FROM ${model.tableName}`);
+          await dbConnection.query(`DELETE FROM "${model.tableName}"`);
         }
       } catch (error) {
+        console.error('TRUNCATE ERROR: ', error);
         await dbConnection.query('PRAGMA foreign_keys = ON');
       }
     }

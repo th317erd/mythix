@@ -1,18 +1,19 @@
 'use strict';
 
 const { Application }   = require('./application');
-const Models            = require('./models');
+const ModelScope        = require('./models');
 const HTTPServerScope   = require('./http-server');
 const ControllerScope   = require('./controllers');
 const CLIUtilsScope     = require('./cli');
 const TasksScope        = require('./tasks');
 const { Logger }        = require('./logger');
 const Utils             = require('./utils');
+const Modules           = require('./modules');
 
 module.exports = {
   defineCommand:          CLIUtilsScope.defineCommand,
   defineController:       ControllerScope.defineController,
-  defineModel:            Models.defineModel,
+  defineModel:            ModelScope.defineModel,
   defineTask:             TasksScope.defineTask,
   createTestApplication:  Utils.TestUtils.createTestApplication,
 
@@ -28,10 +29,17 @@ module.exports = {
   TaskBase:               TasksScope.TaskBase,
   Tasks:                  TasksScope,
   TestUtils:              Utils.TestUtils,
-  Model:                  Models.Model,
+  Model:                  ModelScope.Model,
+  Modules:                {
+    ...Modules,
+    HTTPServerModule: HTTPServerScope.HTTPServerModule,
+    ModelModule:      ModelScope.ModelModule,
+    TaskModule:       TasksScope.TaskModule,
+    ControllerModule: ControllerScope.ControllerModule,
+  },
 
   Application,
   Logger,
-  Models,
+  Models: ModelScope,
   Utils,
 };

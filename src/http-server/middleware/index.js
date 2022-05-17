@@ -1,7 +1,7 @@
 'use strict';
 
-const { conditional } = require('./default-middleware');
+const defaultMiddleware = require('./default-middleware');
 
-module.exports = {
-  conditional,
-};
+module.exports = Object.assign({},
+  defaultMiddleware,
+);

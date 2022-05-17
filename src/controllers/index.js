@@ -1,6 +1,7 @@
 'use strict';
 
-const { ControllerBase } = require('./controller-base');
+const { ControllerBase }    = require('./controller-base');
+const { ControllerModule }  = require('./controller-module');
 
 const {
   buildPatternMatcher,
@@ -13,6 +14,7 @@ const {
 
 module.exports = {
   ControllerBase,
+  ControllerModule,
   buildPatternMatcher,
   buildMethodMatcher,
   buildContentTypeMatcher,

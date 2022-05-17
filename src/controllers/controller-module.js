@@ -18,7 +18,7 @@ class ControllerModule extends BaseModule {
     return true;
   }
 
-  static getName() {
+  static getModuleName() {
     return 'ControllerModule';
   }
 
