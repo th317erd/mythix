@@ -76,20 +76,24 @@ class ControllerBase {
     return application.getDBConnection();
   }
 
-  throwNotFoundError(message) {
-    throw new HTTPErrors.HTTPNotFoundError(this.route, message);
+  prepareToThrowError(ErrorClass, args) {
+    return new ErrorClass(this.route, ...args);
   }
 
-  throwBadRequestError(message) {
-    throw new HTTPErrors.HTTPBadRequestError(this.route, message);
+  throwNotFoundError(...args) {
+    throw this.prepareToThrowError(HTTPErrors.HTTPNotFoundError, args);
   }
 
-  throwUnauthorizedError(message) {
-    throw new HTTPErrors.HTTPUnauthorizedError(this.route, message);
+  throwBadRequestError(...args) {
+    throw this.prepareToThrowError(HTTPErrors.HTTPBadRequestError, args);
   }
 
-  throwInternalServerError(message) {
-    throw new HTTPErrors.HTTPInternalServerError(this.route, message);
+  throwUnauthorizedError(...args) {
+    throw this.prepareToThrowError(HTTPErrors.HTTPUnauthorizedError, args);
+  }
+
+  throwInternalServerError(...args) {
+    throw this.prepareToThrowError(HTTPErrors.HTTPInternalServerError, args);
   }
 
   redirectTo(url, status = 302) {

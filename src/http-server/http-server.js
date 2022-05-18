@@ -142,14 +142,14 @@ class HTTPServer {
 
           if (error instanceof HTTPBaseError) {
             logger.log(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
-            this.errorHandler(error.getMessage(), statusCode, response, request);
+            this.errorHandler(error, error.getMessage(), statusCode, response, request);
           } else {
             if (statusCode) {
               logger.log(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
-              this.errorHandler(error.message, statusCode, response, request);
+              this.errorHandler(error, error.message, statusCode, response, request);
             } else {
               logger.log(`Error: ${error.message}`, error);
-              this.errorHandler(error.message, 500, response, request);
+              this.errorHandler(error, error.message, 500, response, request);
             }
           }
 
@@ -371,14 +371,14 @@ class HTTPServer {
         if (controllerInstance && typeof controllerInstance.errorHandler === 'function')
           await controllerInstance.errorHandler(error, statusCode, request, response);
         else if (error instanceof HTTPBaseError)
-          await this.errorHandler(error.getMessage(), statusCode, response, request);
+          await this.errorHandler(error, error.getMessage(), statusCode, response, request);
         else
-          await this.errorHandler(error.message, statusCode, response, request);
+          await this.errorHandler(error, error.message, statusCode, response, request);
 
       } catch (error2) {
-        statusCode = error.statusCode || error.status_code || 500;
+        statusCode = error2.statusCode || error2.status_code || 500;
 
-        await this.errorHandler(error.message, statusCode, response, request);
+        await this.errorHandler(error2, error2.message, statusCode, response, request);
 
         logger.log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: ${statusCode} ${statusCodeToMessage(statusCode)}`, error2);
 
@@ -391,9 +391,23 @@ class HTTPServer {
     return next();
   }
 
-  errorHandler(message, statusCode, response /*, request */) {
+  errorHandler(error, message, statusCode, response /*, request */) {
     if (response.statusMessage)
       return;
+
+    if (error && error.headers) {
+      let headers = error.headers;
+      let headerKeys = Object.keys(headers);
+
+      for (let i = 0, il = headerKeys.length; i < il; i++) {
+        let headerKey = headerKeys[i];
+        let value     = headers[headerKey];
+        if (value == null)
+          continue;
+
+        response.header(headerKey, ('' + value));
+      }
+    }
 
     response.status(statusCode || 500).send(message || statusCodeToMessage(statusCode) || 'Internal Server Error');
   }

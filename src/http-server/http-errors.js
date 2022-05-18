@@ -12,6 +12,7 @@ class HTTPBaseError extends Error {
 
     this.route      = route;
     this.statusCode = statusCode;
+    this.headers    = {};
   }
 
   getMessage() {
