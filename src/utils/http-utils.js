@@ -68,7 +68,7 @@ function makeRequest(requestOptions) {
     }, defaultHeaders || {}, requestOptions.headers || {});
 
     if (data) {
-      if (Nife.get(headers, 'Content-Type', '').match(/application\/json/))
+      if (Nife.get(headers, 'Content-Type', '').match(/application\/json/i))
         data = JSON.stringify(data);
 
       extraConfig = {
@@ -105,7 +105,7 @@ function makeRequest(requestOptions) {
 
         try {
           let contentType = response.headers['content-type'];
-          if (contentType && contentType.match(/application\/json/))
+          if (contentType && contentType.match(/application\/json/i))
             response.body = JSON.parse(responseData.toString('utf8'));
           else if (contentType && contentType.match(/text\/(plain|html)/))
             response.body = responseData.toString('utf8');

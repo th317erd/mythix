@@ -30,7 +30,6 @@ class Model extends Sequelize.Model {
     if (Nife.isEmpty(conditions))
       return undefined;
 
-
     if (conditions._mythixQuery)
       return conditions;
 

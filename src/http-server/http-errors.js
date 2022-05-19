@@ -70,6 +70,12 @@ class HTTPUnauthorizedError extends HTTPBaseError {
   }
 }
 
+class HTTPForbiddenError extends HTTPBaseError {
+  constructor(route, message) {
+    super(route, message, 403);
+  }
+}
+
 class HTTPInternalServerError extends HTTPBaseError {
   constructor(route, message) {
     super(route, message, 500);
@@ -77,10 +83,11 @@ class HTTPInternalServerError extends HTTPBaseError {
 }
 
 module.exports = {
-  HTTPBaseError,
-  HTTPNotFoundError,
-  HTTPBadRequestError,
   HTTPBadContentTypeError,
-  HTTPUnauthorizedError,
+  HTTPBadRequestError,
+  HTTPBaseError,
+  HTTPForbiddenError,
   HTTPInternalServerError,
+  HTTPNotFoundError,
+  HTTPUnauthorizedError,
 };

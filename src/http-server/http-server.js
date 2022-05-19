@@ -360,7 +360,7 @@ class HTTPServer {
       logger.log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: ${statusCode} ${response.statusMessage || statusCodeToMessage(statusCode)}`);
     } catch (error) {
       if ((error instanceof HTTPInternalServerError || !(error instanceof HTTPBaseError)) && application.getOptions().testMode)
-        console.error(error);
+        (logger || application.getLogger()).error(error);
 
       let requestTime = Nife.now() - startTime;
       let statusCode;

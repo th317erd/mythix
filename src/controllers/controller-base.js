@@ -62,12 +62,12 @@ class ControllerBase {
   }
 
   getModel(name) {
-    let application = this.application;
+    let application = this.getApplication();
     return application.getModel(name);
   }
 
   getModels() {
-    let application = this.application;
+    let application = this.getApplication();
     return application.getModels();
   }
 
@@ -90,6 +90,10 @@ class ControllerBase {
 
   throwUnauthorizedError(...args) {
     throw this.prepareToThrowError(HTTPErrors.HTTPUnauthorizedError, args);
+  }
+
+  throwForbiddenError(...args) {
+    throw this.prepareToThrowError(HTTPErrors.HTTPForbiddenError, args);
   }
 
   throwInternalServerError(...args) {

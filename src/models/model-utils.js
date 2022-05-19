@@ -33,7 +33,7 @@ function relationHelper(modelName, type) {
     if (options.allowNull)
       defaultOnDeleteAction = 'SET NULL';
 
-    return {
+    return Object.assign({}, options, {
       type,
       target,
       onDelete:   options.onDelete || defaultOnDeleteAction,
@@ -41,7 +41,7 @@ function relationHelper(modelName, type) {
       field:      options.field,
       name:       getName(),
       allowNull:  (Object.prototype.hasOwnProperty.call(options, 'allowNull')) ? options.allowNull : false,
-    };
+    });
   };
 }
 
@@ -244,6 +244,13 @@ function defineModel(modelName, definer, _parent) {
 
     Klass.getApplication = () => application;
     Klass.getLogger = () => application.getLogger();
+    Klass.getModelName = (function() {
+      return modelName;
+    }).bind(Klass);
+
+    Klass.prototype.getModelName = function() {
+      return modelName;
+    };
 
     Klass.getPrimaryKeyField      = getModelPrimaryKeyField.bind(this, Klass);
     Klass.getPrimaryKeyFieldName  = () => (getModelPrimaryKeyField(Klass).field);
@@ -320,13 +327,13 @@ function buildModelRelations(models) {
       let pkFieldCopy = Nife.extend(Nife.extend.FILTER, (key) => !key.match(/^(field|primaryKey)$/), {}, primaryKeyField);
 
       // Build relation options for sequelize
-      let options = {
+      let options = Object.assign({}, relation, {
         onDelete:   relation.onDelete,
         onUpdate:   relation.onUpdate,
         allowNull:  (relation.allowNull == null) ? true : relation.allowNull,
         field:      Nife.camelCaseToSnakeCase(fieldName),
         foreignKey: Object.assign(pkFieldCopy, { name: fieldName, as: relation.name, field: Nife.camelCaseToSnakeCase(fieldName) }),
-      };
+      });
 
       // Set relation on model
       // console.log(`Creating model relation (${modelName} -> ${targetModelName}): `, type, options);

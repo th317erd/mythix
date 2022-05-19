@@ -105,7 +105,7 @@ function conditional(middleware, conditions) {
 
 function jsonParser() {
   return function(request, response, next) {
-    if (('' + request.headers['content-type']).match(/application\/json/) && typeof request.body === 'string')
+    if (('' + request.headers['content-type']).match(/application\/json/i) && typeof request.body === 'string')
       request.body = JSON.parse(request.body);
 
     return next();
