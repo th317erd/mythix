@@ -35,6 +35,11 @@ function setDefaultHeader(headerName, value) {
   if (!defaultHeaders)
     defaultHeaders = {};
 
+  if (value == null) {
+    delete defaultHeaders[headerName];
+    return;
+  }
+
   defaultHeaders[headerName] = value;
 }
 
@@ -42,15 +47,17 @@ function setDefaultHeaders(headers) {
   if (!defaultHeaders)
     defaultHeaders = {};
 
-  let keys = Object.keys(headers);
-  for (let i = 0, il = keys.length; i < il; i++) {
-    let key   = keys[i];
-    let value = headers[key];
+  let headerNames = Object.keys(headers);
+  for (let i = 0, il = headerNames.length; i < il; i++) {
+    let headerName  = headerNames[i];
+    let value       = headers[headerName];
 
-    if (value == null)
+    if (value == null) {
+      delete defaultHeaders[headerName];
       continue;
+    }
 
-    defaultHeaders[key] = value;
+    defaultHeaders[headerName] = value;
   }
 }
 

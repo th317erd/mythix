@@ -26,6 +26,41 @@ class Model extends Sequelize.Model {
     return this.constructor.getPrimaryKeyFieldName();
   }
 
+  overrideMethod(name, callback) {
+    let originalMethod = this[name];
+    if (typeof originalMethod !== 'function')
+      throw new TypeError(`Model: Error while attempting to override method "${name}: No such method found"`);
+
+    let newMethod = callback(originalMethod.bind(this));
+
+    Object.defineProperties(this, {
+      [name]: {
+        writable:     true,
+        enumberable:  false,
+        configurable: true,
+        value:        newMethod.bind(this),
+      },
+    });
+
+    return originalMethod;
+  }
+
+  overrideMethods(methodsObj) {
+    const doOverrideMethod = (name, newMethod) => {
+      this.overrideMethod(name, (originalMethod) => {
+        return newMethod.bind(this, originalMethod);
+      });
+    };
+
+    let keys = Object.keys(methodsObj);
+    for (let i = 0, il = keys.length; i < il; i++) {
+      let name    = keys[i];
+      let method  = methodsObj[name];
+
+      doOverrideMethod(name, method);
+    }
+  }
+
   static prepareWhereStatement(conditions) {
     if (Nife.isEmpty(conditions))
       return undefined;
