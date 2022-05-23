@@ -2,6 +2,7 @@
 
 const { defineCommand } = require('./cli-utils');
 const { Logger }        = require('../logger');
+const { buildRoutes }   = require('../controllers/controller-utils');
 
 const TAB_SIZE = 8;
 
@@ -10,6 +11,13 @@ module.exports = defineCommand('routes', ({ Parent }) => {
     static description        = 'List application routes';
 
     static applicationConfig  = { logger: { level: Logger.ERROR } };
+
+    buildRoutes(httpServer, routes) {
+      let application       = this.getApplication();
+      let customParserTypes = application.getCustomRouteParserTypes(httpServer, routes);
+
+      return buildRoutes(routes, customParserTypes);
+    }
 
     execute() {
       const whitespaceOfLength = (len) => {
@@ -28,7 +36,7 @@ module.exports = defineCommand('routes', ({ Parent }) => {
       };
 
       let application = this.getApplication();
-      let routes      = application.buildRoutes(null, application.getRoutes());
+      let routes      = this.buildRoutes(null, application.getRoutes());
 
       routes.forEach((route) => {
         let methods = route.methods;
