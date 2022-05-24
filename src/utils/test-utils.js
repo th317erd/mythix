@@ -1,5 +1,7 @@
 'use strict';
 
+/* global process */
+
 const Nife                  = require('nife');
 const { Logger }            = require('../logger');
 const HTTPUtils             = require('./http-utils');
@@ -72,6 +74,8 @@ function createTestApplication(Application) {
       }, _opts || {});
 
       super(opts);
+
+      process.setMaxListeners(0);
     }
 
     getTestingLoggerConfig(loggerOpts) {

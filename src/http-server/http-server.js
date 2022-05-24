@@ -385,7 +385,7 @@ class HTTPServer {
         return;
       }
 
-      logger.log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: ${statusCode} ${statusCodeToMessage(statusCode)}`, error);
+      (logger || application.getLogger()).log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: ${statusCode} ${statusCodeToMessage(statusCode)}`, error);
     }
 
     return next();

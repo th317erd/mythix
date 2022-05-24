@@ -282,38 +282,6 @@ function getRouteProperties(route) {
 }
 
 function compileRoutes(routes, customParserTypes, _context) {
-  const sortRoutes = (routesToSort) => {
-    return routesToSort.sort((a, b) => {
-      let pathA = a.path;
-      let pathB = b.path;
-
-      if (Nife.arrayUnion(a.methods, b.methods).length > 0) {
-        // If the routes are at the same level
-        // but one of them has a capture parameter
-        // then the one without a capture parameter comes first.
-        // If we don't do this, then the capture parameter wild-card
-        // might match the route name of the non-parameter route
-        let lastForwardSlashIndexA = pathA.lastIndexOf('/');
-        let lastForwardSlashIndexB = pathB.lastIndexOf('/');
-
-        if (lastForwardSlashIndexA >= 0 && lastForwardSlashIndexB >= 0 && pathA.substring(0, lastForwardSlashIndexA) === pathB.substring(0, lastForwardSlashIndexB)) {
-          if (pathA.indexOf('<', lastForwardSlashIndexA) >= 0 && pathB.indexOf('<', lastForwardSlashIndexB) < 0)
-            return 1;
-          else if (pathA.indexOf('<', lastForwardSlashIndexA) < 0 && pathB.indexOf('<', lastForwardSlashIndexB) >= 0)
-            return -1;
-        }
-      }
-
-      let x = a.priority;
-      let y = b.priority;
-
-      if (x === y)
-        return 0;
-
-      return (x < y) ? -1 : 1;
-    });
-  };
-
   const addRoute = (theseRoutes, route, path, priority) => {
     let newRoute = Object.assign(
       {
@@ -409,11 +377,41 @@ function compileRoutes(routes, customParserTypes, _context) {
     }
   }
 
-  return sortRoutes(theseRoutes);
+  return theseRoutes;
 }
 
 function buildRoutes(_routes, customParserTypes) {
+  const sortRoutes = (routesToSort) => {
+    return routesToSort.sort((a, b) => {
+      // We convert "<" to "{" and ">" to "}"
+      // to get the desired sort order...
+      // This is so that capture parameters
+      // always come last.
+      const mangle = (str) => {
+        return str.replace(/</g, '{').replace(/>/g, '}');
+      };
+
+      // We pad the priority number so as not to get:
+      // 100
+      // 10
+      // 1
+      // sort order funkiness
+
+      // eslint-disable-next-line no-magic-numbers
+      let pathA = mangle(`${a.path}${('' + a.priority).padStart(12, '0')}`);
+      // eslint-disable-next-line no-magic-numbers
+      let pathB = mangle(`${b.path}${('' + b.priority).padStart(12, '0')}`);
+
+      if (pathA === pathB)
+        return 0;
+
+      return (pathA < pathB) ? -1 : 1;
+    });
+  };
+
   let routes = compileRoutes(_routes, customParserTypes);
+
+  routes = sortRoutes(routes);
 
   return routes.map((route) => {
     // Filter out priority key
