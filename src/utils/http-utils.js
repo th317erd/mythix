@@ -167,6 +167,10 @@ function postRequest(url, options) {
   return makeRequest(getRequestOptions(url, options, 'POST'));
 }
 
+function patchRequest(url, options) {
+  return makeRequest(getRequestOptions(url, options, 'PATCH'));
+}
+
 function putRequest(url, options) {
   return makeRequest(getRequestOptions(url, options, 'PUT'));
 }
@@ -186,6 +190,7 @@ function optionsRequest(url, options) {
 module.exports = {
   'get':      getRequest,
   'post':     postRequest,
+  'patch':    patchRequest,
   'put':      putRequest,
   'delete':   deleteRequest,
   'head':     headRequest,

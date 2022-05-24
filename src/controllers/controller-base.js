@@ -40,6 +40,9 @@ class ControllerBase {
         enumberable:  false,
         configurable: true,
         get:          () => {
+          if (!this.request)
+            return null;
+
           return this.request.method.toUpperCase();
         },
         set:          () => {},

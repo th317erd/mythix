@@ -118,24 +118,11 @@ class Model extends Sequelize.Model {
     return finalQuery;
   }
 
-  static onModelClassFinalized(Klass) {
-    Klass.getDefaultOrderBy   = Klass.getDefaultOrderBy.bind(this, Klass);
-    Klass.prepareQueryOptions = Klass.prepareQueryOptions.bind(this, Klass);
-    Klass.bulkUpdate          = Klass.bulkUpdate.bind(this, Klass);
-    Klass.all                 = Klass.all.bind(this, Klass);
-    Klass.where               = Klass.where.bind(this, Klass);
-    Klass.rowCount            = Klass.rowCount.bind(this, Klass);
-    Klass.first               = Klass.first.bind(this, Klass);
-    Klass.last                = Klass.last.bind(this, Klass);
-
-    return Klass;
+  static getDefaultOrderBy() {
+    return [ this.getPrimaryKeyFieldName() ];
   }
 
-  static getDefaultOrderBy(ModelClass) {
-    return [ ModelClass.getPrimaryKeyFieldName() ];
-  }
-
-  static prepareQueryOptions(ModelClass, conditions, _order) {
+  static prepareQueryOptions(conditions, _order) {
     const Ops = Sequelize.Op;
     let options;
     let query;
@@ -144,7 +131,7 @@ class Model extends Sequelize.Model {
       query = conditions.where;
       options = Object.assign({}, conditions);
     } else if (conditions && conditions.where !== null) {
-      query = ModelClass.prepareWhereStatement(conditions);
+      query = this.prepareWhereStatement(conditions);
     }
 
     let order = _order;
@@ -162,10 +149,10 @@ class Model extends Sequelize.Model {
       if (options.order) {
         order = options.order;
       } else {
-        if (typeof ModelClass.getDefaultOrderBy === 'function')
-          order = ModelClass.getDefaultOrderBy();
+        if (typeof this.getDefaultOrderBy === 'function')
+          order = this.getDefaultOrderBy();
         else
-          order = [ ModelClass.getPrimaryKeyFieldName() ];
+          order = [ this.getPrimaryKeyFieldName() ];
       }
     }
 
@@ -175,7 +162,7 @@ class Model extends Sequelize.Model {
 
     // If no "where" clause was specified, then grab everything
     if (!options.where)
-      options.where = { [ModelClass.getPrimaryKeyFieldName()]: { [Ops.not]: null } };
+      options.where = { [ this.getPrimaryKeyFieldName() ]: { [Ops.not]: null } };
 
     if (options.debug)
       console.log('QUERY OPTIONS: ', options);
@@ -183,32 +170,32 @@ class Model extends Sequelize.Model {
     return options;
   }
 
-  static where(ModelClass, conditions) {
-    return ModelClass.prepareWhereStatement(conditions);
+  static where(conditions) {
+    return this.prepareWhereStatement(conditions);
   }
 
-  static async rowCount(ModelClass, conditions, options) {
-    return await ModelClass.count(ModelClass.prepareQueryOptions(conditions, options));
+  static async rowCount(conditions, options) {
+    return await this.count(this.prepareQueryOptions(conditions, options));
   }
 
-  static async bulkUpdate(ModelClass, attrs, conditions) {
-    return await ModelClass.update(attrs, ModelClass.prepareQueryOptions(conditions, { distinct: false }));
+  static async bulkUpdate(attrs, conditions) {
+    return await this.update(attrs, this.prepareQueryOptions(conditions, { distinct: false }));
   }
 
-  static async all(ModelClass, conditions, order) {
-    return await ModelClass.findAll(ModelClass.prepareQueryOptions(conditions, order));
+  static async all(conditions, order) {
+    return await this.findAll(this.prepareQueryOptions(conditions, order));
   }
 
-  static async first(ModelClass, conditions, order) {
-    return await ModelClass.findOne(ModelClass.prepareQueryOptions(conditions, order));
+  static async first(conditions, order) {
+    return await this.findOne(this.prepareQueryOptions(conditions, order));
   }
 
-  static async last(ModelClass, conditions, _order) {
+  static async last(conditions, _order) {
     let order = _order;
     if (!order)
       order = [ [ 'createdAt', 'DESC' ] ];
 
-    return await ModelClass.first(conditions, order);
+    return await this.first(conditions, order);
   }
 }
 

@@ -121,6 +121,50 @@ function createTestApplication(Application) {
       }
     }
 
+    async hijackModel(modelName, callback, runner) {
+      let models = this.getModels();
+      let OriginalModel = models[modelName];
+
+      try {
+        let Klass = callback.call(this, OriginalModel);
+
+        const modelConverter = (model) => {
+          if (model == null)
+            return models;
+
+          if (model instanceof Array)
+            return model.map(modelConverter);
+
+          // Do a direct assign to "dataValues"
+          // "set" modifies the id
+          let newModelInstance = new Klass();
+          Object.assign(newModelInstance.dataValues, model.dataValues);
+
+          return newModelInstance;
+        };
+
+        const modelStaticBind = (name) => {
+          const originalMethod = OriginalModel[name];
+
+          return (async function(...args) {
+            let results = await originalMethod.call(Klass, ...args);
+            return modelConverter(results);
+          }).bind(Klass);
+        };
+
+        Klass.where = modelStaticBind('where');
+        Klass.all = modelStaticBind('all');
+        Klass.first = modelStaticBind('first');
+        Klass.last = modelStaticBind('last');
+
+        models[modelName] = Klass;
+
+        return await runner.call(this, Klass);
+      } finally {
+        models[modelName] = OriginalModel;
+      }
+    }
+
     getDefaultURL(...args) {
       return HTTPUtils.getDefaultURL(...args);
     }
@@ -155,6 +199,10 @@ function createTestApplication(Application) {
 
     async post(...args) {
       return HTTPUtils.post(...args);
+    }
+
+    async patch(...args) {
+      return HTTPUtils.patch(...args);
     }
 
     async put(...args) {
