@@ -116,6 +116,7 @@ function createTestApplication(Application) {
         }
       } catch (error) {
         console.error('TRUNCATE ERROR: ', error);
+      } finally {
         await dbConnection.query('PRAGMA foreign_keys = ON');
       }
     }

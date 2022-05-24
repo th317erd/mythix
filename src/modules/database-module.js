@@ -118,6 +118,12 @@ class DatabaseModule extends BaseModule {
 
       this.getLogger().info(`Connection to ${dbConnectionString} has been established successfully!`);
 
+      // SQLite needs foreign keys TURNED ON
+      // when we first connect (they default to off)
+      let dialect = sequelize.getDialect();
+      if (dialect === 'sqlite')
+        await sequelize.query('PRAGMA foreign_keys = ON');
+
       return sequelize;
     } catch (error) {
       this.getLogger().error(`Unable to connect to database ${dbConnectionString}:`, error);
