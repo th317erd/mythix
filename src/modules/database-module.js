@@ -79,10 +79,7 @@ class DatabaseModule extends BaseModule {
       return;
     }
 
-    if (options.testMode)
-      databaseConfig.logging = false;
-    else
-      databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;
+    databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;
 
     return databaseConfig;
   }

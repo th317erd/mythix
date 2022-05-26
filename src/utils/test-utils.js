@@ -11,7 +11,7 @@ const { HTTPServerModule }  = require('../http-server/http-server-module');
 class TestDatabaseModule extends DatabaseModule {
   getDatabaseConfig() {
     let config = super.getDatabaseConfig();
-    return Object.assign({}, config, { dialect: 'sqlite', storage: ':memory:', logging: false });
+    return Object.assign({}, config, { dialect: 'sqlite', storage: ':memory:' });
   }
 
   getTablePrefix() {
@@ -130,7 +130,7 @@ function createTestApplication(Application) {
 
         const modelConverter = (model) => {
           if (model == null)
-            return models;
+            return model;
 
           if (model instanceof Array)
             return model.map(modelConverter);
@@ -144,7 +144,7 @@ function createTestApplication(Application) {
         };
 
         const modelStaticBind = (name) => {
-          const originalMethod = OriginalModel[name];
+          const originalMethod = Klass[name];
 
           return (async function(...args) {
             let results = await originalMethod.call(Klass, ...args);

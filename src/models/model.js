@@ -26,19 +26,25 @@ class Model extends Sequelize.Model {
     return this.constructor.getPrimaryKeyFieldName();
   }
 
-  overrideMethod(name, callback) {
+  getTableName() {
+    return this.constructor.getTableName();
+  }
+
+  overrideMethod(name, newMethod) {
     let originalMethod = this[name];
     if (typeof originalMethod !== 'function')
       throw new TypeError(`Model: Error while attempting to override method "${name}: No such method found"`);
 
-    let newMethod = callback(originalMethod.bind(this));
+    let boundMethod = newMethod.bind(this, originalMethod.bind(this));
+    boundMethod.unbound = newMethod;
+    boundMethod.super = originalMethod;
 
     Object.defineProperties(this, {
       [name]: {
         writable:     true,
         enumberable:  false,
         configurable: true,
-        value:        newMethod.bind(this),
+        value:        boundMethod,
       },
     });
 
@@ -46,18 +52,12 @@ class Model extends Sequelize.Model {
   }
 
   overrideMethods(methodsObj) {
-    const doOverrideMethod = (name, newMethod) => {
-      this.overrideMethod(name, (originalMethod) => {
-        return newMethod.bind(this, originalMethod);
-      });
-    };
-
     let keys = Object.keys(methodsObj);
     for (let i = 0, il = keys.length; i < il; i++) {
       let name    = keys[i];
       let method  = methodsObj[name];
 
-      doOverrideMethod(name, method);
+      this.overrideMethod(name, method);
     }
   }
 

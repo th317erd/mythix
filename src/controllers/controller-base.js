@@ -103,6 +103,10 @@ class ControllerBase {
     throw this.prepareToThrowError(HTTPErrors.HTTPInternalServerError, args);
   }
 
+  isHTTPError(error) {
+    return (error instanceof HTTPErrors.HTTPBaseError);
+  }
+
   redirectTo(url, status = 302) {
     this.response.header('Location', url);
     this.response.status(status).send('');
