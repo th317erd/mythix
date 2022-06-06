@@ -4,7 +4,8 @@
   "description": "Mythix is a NodeJS web-app framework",
   "main": "src/index.js",
   "scripts": {
-    "test": "node ./node_modules/.bin/jasmine"
+    "test": "node ./node_modules/.bin/jasmine",
+    "test-watch": "watch 'clear ; node --trace-warnings ./node_modules/.bin/jasmine' . --wait=3 --interval=1"
   },
   "repository": {
     "type": "git",

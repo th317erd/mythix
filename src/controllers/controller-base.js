@@ -47,6 +47,12 @@ class ControllerBase {
         },
         set:          () => {},
       },
+      'responseStatusCode': {
+        writable:     true,
+        enumberable:  false,
+        configurable: true,
+        value:        200,
+      },
     });
   }
 
@@ -136,6 +142,10 @@ class ControllerBase {
     }
   }
 
+  setStatusCode(code) {
+    this.responseStatusCode = parseInt(code, 10);
+  }
+
   async handleIncomingRequest(request, response, { route, controllerMethod, startTime, params, query /* , controller, controllerInstance, */ }) {
     this.route = route;
 
@@ -154,7 +164,7 @@ class ControllerBase {
       if (controllerResult == null)
         controllerResult = '';
 
-      response.status(200).send(('' + controllerResult));
+      response.status(this.responseStatusCode).send(('' + controllerResult));
 
       return;
     }
@@ -163,7 +173,7 @@ class ControllerBase {
       controllerResult = {};
 
     response.header('Content-Type', 'application/json; charset=UTF-8');
-    response.status(200).send(JSON.stringify(controllerResult));
+    response.status(this.responseStatusCode).send(JSON.stringify(controllerResult));
   }
 }
 

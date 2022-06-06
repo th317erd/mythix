@@ -187,6 +187,86 @@ function optionsRequest(url, options) {
   return makeRequest(getRequestOptions(url, options, 'OPTIONS'));
 }
 
+function dataToQueryString(data, nameFormatter, resolveInitial) {
+  const fromObject = (path, data) => {
+    let parts = [];
+    let keys  = Object.keys(data);
+
+    for (let i = 0, il = keys.length; i < il; i++) {
+      let key = keys[i];
+      let value = data[key];
+
+      if (value && typeof value === 'object' && typeof value.valueOf === 'function')
+        value = value.valueOf();
+
+      if (Array.isArray(value))
+        parts = parts.concat(fromArray(`${path}[${key}]`, value));
+      else if (value instanceof Object)
+        parts = parts.concat(fromObject(`${path}[${key}]`, value));
+      else
+        parts.push(`${encodeURIComponent(`${path}[${key}]`)}=${encodeURIComponent(value)}`);
+    }
+
+    return parts.filter(Boolean);
+  };
+
+  const fromArray = (path, data) => {
+    let parts = [];
+
+    for (let i = 0, il = data.length; i < il; i++) {
+      let value = data[i];
+      if (value && typeof value === 'object' && typeof value.valueOf === 'function')
+        value = value.valueOf();
+
+      if (Array.isArray(value))
+        parts = parts.concat(fromArray(`${path}[]`, value));
+      else if (value instanceof Object)
+        parts = parts.concat(fromObject(`${path}[]`, value));
+      else
+        parts.push(`${encodeURIComponent(`${path}[]`)}=${encodeURIComponent(value)}`);
+    }
+
+    return parts.filter(Boolean);
+  };
+
+  if (!data || Nife.sizeOf(data) === 0)
+    return '';
+
+  let initial = '?';
+  let parts   = [];
+  let keys    = Object.keys(data);
+
+  if (resolveInitial !== undefined && resolveInitial !== null)
+    initial = (typeof resolveInitial === 'function') ? resolveInitial.call(this) : resolveInitial;
+
+  for (let i = 0, il = keys.length; i < il; i++) {
+    let name  = keys[i];
+    let value = data[name];
+
+    if (Nife.isEmpty(value))
+      continue;
+
+    if (value && typeof value === 'object' && typeof value.valueOf === 'function')
+      value = value.valueOf();
+
+    name = (typeof nameFormatter === 'function') ? nameFormatter.call(this, name, value) : name;
+    if (!name)
+      continue;
+
+    if (Array.isArray(value))
+      parts = parts.concat(fromArray(name, value));
+    else if (value instanceof Object)
+      parts = parts.concat(fromObject(name, value));
+    else
+      parts.push(encodeURIComponent(name) + '=' + encodeURIComponent(value));
+  }
+
+  if (parts.length === 0)
+    return '';
+
+  return initial + parts.join('&');
+}
+
 module.exports = {
   'get':      getRequest,
   'post':     postRequest,
@@ -203,5 +283,6 @@ module.exports = {
   setDefaultHeaders,
   makeRequest,
   request,
+  dataToQueryString,
 };
 

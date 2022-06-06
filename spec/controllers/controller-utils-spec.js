@@ -2,7 +2,7 @@
 
 /* global describe, it, expect */
 
-const ControllerUtils = require('../src/controllers/controller-utils');
+const ControllerUtils = require('../../src/controllers/controller-utils');
 
 describe('controller-utils', function() {
   describe('buildMethodMatcher', function() {
