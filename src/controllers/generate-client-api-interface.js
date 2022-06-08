@@ -279,10 +279,27 @@ function generateUtils() {
 `;
 }
 
-function generateRoutes(routes, _options) {
+function generateRoutes(_routes, _options) {
   let options         = _options || {};
   let methods         = {};
   let domain          = options.domain;
+  let routes          = _routes;
+
+  if (options.routeFilter) {
+    let routeFilter = options.routeFilter;
+
+    if (typeof routeFilter === 'function') {
+      routes = routes.filter(routeFilter);
+    } else if (routeFilter instanceof RegExp) {
+      routes = routes.filter((route) => {
+        return routeFilter.test(route.path);
+      });
+    } else if (Nife.instanceOf(routeFilter, 'string')) {
+      routes = routes.filter((route) => {
+        return (route.path.indexOf(routeFilter) >= 0);
+      });
+    }
+  }
 
   if (Nife.isEmpty(domain))
     domain = '';

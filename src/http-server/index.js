@@ -6,7 +6,7 @@ const {
 
 const {
   statusCodeToMessage,
-} = require('./http-utils');
+} = require('../utils/http-utils');
 
 const HTTPErrors            = require('./http-errors');
 const Middleware            = require('./middleware');

@@ -2,7 +2,7 @@
 
 'use strict';
 
-const { statusCodeToMessage } = require('./http-utils');
+const { statusCodeToMessage } = require('../utils/http-utils');
 
 class HTTPBaseError extends Error {
   constructor(route, message, _statusCode) {

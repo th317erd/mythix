@@ -22,7 +22,7 @@ const {
 
 const {
   statusCodeToMessage,
-} = require('./http-utils');
+} = require('../utils/http-utils');
 
 const REQUEST_ID_POSTFIX_LENGTH = 4;
 const REQUEST_TIME_RESOLUTION = 3;

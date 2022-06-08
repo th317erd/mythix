@@ -5,6 +5,7 @@
 const Nife                  = require('nife');
 const { Logger }            = require('../logger');
 const HTTPUtils             = require('./http-utils');
+const { HTTPInterface }     = require('./http-interface');
 const { DatabaseModule }    = require('../modules/database-module');
 const { HTTPServerModule }  = require('../http-server/http-server-module');
 
@@ -76,6 +77,15 @@ function createTestApplication(Application) {
       super(opts);
 
       process.setMaxListeners(0);
+
+      Object.defineProperties(this, {
+        'httpInterface': {
+          writable:     true,
+          enumberable:  false,
+          configurable: true,
+          value:        new HTTPInterface(),
+        },
+      });
     }
 
     getTestingLoggerConfig(loggerOpts) {
@@ -166,59 +176,59 @@ function createTestApplication(Application) {
     }
 
     getDefaultURL(...args) {
-      return HTTPUtils.getDefaultURL(...args);
+      return this.httpInterface.getDefaultURL(...args);
     }
 
     setDefaultURL(...args) {
-      return HTTPUtils.setDefaultURL(...args);
+      return this.httpInterface.setDefaultURL(...args);
     }
 
     async getDefaultHeader(...args) {
-      return HTTPUtils.getDefaultHeader(...args);
+      return this.httpInterface.getDefaultHeader(...args);
     }
 
     async getDefaultHeaders(...args) {
-      return HTTPUtils.getDefaultHeaders(...args);
+      return this.httpInterface.getDefaultHeaders(...args);
     }
 
     async setDefaultHeader(...args) {
-      return HTTPUtils.setDefaultHeader(...args);
+      return this.httpInterface.setDefaultHeader(...args);
     }
 
     async setDefaultHeaders(...args) {
-      return HTTPUtils.setDefaultHeaders(...args);
+      return this.httpInterface.setDefaultHeaders(...args);
     }
 
     async request(...args) {
-      return HTTPUtils.request(...args);
+      return this.httpInterface.request(...args);
     }
 
     async get(...args) {
-      return HTTPUtils.get(...args);
+      return this.httpInterface.getRequest(...args);
     }
 
     async post(...args) {
-      return HTTPUtils.post(...args);
+      return this.httpInterface.postRequest(...args);
     }
 
     async patch(...args) {
-      return HTTPUtils.patch(...args);
+      return this.httpInterface.patchRequest(...args);
     }
 
     async put(...args) {
-      return HTTPUtils.put(...args);
+      return this.httpInterface.putRequest(...args);
     }
 
     async delete(...args) {
-      return HTTPUtils.delete(...args);
+      return this.httpInterface.deleteRequest(...args);
     }
 
     async head(...args) {
-      return HTTPUtils.head(...args);
+      return this.httpInterface.headRequest(...args);
     }
 
     async options(...args) {
-      return HTTPUtils.options(...args);
+      return this.httpInterface.optionsRequest(...args);
     }
   };
 
