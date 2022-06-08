@@ -1,7 +1,8 @@
 'use strict';
 
-const { ControllerBase }    = require('./controller-base');
-const { ControllerModule }  = require('./controller-module');
+const { ControllerBase }              = require('./controller-base');
+const { ControllerModule }            = require('./controller-module');
+const { generateClientAPIInterface }  = require('./generate-client-api-interface');
 
 const {
   buildPatternMatcher,
@@ -21,4 +22,5 @@ module.exports = {
   buildPathMatcher,
   buildRoutes,
   defineController,
+  generateClientAPIInterface,
 };

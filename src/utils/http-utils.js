@@ -2,9 +2,9 @@
 
 /* global Buffer */
 
-const Nife    = require('nife');
-const http    = require('http');
-const { URL } = require('url');
+const Nife                      = require('nife');
+const http                      = require('http');
+const { URL, URLSearchParams }  = require('url');
 
 let defaultURL;
 let defaultHeaders;
@@ -18,14 +18,14 @@ function setDefaultURL(url) {
 }
 
 function getDefaultHeader(headerName) {
-  if (defaultHeaders)
+  if (!defaultHeaders)
     return;
 
   return defaultHeaders[headerName];
 }
 
 function getDefaultHeaders() {
-  if (defaultHeaders)
+  if (!defaultHeaders)
     return {};
 
   return defaultHeaders;
@@ -68,21 +68,36 @@ function makeRequest(requestOptions) {
 
     let method      = (requestOptions.method || 'GET').toUpperCase();
     let url         = new URL(requestOptions.url);
-    let data        = (!method.match(/^(GET|HEAD)$/i) && requestOptions.data) ? requestOptions.data : undefined;
+    let data        = requestOptions.data;
     let extraConfig = {};
     let headers     = Object.assign({
       'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36',
     }, defaultHeaders || {}, requestOptions.headers || {});
 
     if (data) {
-      if (Nife.get(headers, 'Content-Type', '').match(/application\/json/i))
-        data = JSON.stringify(data);
+      if ((!method.match(/^(GET|HEAD)$/i) && requestOptions.data)) {
+        if (Nife.get(headers, 'Content-Type', '').match(/application\/json/i))
+          data = JSON.stringify(data);
 
-      extraConfig = {
-        headers: {
-          'Content-Length': Buffer.byteLength(data),
-        },
-      };
+        extraConfig = {
+          headers: {
+            'Content-Length': Buffer.byteLength(data),
+          },
+        };
+      } else {
+        let queryString = dataToQueryString(data);
+        if (queryString) {
+          let newParams = new URLSearchParams(queryString);
+          let keys      = Array.from(newParams.keys());
+
+          for (let i = 0, il = keys.length; i < il; i++) {
+            let key = keys[i];
+            url.searchParams.set(key, newParams.get(key));
+          }
+        }
+
+        data = undefined;
+      }
     }
 
     const options = Nife.extend(true, {
@@ -188,7 +203,7 @@ function optionsRequest(url, options) {
 }
 
 function dataToQueryString(data, nameFormatter, resolveInitial) {
-  const fromObject = (path, data) => {
+  function fromObject(path, data) {
     let parts = [];
     let keys  = Object.keys(data);
 
@@ -208,9 +223,9 @@ function dataToQueryString(data, nameFormatter, resolveInitial) {
     }
 
     return parts.filter(Boolean);
-  };
+  }
 
-  const fromArray = (path, data) => {
+  function fromArray(path, data) {
     let parts = [];
 
     for (let i = 0, il = data.length; i < il; i++) {
@@ -227,7 +242,7 @@ function dataToQueryString(data, nameFormatter, resolveInitial) {
     }
 
     return parts.filter(Boolean);
-  };
+  }
 
   if (!data || Nife.sizeOf(data) === 0)
     return '';
@@ -236,7 +251,7 @@ function dataToQueryString(data, nameFormatter, resolveInitial) {
   let parts   = [];
   let keys    = Object.keys(data);
 
-  if (resolveInitial !== undefined && resolveInitial !== null)
+  if (resolveInitial != null)
     initial = (typeof resolveInitial === 'function') ? resolveInitial.call(this) : resolveInitial;
 
   for (let i = 0, il = keys.length; i < il; i++) {

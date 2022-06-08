@@ -141,14 +141,14 @@ class HTTPServer {
           let statusCode  = error.statusCode || error.status_code || 500;
 
           if (error instanceof HTTPBaseError) {
-            logger.log(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
+            logger.error(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
             this.errorHandler(error, error.getMessage(), statusCode, response, request);
           } else {
             if (statusCode) {
-              logger.log(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
+              logger.error(`Error: ${statusCode} ${statusCodeToMessage(statusCode)}`);
               this.errorHandler(error, error.message, statusCode, response, request);
             } else {
-              logger.log(`Error: ${error.message}`, error);
+              logger.error(`Error: ${error.message}`, error);
               this.errorHandler(error, error.message, 500, response, request);
             }
           }
@@ -327,7 +327,7 @@ class HTTPServer {
       let ControllerConstructor = controller;
 
       logger = this.createRequestLogger(application, request, { controller, controllerMethod });
-      logger.log('Starting request');
+      logger.info('Starting request');
 
       if (!controller)
         throw new HTTPInternalServerError(route, `Controller not found for route ${route.url}`);
@@ -444,7 +444,8 @@ class HTTPServer {
     this.server = server;
 
     let listeningPort = server.address().port;
-    this.getLogger().log(`Web server listening at ${(options.https) ? 'https' : 'http'}://${options.host}:${listeningPort}`);
+
+    this.getLogger().info(`Web server listening at ${(options.https) ? 'https' : 'http'}://${options.host}:${listeningPort}`);
 
     return server;
   }
@@ -455,7 +456,7 @@ class HTTPServer {
       return;
 
     try {
-      this.getLogger().log('Shutting down web server...');
+      this.getLogger().info('Shutting down web server...');
 
       await new Promise((resolve, reject) => {
         server.close((error) => {
@@ -466,7 +467,7 @@ class HTTPServer {
         });
       });
 
-      this.getLogger().log('Web server shut down successfully!');
+      this.getLogger().info('Web server shut down successfully!');
     } catch (error) {
       this.getLogger().error('Error stopping HTTP server: ', error);
     }

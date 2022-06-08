@@ -19,12 +19,14 @@ function defineController(controllerName, definer, _parent) {
 }
 
 const ROUTE_PROPERTIES = [
+  'name',
   'accept',
   'controller',
   'methods',
   'middleware',
   'priority',
   'queryParams',
+  'clientOptions',
 ];
 
 function buildPatternMatcher(_patterns, _opts) {
@@ -144,7 +146,7 @@ function buildPathMatcher(routeName, customParserTypes) {
   let parts       = [];
   let lastOffset  = 0;
 
-  routeName.replace(/<\s*([^\s:]+?\??)\s*(:\w+?)?\s*(=\s*[^>]+)?>/g, function(m, _name, _type, _defaultValue, offset, str) {
+  let sanitizedPath = routeName.replace(/<\s*([^\s:]+?\??)\s*(:\w+?)?\s*(=\s*[^>]+)?>/g, function(m, _name, _type, _defaultValue, offset, str) {
     if (offset > lastOffset) {
       parts.push(str.substring(lastOffset, offset));
       lastOffset = offset + m.length;
@@ -162,7 +164,6 @@ function buildPathMatcher(routeName, customParserTypes) {
 
     if (type)
       type = type.replace(/\W/g, '');
-
 
     if (defaultValue) {
       defaultValue = defaultValue.trim().replace(/^=\s*/, '');
@@ -194,7 +195,7 @@ function buildPathMatcher(routeName, customParserTypes) {
     params.push(param);
     parts.push(param);
 
-    return '';
+    return `<<${name}${(optional) ? '?' : ''}>>`;
   });
 
   if (lastOffset < routeName.length)
@@ -260,6 +261,12 @@ function buildPathMatcher(routeName, customParserTypes) {
       enumberable:  false,
       configurable: false,
       value:        params,
+    },
+    'sanitizedPath': {
+      writable:     false,
+      enumberable:  false,
+      configurable: false,
+      value:        sanitizedPath,
     },
   });
 

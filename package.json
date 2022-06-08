@@ -19,6 +19,8 @@
   },
   "homepage": "https://github.com/th317erd/mythix#readme",
   "devDependencies": {
+    "colors": "^1.4.0",
+    "diff": "^5.1.0",
     "jasmine": "^4.0.2"
   },
   "dependencies": {

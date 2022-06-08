@@ -80,7 +80,7 @@ function createTestApplication(Application) {
 
     getTestingLoggerConfig(loggerOpts) {
       return Object.assign({}, {
-        level:  Logger.ERROR,
+        level:  Logger.LEVEL_ERROR,
         writer: null,
       }, loggerOpts || {});
     }

@@ -1,3 +1,4 @@
+/* eslint-disable lines-between-class-members */
 'use strict';
 
 /* global process */
@@ -71,6 +72,12 @@ function logToWriter(type, ..._args) {
 }
 
 class Logger {
+  static LEVEL_ERROR  = LEVEL_ERROR;
+  static LEVEL_LOG    = LEVEL_LOG;
+  static LEVEL_WARN   = LEVEL_WARN;
+  static LEVEL_INFO   = LEVEL_INFO;
+  static LEVEL_DEBUG  = LEVEL_DEBUG;
+
   constructor(_opts) {
     let opts = Object.assign({
       level:                LEVEL_INFO,
@@ -137,6 +144,10 @@ class Logger {
         value:        opts.errorStackFormatter,
       },
     });
+  }
+
+  getLevel() {
+    return this._level;
   }
 
   setLevel(level) {
@@ -214,14 +225,6 @@ class Logger {
     });
   }
 }
-
-Object.assign(Logger, {
-  ERROR:  LEVEL_ERROR,
-  LOG:    LEVEL_LOG,
-  WARN:   LEVEL_WARN,
-  INFO:   LEVEL_INFO,
-  DEBUG:  LEVEL_DEBUG,
-});
 
 module.exports = {
   Logger,

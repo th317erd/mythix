@@ -10,7 +10,7 @@ module.exports = defineCommand('routes', ({ Parent }) => {
   return class RoutesCommand extends Parent {
     static description        = 'List application routes';
 
-    static applicationConfig  = { logger: { level: Logger.ERROR } };
+    static applicationConfig  = { logger: { level: Logger.LEVEL_ERROR } };
 
     buildRoutes(httpServer, routes) {
       let application       = this.getApplication();
