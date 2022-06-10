@@ -29,6 +29,7 @@ module.exports = {
   TaskBase:               TasksScope.TaskBase,
   Tasks:                  TasksScope,
   TestUtils:              Utils.TestUtils,
+  MimeUtils:              Utils.MimeUtils,
   Model:                  ModelScope.Model,
   Modules:                {
     ...Modules,

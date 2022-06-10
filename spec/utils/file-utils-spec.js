@@ -2,7 +2,7 @@
 
 /* global describe, it, expect */
 
-const Utils = require('../src/utils');
+const Utils = require('../../src/utils');
 
 describe('file-utils', function() {
   describe('fileNameWithoutExtension', function() {

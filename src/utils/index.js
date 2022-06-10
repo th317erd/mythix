@@ -10,11 +10,13 @@ const {
 const HTTPUtils   = require('./http-utils');
 const CryptoUtils = require('./crypto-utils');
 const TestUtils   = require('./test-utils');
+const MimeUtils   = require('./mime-utils');
 
 module.exports = {
   CryptoUtils,
   fileNameWithoutExtension,
   HTTPUtils,
+  MimeUtils,
   TestUtils,
   walkDir,
   wrapConfig,
