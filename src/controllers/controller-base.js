@@ -47,6 +47,17 @@ class ControllerBase {
         },
         set:          () => {},
       },
+      'contentType': {
+        enumberable:  false,
+        configurable: true,
+        get:          () => {
+          if (!this.request)
+            return null;
+
+          return Nife.get(this.request, 'headers.content-type');
+        },
+        set:          () => {},
+      },
       'responseStatusCode': {
         writable:     true,
         enumberable:  false,
@@ -142,6 +153,10 @@ class ControllerBase {
     }
   }
 
+  setContentType(str) {
+    this.setHeader('Content-Type', str);
+  }
+
   setStatusCode(code) {
     this.responseStatusCode = parseInt(code, 10);
   }
@@ -158,22 +173,20 @@ class ControllerBase {
       return;
 
     let controllerResult  = _controllerResult;
-    let contentType       = Nife.get(request, 'headers.content-type');
+    let contentType       = Nife.get(response, 'headers.content-type');
 
-    if (!('' + contentType).match(/application\/json/i)) {
+    if (('' + contentType).match(/application\/json/i) || Nife.instanceOf(controllerResult, 'object', 'array')) {
+      if (controllerResult == null)
+        controllerResult = {};
+
+      response.header('Content-Type', 'application/json; charset=UTF-8');
+      response.status(this.responseStatusCode).send(JSON.stringify(controllerResult));
+    } else {
       if (controllerResult == null)
         controllerResult = '';
 
       response.status(this.responseStatusCode).send(('' + controllerResult));
-
-      return;
     }
-
-    if (controllerResult == null)
-      controllerResult = {};
-
-    response.header('Content-Type', 'application/json; charset=UTF-8');
-    response.status(this.responseStatusCode).send(JSON.stringify(controllerResult));
   }
 }
 

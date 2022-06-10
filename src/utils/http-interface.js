@@ -65,6 +65,19 @@ class HTTPInterface {
     }
   }
 
+  keysToLowerCase(obj) {
+    let keys    = Object.keys(obj || {});
+    let newObj  = {};
+
+    for (let i = 0, il = keys.length; i < il; i++) {
+      let key   = keys[i];
+      let value = obj[key];
+      newObj[key.toLowerCase()] = value;
+    }
+
+    return newObj;
+  }
+
   makeRequest(requestOptions) {
     return new Promise((resolve, reject) => {
       if (Nife.isEmpty(requestOptions.url))
@@ -75,19 +88,25 @@ class HTTPInterface {
       let data        = requestOptions.data;
       let extraConfig = {};
       let headers     = Object.assign({
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36',
-      }, this.defaultHeaders || {}, requestOptions.headers || {});
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36',
+      }, this.keysToLowerCase(this.defaultHeaders || {}), this.keysToLowerCase(requestOptions.headers || {}));
 
       if (data) {
         if ((!method.match(/^(GET|HEAD)$/i) && requestOptions.data)) {
-          if (Nife.get(headers, 'Content-Type', '').match(/application\/json/i))
-            data = JSON.stringify(data);
+          if (data.constructor.name === 'FormData') {
+            extraConfig = {
+              headers: data.getHeaders(),
+            };
+          } else {
+            if (Nife.get(headers, 'content-type', '').match(/application\/json/i))
+              data = JSON.stringify(data);
 
-          extraConfig = {
-            headers: {
-              'Content-Length': Buffer.byteLength(data),
-            },
-          };
+            extraConfig = {
+              headers: {
+                'content-length': Buffer.byteLength(data),
+              },
+            };
+          }
         } else {
           let queryString = dataToQueryString(data);
           if (queryString) {
@@ -147,10 +166,16 @@ class HTTPInterface {
         reject(error);
       });
 
-      if (data)
-        thisRequest.write(data);
-
-      thisRequest.end();
+      if (data) {
+        if (data.constructor.name === 'FormData') {
+          data.pipe(thisRequest);
+        } else if (data) {
+          thisRequest.write(data);
+          thisRequest.end();
+        }
+      } else {
+        thisRequest.end();
+      }
     });
   }
 

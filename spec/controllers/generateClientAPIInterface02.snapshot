@@ -114,12 +114,12 @@
 
     function dataToQueryString(data, nameFormatter, resolveInitial) {
       function fromObject(path, data) {
-        var parts = [];
-        var keys  = Object.keys(data);
+        let parts = [];
+        let keys  = Object.keys(data);
     
-        for (var i = 0, il = keys.length; i < il; i++) {
-          var key = keys[i];
-          var value = data[key];
+        for (let i = 0, il = keys.length; i < il; i++) {
+          let key = keys[i];
+          let value = data[key];
     
           if (value && typeof value === 'object' && typeof value.valueOf === 'function')
             value = value.valueOf();
@@ -136,10 +136,10 @@
       }
     
       function fromArray(path, data) {
-        var parts = [];
+        let parts = [];
     
-        for (var i = 0, il = data.length; i < il; i++) {
-          var value = data[i];
+        for (let i = 0, il = data.length; i < il; i++) {
+          let value = data[i];
           if (value && typeof value === 'object' && typeof value.valueOf === 'function')
             value = value.valueOf();
     
@@ -157,16 +157,16 @@
       if (!data || Utils.sizeOf(data) === 0)
         return '';
     
-      var initial = '?';
-      var parts   = [];
-      var keys    = Object.keys(data);
+      let initial = '?';
+      let parts   = [];
+      let keys    = Object.keys(data);
     
       if (resolveInitial != null)
         initial = (typeof resolveInitial === 'function') ? resolveInitial.call(this) : resolveInitial;
     
-      for (var i = 0, il = keys.length; i < il; i++) {
-        var name  = keys[i];
-        var value = data[name];
+      for (let i = 0, il = keys.length; i < il; i++) {
+        let name  = keys[i];
+        let value = data[name];
     
         if (Utils.isEmpty(value))
           continue;
@@ -190,6 +190,19 @@
         return '';
     
       return initial + parts.join('&');
+    }
+
+    function keysToLowerCase(obj) {
+      var keys    = Object.keys(obj || {});
+      var newObj  = {};
+
+      for (var i = 0, il = keys.length; i < il; i++) {
+        var key   = keys[i];
+        var value = obj[key];
+        newObj[key.toLowerCase()] = value;
+      }
+
+      return newObj;
     }
 
     function injectURLParams(routeName, _options) {
@@ -219,6 +232,7 @@
       sizeOf,
       isEmpty,
       dataToQueryString,
+      keysToLowerCase,
       injectURLParams,
     };
   })();
@@ -243,10 +257,10 @@
       }
   
       function setDefaultHeaders(headers) {
-        let headerNames = Object.keys(headers);
-        for (let i = 0, il = headerNames.length; i < il; i++) {
-          let headerName  = headerNames[i];
-          let value       = headers[headerName];
+        var headerNames = Object.keys(headers);
+        for (var i = 0, il = headerNames.length; i < il; i++) {
+          var headerName  = headerNames[i];
+          var value       = headers[headerName];
   
           if (value == null) {
             delete apiInterface.defaultHeaders[headerName];
@@ -271,26 +285,32 @@
           var url         = new URL.URL(requestOptions.url);
           var data        = requestOptions.data;
           var extraConfig = {};
-          var headers     = Object.assign({}, this.defaultHeaders || {}, requestOptions.headers || {});
+          var headers     = Object.assign({}, Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
       
           if (data) {
             if (!method.match(/^(GET|HEAD)$/i)) {
-              if ((headers['Content-Type'] || '').match(/application\/json/i))
-                data = JSON.stringify(data);
+              if (data.constructor.name === 'FormData') {
+                extraConfig = {
+                  headers: data.getHeaders(),
+                };
+              } else {
+                if ((headers['content-type'] || '').match(/application\/json/i))
+                  data = JSON.stringify(data);
       
-              extraConfig = {
-                headers: {
-                  'Content-Length': Buffer.byteLength(data),
-                },
-              };
+                extraConfig = {
+                  headers: {
+                    'content-length': Buffer.byteLength(data),
+                  },
+                };
+              }
             } else {
-              let queryString = Utils.dataToQueryString(data);
+              var queryString = Utils.dataToQueryString(data);
               if (queryString) {
-                let newParams = new URL.URLSearchParams(queryString);
-                let keys      = Array.from(newParams.keys());
+                var newParams = new URL.URLSearchParams(queryString);
+                var keys      = Array.from(newParams.keys());
       
-                for (let i = 0, il = keys.length; i < il; i++) {
-                  let key = keys[i];
+                for (var i = 0, il = keys.length; i < il; i++) {
+                  var key = keys[i];
                   url.searchParams.set(key, newParams.get(key));
                 }
               }
@@ -309,7 +329,7 @@
             },
             requestOptions,
             extraConfig,
-            { headers:  Object.assign({}, headers, extraConfig.headers || {}) },
+            { headers:  Object.assign({}, headers, Utils.keysToLowerCase(extraConfig.headers || {})) },
           );
       
           delete options.data;
@@ -374,10 +394,16 @@
             reject(error);
           });
       
-          if (data)
-            thisRequest.write(data);
-      
-          thisRequest.end();
+          if (data) {
+            if (data.constructor.name === 'FormData') {
+              data.pipe(thisRequest);
+            } else if (data) {
+              thisRequest.write(data);
+              thisRequest.end();
+            }
+          } else {
+            thisRequest.end();
+          }
         }).bind(this));
       }
   

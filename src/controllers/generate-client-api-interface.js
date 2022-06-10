@@ -7,8 +7,8 @@ const ControllerUtils = require('./controller-utils');
 const HTTPUtils       = require('../utils/http-utils');
 
 function tabIn(str, amount) {
-  let padding = ''.padStart((amount || 1) * 2, ' ');
-  let firstLine = true;
+  var padding = ''.padStart((amount || 1) * 2, ' ');
+  var firstLine = true;
 
   return str.replace(/^/gm, () => {
     if (firstLine) {
@@ -21,7 +21,7 @@ function tabIn(str, amount) {
 }
 
 function buildRoutes(httpServer, routes) {
-  let customParserTypes = this.getCustomRouteParserTypes(httpServer, routes);
+  var customParserTypes = this.getCustomRouteParserTypes(httpServer, routes);
   return ControllerUtils.buildRoutes(routes, customParserTypes);
 }
 
@@ -39,26 +39,32 @@ function nodeRequestHandler(routeName, requestOptions) {
     var url         = new URL.URL(requestOptions.url);
     var data        = requestOptions.data;
     var extraConfig = {};
-    var headers     = Object.assign({}, this.defaultHeaders || {}, requestOptions.headers || {});
+    var headers     = Object.assign({}, Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
 
     if (data) {
       if (!method.match(/^(GET|HEAD)$/i)) {
-        if ((headers['Content-Type'] || '').match(/application\/json/i))
-          data = JSON.stringify(data);
+        if (data.constructor.name === 'FormData') {
+          extraConfig = {
+            headers: data.getHeaders(),
+          };
+        } else {
+          if ((headers['content-type'] || '').match(/application\/json/i))
+            data = JSON.stringify(data);
 
-        extraConfig = {
-          headers: {
-            'Content-Length': Buffer.byteLength(data),
-          },
-        };
+          extraConfig = {
+            headers: {
+              'content-length': Buffer.byteLength(data),
+            },
+          };
+        }
       } else {
-        let queryString = Utils.dataToQueryString(data);
+        var queryString = Utils.dataToQueryString(data);
         if (queryString) {
-          let newParams = new URL.URLSearchParams(queryString);
-          let keys      = Array.from(newParams.keys());
+          var newParams = new URL.URLSearchParams(queryString);
+          var keys      = Array.from(newParams.keys());
 
-          for (let i = 0, il = keys.length; i < il; i++) {
-            let key = keys[i];
+          for (var i = 0, il = keys.length; i < il; i++) {
+            var key = keys[i];
             url.searchParams.set(key, newParams.get(key));
           }
         }
@@ -77,7 +83,7 @@ function nodeRequestHandler(routeName, requestOptions) {
       },
       requestOptions,
       extraConfig,
-      { headers:  Object.assign({}, headers, extraConfig.headers || {}) },
+      { headers:  Object.assign({}, headers, Utils.keysToLowerCase(extraConfig.headers || {})) },
     );
 
     delete options.data;
@@ -142,10 +148,16 @@ function nodeRequestHandler(routeName, requestOptions) {
       reject(error);
     });
 
-    if (data)
-      thisRequest.write(data);
-
-    thisRequest.end();
+    if (data) {
+      if (data.constructor.name === 'FormData') {
+        data.pipe(thisRequest);
+      } else if (data) {
+        thisRequest.write(data);
+        thisRequest.end();
+      }
+    } else {
+      thisRequest.end();
+    }
   }).bind(this));
 }
 
@@ -160,11 +172,11 @@ function browserRequestHandler(routeName, requestOptions) {
     var url         = requestOptions.url;
     var data        = requestOptions.data;
     var extraConfig = {};
-    var headers     = Object.assign({ 'Content-Type': 'application/json; charset=UTF-8' }, this.defaultHeaders || {}, requestOptions.headers || {});
+    var headers     = Object.assign({ 'content-type': 'application/json; charset=UTF-8' }, Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
 
     if (data) {
       if (!method.match(/^(GET|HEAD)$/i)) {
-        if ((headers['Content-Type'] || '').match(/application\/json/i))
+        if ((headers['content-type'] || '').match(/application\/json/i))
           data = JSON.stringify(data);
 
         extraConfig = {
@@ -181,7 +193,7 @@ function browserRequestHandler(routeName, requestOptions) {
       { method },
       requestOptions,
       extraConfig,
-      { headers:  Object.assign({}, headers, extraConfig.headers || {}) },
+      { headers:  Object.assign({}, headers, Utils.keysToLowerCase(extraConfig.headers || {})) },
     );
 
     delete options.data;
@@ -224,11 +236,11 @@ function browserRequestHandler(routeName, requestOptions) {
             },
           });
 
-          return data;
+          resolve(data);
         } else if (contentType && contentType.match(/text\/(plain|html)/i)) {
-          return response.text();
+          resolve(response.text());
         } else {
-          return response;
+          resolve(response);
         }
       },
       function(error) {
@@ -244,7 +256,20 @@ function generateUtils() {
     ${tabIn(Nife.instanceOf.toString(), 2)}\n
     ${tabIn(Nife.sizeOf.toString(), 2)}\n
     ${tabIn(Nife.isEmpty.toString(), 2)}\n
-    ${tabIn(HTTPUtils.dataToQueryString.toString().replace(/\bNife\b/g, 'Utils'), 2).replace(/\b(const|let)\b/g, 'var')}
+    ${tabIn(HTTPUtils.dataToQueryString.toString().replace(/\bNife\b/g, 'Utils'), 2).replace(/\b(const|var)\b/g, 'var')}
+
+    function keysToLowerCase(obj) {
+      var keys    = Object.keys(obj || {});
+      var newObj  = {};
+
+      for (var i = 0, il = keys.length; i < il; i++) {
+        var key   = keys[i];
+        var value = obj[key];
+        newObj[key.toLowerCase()] = value;
+      }
+
+      return newObj;
+    }
 
     function injectURLParams(routeName, _options) {
       var options = _options || {};
@@ -273,6 +298,7 @@ function generateUtils() {
       sizeOf,
       isEmpty,
       dataToQueryString,
+      keysToLowerCase,
       injectURLParams,
     };
   })();
@@ -280,13 +306,13 @@ function generateUtils() {
 }
 
 function generateRoutes(_routes, _options) {
-  let options         = _options || {};
-  let methods         = {};
-  let domain          = options.domain;
-  let routes          = _routes;
+  var options         = _options || {};
+  var methods         = {};
+  var domain          = options.domain;
+  var routes          = _routes;
 
   if (options.routeFilter) {
-    let routeFilter = options.routeFilter;
+    var routeFilter = options.routeFilter;
 
     if (typeof routeFilter === 'function') {
       routes = routes.filter(routeFilter);
@@ -306,18 +332,18 @@ function generateRoutes(_routes, _options) {
   else
     domain = ('' + domain).replace(/\/+$/, '');
 
-  for (let i = 0, il = routes.length; i < il; i++) {
-    let route       = routes[i];
-    let methodName  = route.name;
+  for (var i = 0, il = routes.length; i < il; i++) {
+    var route       = routes[i];
+    var methodName  = route.name;
     if (Nife.isEmpty(methodName))
       continue;
 
-    let pathMatcher   = route.pathMatcher;
-    let clientOptions = route.clientOptions;
-    let sanitizedPath = pathMatcher.sanitizedPath;
+    var pathMatcher   = route.pathMatcher;
+    var clientOptions = route.clientOptions;
+    var sanitizedPath = pathMatcher.sanitizedPath;
 
     if (clientOptions == null) {
-      let contentType = route.accept;
+      var contentType = route.accept;
       if (Nife.isEmpty(contentType))
         contentType = 'application/json; charset=UTF-8';
       else if (Array.isArray(contentType))
@@ -338,13 +364,13 @@ function generateRoutes(_routes, _options) {
       return value;
     });
 
-    let defaultMethod = Nife.toArray(route.methods).filter(Boolean);
+    var defaultMethod = Nife.toArray(route.methods).filter(Boolean);
     if (Nife.isEmpty(defaultMethod))
       defaultMethod = 'GET';
     else if (Array.isArray(defaultMethod))
       defaultMethod = defaultMethod[0];
 
-    let url = `${domain}${sanitizedPath}`;
+    var url = `${domain}${sanitizedPath}`;
     methods[methodName] = `function ${methodName}(_options) { var clientOptions = ${clientOptions}; var options = Object.assign({ url: '${url}', method: '${defaultMethod}' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('${methodName}', options); delete options.params; return makeRequest.call(this, '${methodName}', options); }`;
   }
 
@@ -352,16 +378,16 @@ function generateRoutes(_routes, _options) {
 }
 
 function generateAPIInterface(routes, _options) {
-  let options           = _options || {};
-  let environment       = options.environment;
-  let routeMethods      = generateRoutes(routes, options);
-  let routeMethodNames  = Object.keys(routeMethods).sort();
-  let injectMethodsStr  = routeMethodNames.map((methodName) => {
-    let method = routeMethods[methodName];
+  var options           = _options || {};
+  var environment       = options.environment;
+  var routeMethods      = generateRoutes(routes, options);
+  var routeMethodNames  = Object.keys(routeMethods).sort();
+  var injectMethodsStr  = routeMethodNames.map((methodName) => {
+    var method = routeMethods[methodName];
     return `    apiInterface['${methodName}'] = (${method}).bind(apiInterface);`;
   }).join('\n\n');
 
-  let defaultRouteOptions = options.defaultRouteOptions;
+  var defaultRouteOptions = options.defaultRouteOptions;
   if (Nife.isNotEmpty(defaultRouteOptions)) {
     defaultRouteOptions = JSON.stringify(defaultRouteOptions, (key, value) => {
       if (typeof value === 'function')
@@ -392,10 +418,10 @@ function generateAPIInterface(routes, _options) {
     }
 
     function setDefaultHeaders(headers) {
-      let headerNames = Object.keys(headers);
-      for (let i = 0, il = headerNames.length; i < il; i++) {
-        let headerName  = headerNames[i];
-        let value       = headers[headerName];
+      var headerNames = Object.keys(headers);
+      for (var i = 0, il = headerNames.length; i < il; i++) {
+        var headerName  = headerNames[i];
+        var value       = headers[headerName];
 
         if (value == null) {
           delete apiInterface.defaultHeaders[headerName];
@@ -433,10 +459,10 @@ function generateAPIInterface(routes, _options) {
 }
 
 function generateClientAPIInterface(application, _options) {
-  let options     = _options || {};
-  let httpServer  = application.getHTTPServer() || null;
-  let routes      = buildRoutes.call(application, httpServer, application.getRoutes());
-  let globalName  = (Object.prototype.hasOwnProperty.call(options, 'globalName')) ? options.globalName : '';
+  var options     = _options || {};
+  var httpServer  = application.getHTTPServer() || null;
+  var routes      = buildRoutes.call(application, httpServer, application.getRoutes());
+  var globalName  = (Object.prototype.hasOwnProperty.call(options, 'globalName')) ? options.globalName : '';
 
   if (Nife.isNotEmpty(globalName))
     globalName = `globalScope['${globalName}'] = APIInterface`;

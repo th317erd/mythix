@@ -4,7 +4,9 @@
 
 const Nife                  = require('nife');
 const Path                  = require('path');
+const FileSystem            = require('fs');
 const EventEmitter          = require('events');
+const OS                    = require('os');
 const { Logger }            = require('./logger');
 const { DatabaseModule }    = require('./modules/database-module');
 const { ModelModule }       = require('./models/model-module');
@@ -143,6 +145,14 @@ class Application extends EventEmitter {
     });
 
     this.bindToProcessSignals();
+
+    if (Nife.isEmpty(opts.tempPath))
+      opts.tempPath = Path.resolve(OS.tmpdir(), this.getApplicationName().replace(/[^\w-]/g, ''), ('' + process.pid));
+  }
+
+  getTempPath() {
+    let options = this.getOptions();
+    return options.tempPath;
   }
 
   getModules() {
@@ -274,6 +284,12 @@ class Application extends EventEmitter {
   async start() {
     let options = this.getOptions();
 
+    let tempDir = this.getTempPath();
+    if (Nife.isNotEmpty(tempDir)) {
+      if (!FileSystem.existsSync(tempDir))
+        FileSystem.mkdirSync(tempDir, { recursive: true });
+    }
+
     await this.initializeModules(options.modules);
     await this.startAllModules(options);
 
@@ -300,6 +316,17 @@ class Application extends EventEmitter {
           let error = errors[i];
           this.getLogger().error('Error while shutting down: ', error);
         }
+      }
+
+      this.getLogger().info('Removing temporary files...');
+
+      let tempDir = this.getTempPath();
+      if (Nife.isNotEmpty(tempDir)) {
+        FileSystem.rmSync(tempDir, {
+          force:      true,
+          recursive:  true,
+          maxRetries: 3,
+        });
       }
 
       this.getLogger().info('Shut down complete!');

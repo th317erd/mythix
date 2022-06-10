@@ -7,7 +7,10 @@ const REPL              = require('repl');
 const UUIDV4            = require('uuid').v4;
 const { Sequelize }     = require('sequelize');
 const { defineCommand } = require('./cli-utils');
-const { HTTPUtils }     = require('../utils');
+const {
+  HTTPInterface,
+  HTTPUtils,
+} = require('../utils');
 
 module.exports = defineCommand('shell', ({ Parent }) => {
   return class ShellCommand extends Parent {
@@ -36,9 +39,10 @@ module.exports = defineCommand('shell', ({ Parent }) => {
 
     execute() {
       return new Promise((resolve) => {
-        let application = this.getApplication();
-        let environment = application.getConfigValue('environment', 'development');
-        let appName     = application.getApplicationName();
+        let application   = this.getApplication();
+        let environment   = application.getConfigValue('environment', 'development');
+        let appName       = application.getApplicationName();
+        let httpInterface = new HTTPInterface();
 
         const interactiveShell = REPL.start({
           prompt: `${appName} (${environment}) > `,
@@ -57,19 +61,20 @@ module.exports = defineCommand('shell', ({ Parent }) => {
         interactiveShell.context.Nife = Nife;
 
         interactiveShell.context.HTTP = {
-          'getDefaultURL':      HTTPUtils.getDefaultURL,
-          'setDefaultURL':      HTTPUtils.setDefaultURL,
-          'getDefaultHeader':   HTTPUtils.getDefaultHeader,
-          'getDefaultHeaders':  HTTPUtils.getDefaultHeaders,
-          'setDefaultHeader':   HTTPUtils.setDefaultHeader,
-          'setDefaultHeaders':  HTTPUtils.setDefaultHeaders,
-          'request':            HTTPUtils['request'],
-          'get':                HTTPUtils['get'],
-          'post':               HTTPUtils['post'],
-          'put':                HTTPUtils['put'],
-          'delete':             HTTPUtils['delete'],
-          'head':               HTTPUtils['head'],
-          'options':            HTTPUtils['options'],
+          'getDefaultURL':      httpInterface.getDefaultURL.bind(httpInterface),
+          'setDefaultURL':      httpInterface.setDefaultURL.bind(httpInterface),
+          'getDefaultHeader':   httpInterface.getDefaultHeader.bind(httpInterface),
+          'getDefaultHeaders':  httpInterface.getDefaultHeaders.bind(httpInterface),
+          'setDefaultHeader':   httpInterface.setDefaultHeader.bind(httpInterface),
+          'setDefaultHeaders':  httpInterface.setDefaultHeaders.bind(httpInterface),
+          'request':            httpInterface.request.bind(httpInterface),
+          'get':                httpInterface.getRequest.bind(httpInterface),
+          'post':               httpInterface.postRequest.bind(httpInterface),
+          'put':                httpInterface.putRequest.bind(httpInterface),
+          'delete':             httpInterface.deleteRequest.bind(httpInterface),
+          'head':               httpInterface.headRequest.bind(httpInterface),
+          'options':            httpInterface.optionsRequest.bind(httpInterface),
+          'dataToQueryString':  HTTPUtils.dataToQueryString,
         };
 
         Object.assign(interactiveShell.context, application.getModels());

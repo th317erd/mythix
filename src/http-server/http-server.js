@@ -25,22 +25,27 @@ const {
 } = require('../utils/http-utils');
 
 const REQUEST_ID_POSTFIX_LENGTH = 4;
-const REQUEST_TIME_RESOLUTION = 3;
+const REQUEST_TIME_RESOLUTION   = 3;
+
+const DEFAULT_FILE_UPLOAD_BUFFER_SIZE = 2 * 1024 * 1024; // 2mb
+const DEFAULT_FILE_UPLOAD_SIZE_LIMIT  = 2 * 1024 * 1024; // 10mb
 
 class HTTPServer {
   constructor(application, _opts) {
-    let appName = application.getApplicationName();
-
-    let uploadPath = Path.resolve(OS.tmpdir(), appName.replace(/[^\w-]/g, ''), ('' + process.pid));
+    let uploadPath = Path.resolve(application.getTempPath(), 'uploads');
 
     let opts = Nife.extend(true, {
       host:    'localhost',
       port:    '8000',
       https:   false,
       uploads: {
-        upload:       true,
-        path:         uploadPath,
-        allowedPath:  /./i,
+        upload:         true,
+        path:           uploadPath,
+        allowedPath:    /./i,
+        highWaterMark:  DEFAULT_FILE_UPLOAD_BUFFER_SIZE,
+        limits:         {
+          fileSize: DEFAULT_FILE_UPLOAD_SIZE_LIMIT,
+        },
       },
     }, _opts || {});
 

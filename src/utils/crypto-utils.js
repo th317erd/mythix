@@ -11,6 +11,12 @@ function randomBytes(length) {
   return buffer;
 }
 
+function MD5(data) {
+  let hash = createHash('md5');
+  hash.update(data);
+  return hash.digest('hex');
+}
+
 function SHA256(data) {
   let hash = createHash('sha256');
   hash.update(data);
@@ -35,6 +41,7 @@ function randomHash(type = 'sha256', length = 128) {
 module.exports = {
   randomBytes,
   randomHash,
+  MD5,
   SHA256,
   SHA512,
 };
