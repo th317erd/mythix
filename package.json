@@ -32,7 +32,7 @@
     "express-busboy": "^8.0.2",
     "inflection": "^1.13.2",
     "lodash": "^4.17.21",
-    "nife": "^1.7.0",
+    "nife": "^1.8.1",
     "object-hash": "^3.0.0",
     "pg": "^8.7.3",
     "pg-hstore": "^2.3.4",
