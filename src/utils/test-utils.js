@@ -102,8 +102,10 @@ function createTestApplication(Application) {
     async start(...args) {
       let result = await super.start(...args);
 
-      let dbConnection = this.getDBConnection();
-      await dbConnection.sync({ force: true, logging: false });
+      if (typeof this.getDBConnection === 'function') {
+        let dbConnection = this.getDBConnection();
+        await dbConnection.sync({ force: true, logging: false });
+      }
 
       return result;
     }
