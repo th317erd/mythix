@@ -331,12 +331,13 @@ function buildModelRelations(models) {
         onDelete:   relation.onDelete,
         onUpdate:   relation.onUpdate,
         allowNull:  (relation.allowNull == null) ? true : relation.allowNull,
-        field:      Nife.camelCaseToSnakeCase(fieldName),
-        foreignKey: Object.assign(pkFieldCopy, { name: fieldName, as: relation.name, field: Nife.camelCaseToSnakeCase(fieldName) }),
+        foreignKey: (relation.foreignKey) ? relation.foreignKey : Object.assign(pkFieldCopy, { name: fieldName, as: relation.name, field: Nife.camelCaseToSnakeCase(fieldName) }),
       });
 
       // Set relation on model
+
       // console.log(`Creating model relation (${modelName} -> ${targetModelName}): `, type, options);
+
       model[type](targetModel, options);
     }
   }

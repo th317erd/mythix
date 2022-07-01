@@ -238,7 +238,7 @@ class HTTPServer {
     return controller;
   }
 
-  createRequestLogger(application, request /*, context */) {
+  createRequestLogger(application, request) {
     if (request.mythixLogger)
       return request.mythixLogger;
 
@@ -319,6 +319,9 @@ class HTTPServer {
     let logger;
 
     try {
+      logger = this.createRequestLogger(application, request);
+      logger.info('Starting request');
+
       let { route, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
 
       request.params = params || {};
@@ -330,9 +333,6 @@ class HTTPServer {
       } = (_controller || {});
 
       let ControllerConstructor = controller;
-
-      logger = this.createRequestLogger(application, request, { controller, controllerMethod });
-      logger.info('Starting request');
 
       if (!controller)
         throw new HTTPInternalServerError(route, `Controller not found for route ${route.url}`);
