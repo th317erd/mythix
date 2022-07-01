@@ -56,7 +56,7 @@ module.exports = defineCommand('shell', ({ Parent }) => {
 
         interactiveShell.context.UUIDV4 = UUIDV4;
         interactiveShell.context.Sequelize = Sequelize;
-        interactiveShell.context.connection = application.getDBConnection();
+        interactiveShell.context.connection = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
         interactiveShell.context.application = application;
         interactiveShell.context.Nife = Nife;
 
@@ -77,7 +77,8 @@ module.exports = defineCommand('shell', ({ Parent }) => {
           'dataToQueryString':  HTTPUtils.dataToQueryString,
         };
 
-        Object.assign(interactiveShell.context, application.getModels());
+        if (typeof application.getModels === 'function')
+          Object.assign(interactiveShell.context, application.getModels());
 
         this.onStart(interactiveShell);
       });
