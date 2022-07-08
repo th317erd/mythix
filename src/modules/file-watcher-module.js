@@ -69,10 +69,14 @@ class FileWatcherModule extends BaseModule {
     return this.watchedPathsCache;
   }
 
-  isWatchedFile(options, filePath) {
-    let monitoredPaths = this.getMonitoredPaths(options);
+  isWatchedFile(_monitoredPaths, filePath) {
+    let monitoredPaths = Nife.toArray(_monitoredPaths);
+
     for (let i = 0, il = monitoredPaths.length; i < il; i++) {
       let monitoredPath = monitoredPaths[i];
+      if (!monitoredPath)
+        continue;
+
       if (filePath.substring(0, monitoredPath.length) === monitoredPath)
         return true;
     }
@@ -90,7 +94,8 @@ class FileWatcherModule extends BaseModule {
       if (!queueName)
         continue;
 
-      if (this.isWatchedFile(options, filePath))
+      let paths = moduleInstance.fileWatcherGetMonitorPaths(options);
+      if (this.isWatchedFile(paths, filePath))
         return queueName;
     }
 

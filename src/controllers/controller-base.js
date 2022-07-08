@@ -83,11 +83,17 @@ class ControllerBase {
 
   getModel(name) {
     let application = this.getApplication();
+    if (typeof application.getModel !== 'function')
+      return;
+
     return application.getModel(name);
   }
 
   getModels() {
     let application = this.getApplication();
+    if (typeof application.getModels !== 'function')
+      return {};
+
     return application.getModels();
   }
 
@@ -163,6 +169,9 @@ class ControllerBase {
 
   async handleIncomingRequest(request, response, { route, controllerMethod, startTime, params, query /* , controller, controllerInstance, */ }) {
     this.route = route;
+
+    if (typeof this[controllerMethod] !== 'function')
+      this.throwInternalServerError(`Specified route handler named "${this.constructor.name}::${controllerMethod}" not found.`);
 
     return await this[controllerMethod].call(this, { params, query, body: request.body, request, response, startTime }, this.getModels());
   }

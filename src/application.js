@@ -299,7 +299,10 @@ class Application extends EventEmitter {
   }
 
   async stop(exitCode) {
-    if (this.isStopping || !this.isStarted)
+    if (this.isStopping)
+      process.exit(1);
+
+    if (!this.isStarted)
       return;
 
     try {
