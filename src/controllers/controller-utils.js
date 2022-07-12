@@ -296,7 +296,7 @@ function compileRoutes(routes, customParserTypes, _context) {
         accept:   '*',
         priority,
       },
-      getRouteProperties(route),
+      route || {},
       {
         path: path.replace(/\/{2,}/g, '/'),
       },
@@ -362,7 +362,7 @@ function compileRoutes(routes, customParserTypes, _context) {
       addRoute(theseRoutes, route, newPath, basePriority + i);
     }
 
-    if (ROUTE_PROPERTIES.indexOf(key) >= 0)
+    if (ROUTE_PROPERTIES.indexOf(key) >= 0 || Nife.instanceOf(route, 'boolean', 'string', 'number', 'bigint'))
       continue;
 
     let thisRouteName = (isArray) ? routeName : key;

@@ -116,6 +116,8 @@ class HTTPServer {
   }
 
   executeMiddleware(middleware, request, response) {
+    let { route, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
+
     return new Promise((resolve, reject) => {
       if (Nife.isEmpty(middleware)) {
         resolve();
@@ -132,6 +134,9 @@ class HTTPServer {
 
       if (!request.Sequelize)
         request.Sequelize = Sequelize;
+
+      request.route = route;
+      request.params = params;
 
       let middlewareIndex = 0;
       const next = async () => {
