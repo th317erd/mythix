@@ -371,11 +371,128 @@ function generateRoutes(_routes, _options) {
       defaultMethod = defaultMethod[0];
 
     var url = `${domain}${sanitizedPath}`;
-    methods[methodName] = `function ${methodName}(_options) { var clientOptions = ${clientOptions}; var options = Object.assign({ url: '${url}', method: '${defaultMethod}' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('${methodName}', options); delete options.params; return makeRequest.call(this, '${methodName}', options); }`;
+    methods[methodName] = { method: `function ${methodName}(_options) { var clientOptions = ${clientOptions}; var options = Object.assign({ url: '${url}', method: '${defaultMethod}' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('${methodName}', options); delete options.params; return makeRequest.call(this, '${methodName}', options); }`, route };
   }
 
   return methods;
 }
+
+const PRINT_TABLE = `
+    function printTable(columns, rows, title, prefix) {
+      function print(message) {
+        lines.push((prefix || '') + message);
+      }
+
+      const findLongestValue = (column) => {
+        var maxSize = column.length;
+
+        for (var i = 0, il = rows.length; i < il; i++) {
+          var row = rows[i];
+          if (!row)
+            continue;
+
+          var value = ('' + row[column]);
+          if (value.length > maxSize)
+            maxSize = value.length;
+        }
+
+        return maxSize;
+      };
+
+      const generateSequence = (size, char) => {
+        var array = new Array(size);
+        for (var i = 0, il = array.length; i < il; i++)
+          array[i] = char;
+
+        return array.join('');
+      };
+
+      const padColumnValue = (value, columnSize) => {
+        var prefixSize = Math.floor((columnSize - value.length) / 2.0);
+        var prefix = generateSequence(prefixSize, ' ');
+        var postfix = generateSequence(columnSize - value.length - prefixSize, ' ');
+
+        return [ prefix, value, postfix ].join('');
+      };
+
+      const bold = (value) => {
+        return '\u001b[1m' + value + '\u001b[0m';
+      };
+
+      const capitalize = (value) => {
+        return value.replace(/^./, (m) => {
+          return m.toUpperCase();
+        });
+      };
+
+      var lines = [];
+      var columnSizes = {};
+      var columnPadding = 4;
+      var totalWidth = columns.length + 1;
+
+      var lineChar = '~';
+      var sepChar = bold('|');
+
+      for (var i = 0, il = columns.length; i < il; i++) {
+        var column = columns[i];
+        var columnWidth = findLongestValue(column) + (columnPadding * 2);
+
+        totalWidth += columnWidth;
+
+        columnSizes[column] = columnWidth;
+      }
+
+      var hrLine = bold(sepChar + generateSequence(totalWidth - 2, lineChar) + sepChar);
+      var hrLine2 = columns.map((column) => generateSequence(columnSizes[column], lineChar));
+
+      hrLine2 = bold(sepChar + hrLine2.join(sepChar) + sepChar);
+
+      if (title) {
+        print(hrLine);
+        print(sepChar + bold(padColumnValue(capitalize(title), totalWidth - 2)) + sepChar);
+      }
+
+      print(hrLine);
+
+      var line = [ sepChar ];
+      for (var j = 0, jl = columns.length; j < jl; j++) {
+        var column = columns[j];
+        var columnSize = columnSizes[column];
+
+        line.push(bold(padColumnValue(capitalize(column), columnSize)));
+
+        line.push(sepChar);
+      }
+
+      print(line.join(''));
+      print(hrLine);
+
+      for (var i = 0, il = rows.length; i < il; i++) {
+        var row = rows[i];
+
+        if (i > 0)
+          print(hrLine2);
+
+        var line = [ sepChar ];
+
+        for (var j = 0, jl = columns.length; j < jl; j++) {
+          var column = columns[j];
+          var columnSize = columnSizes[column];
+          var value = ('' + row[column]);
+
+          line.push(padColumnValue(value, columnSize));
+
+          line.push(sepChar);
+        }
+
+        print(line.join(''));
+      }
+
+      print(hrLine);
+
+      console.info(lines.join('\\n'));
+    }
+`;
 
 function generateAPIInterface(routes, _options) {
   var options           = _options || {};
@@ -383,8 +500,17 @@ function generateAPIInterface(routes, _options) {
   var routeMethods      = generateRoutes(routes, options);
   var routeMethodNames  = Object.keys(routeMethods).sort();
   var injectMethodsStr  = routeMethodNames.map((methodName) => {
-    var method = routeMethods[methodName];
-    return `    apiInterface['${methodName}'] = (${method}).bind(apiInterface);`;
+    var info    = routeMethods[methodName];
+    var method  = info.method;
+    var route   = info.route;
+    var help    = route.help;
+
+    if (!help || options.mode !== 'development')
+      help = '{}';
+    else
+      help = JSON.stringify(help);
+
+    return `    apiInterface['${methodName}'] = assignHelp((${method}).bind(apiInterface), '${methodName}', ${help});`;
   }).join('\n\n');
 
   var defaultRouteOptions = options.defaultRouteOptions;
@@ -400,6 +526,43 @@ function generateAPIInterface(routes, _options) {
   }
 
   return `function generateAPIInterface(globalScope, environmentType) {
+    var helpStyles = {
+      'error': 'font-weight: 800; color: red;',
+      'normal': 'font-weight: 200;',
+      'bold': 'font-weight: 800;',
+      'boldYellow': 'font-weight: 800; color: yellow;',
+    };
+
+    ${(options.mode === 'development') ? PRINT_TABLE : ''}
+
+    function assignHelp(func, methodName, help) {
+      Object.defineProperty(func, 'help', {
+        enumberable:  false,
+        configurable: false,
+        get: () => {
+          if (!help || !help.description) {
+            console.log('%cNo help found for route "' + methodName + '"', helpStyles.error);
+            return;
+          }
+
+          console.info('%cHelp for %c' + methodName + '%c route:', helpStyles.bold, helpStyles.boldYellow, helpStyles.bold);
+          console.info('  %cDescription:%c ' + help.description, helpStyles.bold, helpStyles.normal);
+
+          if (!Utils.isEmpty(help.data))
+            printTable([ 'property', 'type', 'description' ], help.data, 'Data: { data: { ... } }', '  ');
+
+          if (!Utils.isEmpty(help.params))
+            printTable([ 'property', 'type', 'description' ], help.params, 'Parameters: { params: { ... } }', '  ');
+
+          if (help.example)
+            console.info('  %cExample:%c ' + help.example, helpStyles.bold, helpStyles.normal);
+        },
+        set: () => {},
+      });
+
+      return func;
+    }
+
     function getDefaultHeader(headerName) {
       return apiInterface.defaultHeaders[headerName];
     }
