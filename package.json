@@ -39,6 +39,6 @@
     "pg-hstore": "^2.3.4",
     "prompts": "^2.4.2",
     "sequelize": "^6.18.0",
-    "sqlite3": "^4.2.0"
+    "sqlite3": "^5.0.9"
   }
 }
