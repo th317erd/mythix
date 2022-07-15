@@ -383,6 +383,10 @@ const PRINT_TABLE = `
         lines.push((prefix || '') + message);
       }
 
+      const sanitizeValue = (value) => {
+        return ('' + value).replace(/\\u001B\\[\\d+m/g, '');
+      };
+
       const findLongestValue = (column) => {
         var maxSize = column.length;
 
@@ -391,7 +395,7 @@ const PRINT_TABLE = `
           if (!row)
             continue;
 
-          var value = ('' + row[column]);
+          var value = sanitizeValue('' + row[column]);
           if (value.length > maxSize)
             maxSize = value.length;
         }
@@ -407,16 +411,13 @@ const PRINT_TABLE = `
         return array.join('');
       };
 
-      const padColumnValue = (value, columnSize) => {
+      const padColumnValue = (_value, columnSize) => {
+        var value = sanitizeValue(_value);
         var prefixSize = Math.floor((columnSize - value.length) / 2.0);
         var prefix = generateSequence(prefixSize, ' ');
         var postfix = generateSequence(columnSize - value.length - prefixSize, ' ');
 
-        return [ prefix, value, postfix ].join('');
-      };
-
-      const bold = (value) => {
-        return '\u001b[1m' + value + '\u001b[0m';
+        return [ prefix, _value, postfix ].join('');
       };
 
       const capitalize = (value) => {
@@ -449,7 +450,7 @@ const PRINT_TABLE = `
 
       if (title) {
         print(hrLine);
-        print(sepChar + bold(padColumnValue(capitalize(title), totalWidth - 2)) + sepChar);
+        print(sepChar + bold(padColumnValue(title, totalWidth - 2)) + sepChar);
       }
 
       print(hrLine);
@@ -533,6 +534,14 @@ function generateAPIInterface(routes, _options) {
       'boldYellow': 'font-weight: 800; color: yellow;',
     };
 
+    const bold = (value) => {
+      return '\u001b[1m' + value + '\u001b[0m';
+    };
+
+    const orange = (value) => {
+      return '\u001b[33m' + value + '\u001b[0m';
+    };
+
     ${(options.mode === 'development') ? PRINT_TABLE : ''}
 
     function assignHelp(func, methodName, help) {
@@ -549,13 +558,31 @@ function generateAPIInterface(routes, _options) {
           console.info('  %cDescription:%c ' + help.description, helpStyles.bold, helpStyles.normal);
 
           if (!Utils.isEmpty(help.data))
-            printTable([ 'property', 'type', 'description' ], help.data, 'Data: { data: { ... } }', '  ');
+            printTable([ 'property', 'type', 'description', 'required' ], help.data, bold('data: ') + orange('{ data: { ... } }'), '  ');
 
           if (!Utils.isEmpty(help.params))
-            printTable([ 'property', 'type', 'description' ], help.params, 'Parameters: { params: { ... } }', '  ');
+            printTable([ 'property', 'type', 'description', 'required' ], help.params, bold('parameters: ') + orange('{ params: { ... } }'), '  ');
+
+          if (!Utils.isEmpty(help.extra)) {
+            for (var i = 0, il = help.extra.length; i < il; i++) {
+              var item = help.extra[i];
+
+              if (item.type === 'table')
+                printTable(item.columns, item.rows, item.title, '  ');
+              else if (item.title)
+                console.log([ '  %c' + item.title + ':%c ', item.description ].join(''), helpStyles.bold, helpStyles.normal);
+            }
+          }
 
           if (help.example)
-            console.info('  %cExample:%c ' + help.example, helpStyles.bold, helpStyles.normal);
+            console.info('  %cExample:%c ' + orange(help.example), helpStyles.bold, helpStyles.normal);
+
+          if (!Utils.isEmpty(help.notes)) {
+            for (var i = 0, il = help.notes.length; i < il; i++) {
+              var note = help.notes[i];
+              console.log([ '  %cNote ', i + 1, ':%c ', note ].join(''), helpStyles.bold, helpStyles.normal);
+            }
+          }
         },
         set: () => {},
       });
