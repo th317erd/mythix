@@ -40,7 +40,7 @@ function relationHelper(modelName, type) {
       onUpdate:   options.onUpdate || options.onDelete || defaultOnDeleteAction,
       field:      options.field,
       name:       getName(),
-      allowNull:  (Object.prototype.hasOwnProperty.call(options, 'allowNull')) ? options.allowNull : false,
+      allowNull:  (Object.prototype.hasOwnProperty.call(options, 'allowNull')) ? options.allowNull : true,
     });
   };
 }
@@ -229,6 +229,53 @@ function defineModel(modelName, definer, _parent) {
     if (!tableName)
       tableName = (`${Nife.get(applicationOptions, 'database.tablePrefix', '')}${Nife.camelCaseToSnakeCase(pluralName)}`).toLowerCase();
 
+    // Sequelize bullshit...
+    // Sequelize has undocumented static hook methods
+    // that don't align with their own hook system.
+    // Who knows what they are for, as they aren't
+    // documented, nor even called when statically
+    // defined on a model class... but... there you
+    // have it, stupid undocumented bullshit (again)
+    // that is breaking the world.
+    // So we must first check that each method isn't
+    // Sequelize bullshit, otherwise we get errors.
+    let staticHooks = {
+      beforeBulkCreate:   Klass.beforeBulkCreate,
+      beforeBulkDestroy:  Klass.beforeBulkDestroy,
+      beforeBulkUpdate:   Klass.beforeBulkUpdate,
+      beforeValidate:     Klass.beforeValidate,
+      afterValidate:      Klass.afterValidate,
+      validationFailed:   Klass.validationFailed,
+      beforeCreate:       Klass.beforeCreate,
+      beforeDestroy:      Klass.beforeDestroy,
+      beforeUpdate:       Klass.beforeUpdate,
+      beforeSave:         Klass.beforeSave,
+      beforeUpsert:       Klass.beforeUpsert,
+      afterCreate:        Klass.afterCreate,
+      afterDestroy:       Klass.afterDestroy,
+      afterUpdate:        Klass.afterUpdate,
+      afterSave:          Klass.afterSave,
+      afterUpsert:        Klass.afterUpsert,
+      afterBulkCreate:    Klass.afterBulkCreate,
+      afterBulkDestroy:   Klass.afterBulkDestroy,
+      afterBulkUpdate:    Klass.afterBulkUpdate,
+    };
+    let hookNames = Object.keys(staticHooks);
+    let hooks     = {};
+    for (let i = 0, il = hookNames.length; i < il; i++) {
+      let hookName = hookNames[i];
+      let hookFunc = staticHooks[hookName];
+      if (typeof hookFunc !== 'function')
+        continue;
+
+      // Are you mysterious Sequelize stupidity?
+      // If so, skip the bullshit please.
+      if (hookFunc === Sequelize.Model[hookName])
+        continue;
+
+      hooks[hookName] = hookFunc;
+    }
+
     Klass.init(Klass.fields, {
       underscored:      true,
       freezeTableName:  true,
@@ -240,6 +287,7 @@ function defineModel(modelName, definer, _parent) {
         singular: modelName.toLowerCase(),
         plural:   Inflection.pluralize(modelName.toLowerCase()),
       },
+      hooks,
     });
 
     Klass.getApplication = () => application;
