@@ -90,15 +90,6 @@ class ControllerModule extends BaseModule {
       }
     }
 
-    Object.defineProperties(controllers, {
-      '_files': {
-        writable:     true,
-        enumberable:  false,
-        configurable: true,
-        value:        controllerFiles,
-      },
-    });
-
     return controllers;
   }
 

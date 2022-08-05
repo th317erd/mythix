@@ -83,13 +83,12 @@ class TimeHelpers {
 function defineTask(taskName, definer, _parent) {
   let parentKlass = _parent || TaskBase;
 
-  return function({ application, Sequelize, connection, dbConfig }) {
+  return function({ application, connection, dbConfig }) {
     let time = new TimeHelpers();
 
     let Klass = definer({
       Parent: parentKlass,
       application,
-      Sequelize,
       connection,
       dbConfig,
       taskName,

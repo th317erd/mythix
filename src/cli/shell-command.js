@@ -5,7 +5,6 @@ const OS                = require('os');
 const Path              = require('path');
 const REPL              = require('repl');
 const UUIDV4            = require('uuid').v4;
-const { Sequelize }     = require('sequelize');
 const { defineCommand } = require('./cli-utils');
 const {
   HTTPInterface,
@@ -55,7 +54,6 @@ module.exports = defineCommand('shell', ({ Parent }) => {
         interactiveShell.setupHistory(Path.join(OS.homedir(), `.${appName}-${environment}-history`), () => {});
 
         interactiveShell.context.UUIDV4 = UUIDV4;
-        interactiveShell.context.Sequelize = Sequelize;
         interactiveShell.context.connection = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
         interactiveShell.context.application = application;
         interactiveShell.context.Nife = Nife;

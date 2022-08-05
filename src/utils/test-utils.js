@@ -3,8 +3,8 @@
 /* global process */
 
 const Nife                  = require('nife');
+const { Utils }             = require('mythix-orm');
 const { Logger }            = require('../logger');
-const HTTPUtils             = require('./http-utils');
 const { HTTPInterface }     = require('./http-interface');
 const { DatabaseModule }    = require('../modules/database-module');
 const { HTTPServerModule }  = require('../http-server/http-server-module');
@@ -17,7 +17,7 @@ class TestDatabaseModule extends DatabaseModule {
 
   getTablePrefix() {
     let prefix = super.getTablePrefix();
-    return `${prefix.replace(/_test/g, '')}_test_`.replace(/_+/g, '_');
+    return `${prefix.replace(/_test/g, '')}_test_`.replace(/_+/g, '_').replace(/\W+/g, '_');
   }
 }
 
@@ -103,19 +103,39 @@ function createTestApplication(Application) {
       let result = await super.start(...args);
 
       if (typeof this.getDBConnection === 'function') {
-        let dbConnection = this.getDBConnection();
-        await dbConnection.sync({ force: true, logging: false });
+        let connection = this.getDBConnection();
+        await this.createAllTables(connection);
       }
 
       return result;
     }
 
-    async truncateAllTables(exclude) {
-      let dbConnection  = this.getDBConnection();
-      let models        = this.getModels();
-      let modelNames    = Object.keys(models);
+    async createAllTables(connection) {
+      const createTable = async (connection, Model, options) => {
+        return await connection.createTable(Model, options);
+      };
 
-      await dbConnection.query('PRAGMA foreign_keys = OFF');
+      let models      = connection.getModels();
+      let modelNames  = Object.keys(models);
+
+      modelNames = Utils.sortModelNamesByCreationOrder(connection, modelNames);
+
+      for (let i = 0, il = modelNames.length; i < il; i++) {
+        let modelName = modelNames[i];
+        let model     = models[modelName];
+
+        await createTable(connection, model, { ifNotExists: true });
+      }
+    }
+
+    async truncateAllTables(exclude) {
+      let connection  = this.getDBConnection();
+      let models      = this.getModels();
+      let modelNames  = Object.keys(models);
+
+      modelNames = Utils.sortModelNamesByCreationOrder(connection, modelNames);
+
+      await connection.pragma('foreign_keys = OFF');
 
       try {
         for (let i = 0, il = modelNames.length; i < il; i++) {
@@ -123,13 +143,13 @@ function createTestApplication(Application) {
           if (exclude && exclude.indexOf(modelName) >= 0)
             continue;
 
-          let model = models[modelName];
-          await dbConnection.query(`DELETE FROM "${model.tableName}"`);
+          let Model = models[modelName];
+          await connection.truncate(Model);
         }
       } catch (error) {
         console.error('TRUNCATE ERROR: ', error);
       } finally {
-        await dbConnection.query('PRAGMA foreign_keys = ON');
+        await connection.pragma('foreign_keys = ON');
       }
     }
 

@@ -138,7 +138,7 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
 
       // Now build all model information
       connection.modelManager.forEachModel((Model) => {
-        let modelName = Model.customName || Model.name;
+        let modelName = Model.getModelName();
         let tableName = Model.getTableName(options);
 
         models.push({
@@ -799,7 +799,6 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
 
           let oldAssertTableHasColumn = queryInterface.assertTableHasColumn;
           try {
-            // Tell Sequelize to shut up
             queryInterface.assertTableHasColumn = async () => ({ [oldColumnName]: columnDefinition });
 
             return await queryInterface.renameColumn(tableName, oldColumnName, newColumnName, options);

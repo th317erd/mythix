@@ -1,8 +1,8 @@
 'use strict';
 
-const Nife            = require('nife');
-const { Sequelize }   = require('sequelize');
-const { BaseModule }  = require('../modules/base-module');
+const Nife                = require('nife');
+const { BaseModule }      = require('../modules/base-module');
+const { ConnectionBase }  = require('mythix-orm');
 
 class DatabaseModule extends BaseModule {
   static getModuleName() {
@@ -97,31 +97,36 @@ class DatabaseModule extends BaseModule {
   }
 
   async connectToDatabase(databaseConfig) {
-    if (!databaseConfig) {
-      this.getLogger().error('Error: database connection options not defined');
-      return;
-    }
+    if (!databaseConfig)
+      throw new Error('DatabaseModule::connectToDatabase: Database connection options not defined.');
 
-    let sequelize = new Sequelize(databaseConfig);
     let dbConnectionString;
-
     if (Nife.instanceOf(databaseConfig, 'string'))
       dbConnectionString = databaseConfig;
     else
       dbConnectionString = `${databaseConfig.dialect}://${databaseConfig.host}:${databaseConfig.port || '<default port>'}/${databaseConfig.database}`;
 
     try {
-      await sequelize.authenticate();
+      let app = this.getApplication();
+      if (typeof app.createDatabaseConnection !== 'function')
+        throw new Error('DatabaseModule::connectToDatabase: You must define a "createDatabaseConnection" method on your Application class.');
+
+      let connection = await app.createDatabaseConnection(databaseConfig);
+      if (!connection)
+        throw new Error('DatabaseModule::connectToDatabase: Application::createDatabaseConnection must return a connection.');
+
+      if (!(connection instanceof ConnectionBase) && typeof connection === 'function' && connection.prototype instanceof ConnectionBase) {
+        const ConnectionKlass = connection;
+        connection = new ConnectionKlass(databaseConfig);
+
+        await connection.start();
+      } else if (!connection.isStarted()) {
+        await connection.start();
+      }
 
       this.getLogger().info(`Connection to ${dbConnectionString} has been established successfully!`);
 
-      // SQLite needs foreign keys TURNED ON
-      // when we first connect (they default to off)
-      let dialect = sequelize.getDialect();
-      if (dialect === 'sqlite')
-        await sequelize.query('PRAGMA foreign_keys = ON');
-
-      return sequelize;
+      return connection;
     } catch (error) {
       this.getLogger().error(`Unable to connect to database ${dbConnectionString}:`, error);
       throw error;
@@ -146,7 +151,7 @@ class DatabaseModule extends BaseModule {
       return;
 
     this.getLogger().info('Closing database connections...');
-    await this.connection.close();
+    await this.connection.stop();
     this.getLogger().info('All database connections closed successfully!');
   }
 }

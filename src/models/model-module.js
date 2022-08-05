@@ -2,10 +2,8 @@
 
 /* global __dirname */
 
-const Path                    = require('path');
-const { Sequelize }           = require('sequelize');
-const { BaseModule }          = require('../modules/base-module');
-const { buildModelRelations } = require('./model-utils');
+const Path            = require('path');
+const { BaseModule }  = require('../modules/base-module');
 const {
   fileNameWithoutExtension,
   walkDir,
@@ -27,15 +25,6 @@ class ModelModule extends BaseModule {
 
   constructor(application) {
     super(application);
-
-    Object.defineProperties(this, {
-      'models': {
-        writable:     true,
-        enumerable:   false,
-        configurable: true,
-        value:        {},
-      },
-    });
 
     // Inject methods into the application
     Object.defineProperties(application, {
@@ -59,8 +48,7 @@ class ModelModule extends BaseModule {
   }
 
   async fileWatcherHandler(options) {
-    let models = await this.loadModels(options.modelsPath);
-    this.models = models;
+    await this.loadModels(options.modelsPath);
   }
 
   getModelFilePaths(modelsPath) {
@@ -91,7 +79,7 @@ class ModelModule extends BaseModule {
     let dbConfig    = (typeof application.getDBConfig === 'function') ? application.getDBConfig() : null;
     let modelFiles  = this.getModelFilePaths(modelsPath);
     let models      = {};
-    let args        = { application, Sequelize, connection, dbConfig };
+    let args        = { application, connection, dbConfig };
 
     for (let i = 0, il = modelFiles.length; i < il; i++) {
       let modelFile = modelFiles[i];
@@ -108,32 +96,31 @@ class ModelModule extends BaseModule {
       }
     }
 
-    buildModelRelations(models);
-
-    Object.defineProperties(models, {
-      '_files': {
-        writable:     true,
-        enumberable:  false,
-        configurable: true,
-        value:        modelFiles,
-      },
-    });
+    models = connection.registerModels(models);
 
     return models;
   }
 
-  getModel(name) {
-    let models = this.models;
-    return models[name];
+  getModel(modelName) {
+    let application = this.getApplication();
+    let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
+    if (!connection)
+      return;
+
+    return connection.getModel(modelName);
   }
 
   getModels() {
-    return this.models || {};
+    let application = this.getApplication();
+    let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
+    if (!connection)
+      return;
+
+    return connection.getModels();
   }
 
   async start(options) {
-    let models = await this.loadModels(options.modelsPath);
-    this.models = models;
+    await this.loadModels(options.modelsPath);
   }
 
   async stop() {

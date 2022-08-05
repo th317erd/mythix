@@ -2,7 +2,6 @@
 
 /* global process */
 
-const OS            = require('os');
 const Path          = require('path');
 const FileSystem    = require('fs');
 const HTTP          = require('http');
@@ -10,7 +9,6 @@ const HTTPS         = require('https');
 const Nife          = require('nife');
 const Express       = require('express');
 const ExpressBusBoy = require('express-busboy');
-const Sequelize     = require('sequelize');
 
 const {
   HTTPBaseError,
@@ -131,9 +129,6 @@ class HTTPServer {
       let logger = request.mythixLogger;
       if (!logger)
         logger = request.mythixLogger = this.createRequestLogger(application, request);
-
-      if (!request.Sequelize)
-        request.Sequelize = Sequelize;
 
       request.route = route;
       request.params = params;

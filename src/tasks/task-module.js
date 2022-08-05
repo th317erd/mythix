@@ -1,7 +1,6 @@
 'use strict';
 
 const Nife            = require('nife');
-const { Sequelize }   = require('sequelize');
 const { BaseModule }  = require('../modules/base-module');
 const {
   fileNameWithoutExtension,
@@ -85,7 +84,7 @@ class TaskModule extends BaseModule {
     let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
     let dbConfig    = (typeof application.getDBConfig === 'function') ? application.getDBConfig() : null;
     let tasks       = {};
-    let args        = { application: this, Sequelize, connection, dbConfig };
+    let args        = { application: this, connection, dbConfig };
 
     for (let i = 0, il = taskFiles.length; i < il; i++) {
       let taskFile = taskFiles[i];
@@ -101,15 +100,6 @@ class TaskModule extends BaseModule {
         throw error;
       }
     }
-
-    Object.defineProperties(tasks, {
-      '_files': {
-        writable:     true,
-        enumberable:  false,
-        configurable: true,
-        value:        taskFiles,
-      },
-    });
 
     return tasks;
   }
