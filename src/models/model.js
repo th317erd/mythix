@@ -13,7 +13,18 @@ class Model extends _Model {
   }
 
   getDBConnection() {
-    return this.getConnection();
+    let application = this.getApplication();
+    if (!application)
+      return null;
+
+    if (typeof application.getDBConnection === 'function')
+      return application.getDBConnection();
+
+    return null;
+  }
+
+  getConnection() {
+    return this.getDBConnection();
   }
 
   overrideMethod(name, newMethod) {

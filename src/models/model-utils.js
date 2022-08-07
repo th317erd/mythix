@@ -28,6 +28,7 @@ function defineModel(modelName, definer, _parent) {
     Model.getTableName = () => tableName;
     Model.getApplication = () => application;
     Model.getLogger = () => application.getLogger();
+    Model._getConnection = () => connection;
 
     if (typeof Model.onModelClassFinalized === 'function')
       Model = Model.onModelClassFinalized(Model, definerArgs);
