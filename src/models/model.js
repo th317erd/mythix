@@ -3,6 +3,19 @@
 const { Model: _Model } = require('mythix-orm');
 
 class Model extends _Model {
+  static getModel(modelName) {
+    if (modelName) {
+      let connection = this.getConnection();
+      return connection.getModel(modelName);
+    }
+
+    return this;
+  }
+
+  getModel(modelName) {
+    return this.constructor.getModel(modelName);
+  }
+
   getApplication() {
     return this.constructor.getApplication();
   }
@@ -12,7 +25,10 @@ class Model extends _Model {
     return application.getLogger();
   }
 
-  getDBConnection() {
+  getDBConnection(connection) {
+    if (connection)
+      return connection;
+
     let application = this.getApplication();
     if (!application)
       return null;
@@ -23,7 +39,10 @@ class Model extends _Model {
     return null;
   }
 
-  getConnection() {
+  getConnection(connection) {
+    if (connection)
+      return connection;
+
     return this.getDBConnection();
   }
 
