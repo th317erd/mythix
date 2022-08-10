@@ -25,7 +25,8 @@ function defineModel(modelName, definer, _parent) {
     if (tablePrefix)
       tableName = (`${tablePrefix}${tableName}`);
 
-    Model.getTableName = () => tableName;
+    Model.getTableName  = () => tableName;
+    Model.getModelName  = () => modelName;
     Model.getApplication = () => application;
     Model.getLogger = () => application.getLogger();
     Model._getConnection = (_connection) => {
