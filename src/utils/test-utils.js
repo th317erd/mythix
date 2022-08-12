@@ -10,11 +10,6 @@ const { DatabaseModule }    = require('../modules/database-module');
 const { HTTPServerModule }  = require('../http-server/http-server-module');
 
 class TestDatabaseModule extends DatabaseModule {
-  getDatabaseConfig() {
-    let config = super.getDatabaseConfig();
-    return Object.assign({}, config, { dialect: 'sqlite', storage: ':memory:' });
-  }
-
   getTablePrefix() {
     let prefix = super.getTablePrefix();
     return `${prefix.replace(/_test/g, '')}_test_`.replace(/_+/g, '_').replace(/\W+/g, '_');
@@ -69,9 +64,10 @@ function createTestApplication(Application) {
 
     constructor(_opts) {
       let opts = Nife.extend(true, {
-        autoReload: false,
-        runTasks:   false,
-        testMode:   true,
+        environment:  'test',
+        autoReload:   false,
+        runTasks:     false,
+        testMode:     true,
       }, _opts || {});
 
       super(opts);
@@ -135,10 +131,10 @@ function createTestApplication(Application) {
 
       modelNames = Utils.sortModelNamesByCreationOrder(connection, modelNames);
 
-      await connection.pragma('foreign_keys = OFF');
+      await connection.enableForeignKeyConstraints(false);
 
       try {
-        for (let i = 0, il = modelNames.length; i < il; i++) {
+        for (let i = modelNames.length - 1; i >= 0; i--) {
           let modelName = modelNames[i];
           if (exclude && exclude.indexOf(modelName) >= 0)
             continue;
@@ -149,7 +145,7 @@ function createTestApplication(Application) {
       } catch (error) {
         console.error('TRUNCATE ERROR: ', error);
       } finally {
-        await connection.pragma('foreign_keys = ON');
+        await connection.enableForeignKeyConstraints(true);
       }
     }
 

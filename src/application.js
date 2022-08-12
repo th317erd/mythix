@@ -70,6 +70,7 @@ class Application extends EventEmitter {
     let ROOT_PATH = (_opts && _opts.rootPath) ? _opts.rootPath : Path.resolve(__dirname);
 
     let opts = Nife.extend(true, {
+      environment:              (process.env.NODE_ENV || 'development'),
       appName:                  this.constructor.APP_NAME,
       rootPath:                 ROOT_PATH,
       configPath:               Path.resolve(ROOT_PATH, 'config'),
@@ -81,7 +82,7 @@ class Application extends EventEmitter {
       commandsPath:             Path.resolve(ROOT_PATH, 'commands'),
       tasksPath:                Path.resolve(ROOT_PATH, 'tasks'),
       modules:                  this.constructor.getDefaultModules(),
-      autoReload:               (process.env.NODE_ENV || 'development') === 'development',
+      autoReload:               ((_opts && _opts.environment) || process.env.NODE_ENV || 'development') === 'development',
       exitOnShutdown:           null,
       runTasks:                 true,
       testMode:                 false,
@@ -229,8 +230,10 @@ class Application extends EventEmitter {
 
   loadConfig(configPath) {
     try {
+      let appOptions = this.getOptions();
+
       const config = require(configPath);
-      return wrapConfig(config);
+      return wrapConfig(Object.assign({}, config || {}, { environment: (appOptions.environment || config.environment || 'development')}));
     } catch (error) {
       this.getLogger().error(`Error while trying to load application configuration ${configPath}: `, error);
       throw error;

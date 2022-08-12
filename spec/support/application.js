@@ -15,20 +15,21 @@ const TestApplication = createTestApplication(_TestApplicationShim);
 
 async function newTestApplication() {
   let app = new TestApplication({
-    rootPath: __dirname,
-    logger:   {
+    environment:  'test',
+    rootPath:     __dirname,
+    logger:       {
       level: 0,
     },
   });
+
   await app.start();
 
   app.setConfig({
     application: {
       test: {
-        domain:             'test.mythix.io',
+        domain: 'test.mythix.io',
       },
     },
-    environment:  'test',
     salt:         ('' + Math.random()),
   });
 
