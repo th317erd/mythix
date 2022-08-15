@@ -61,18 +61,18 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       return migrationFiles.slice((isRollback) ? index : index + 1);
     }
 
-    async executeMigration(dbConnection, migrationFileName, useTransaction, rollback) {
+    async executeMigration(application, dbConnection, migrationFileName, useTransaction, rollback) {
       let migration = require(migrationFileName);
       let startTime = Nife.now();
 
       if (rollback) {
-        await migration.down(dbConnection);
+        await migration.down(dbConnection, application);
         await this.removeMigrationFromDB(migration.MIGRATION_ID);
 
         let seconds = ((Nife.now() - startTime) / MILLISECONDS_PER_SECOND).toFixed(2);
         console.log(`Rolled back migration ${migrationFileName} successfully in ${seconds} seconds`);
       } else {
-        await migration.up(dbConnection);
+        await migration.up(dbConnection, application);
         await this.storeSuccessfulMigrationToDB(migration.MIGRATION_ID);
 
         let seconds = ((Nife.now() - startTime) / MILLISECONDS_PER_SECOND).toFixed(2);
@@ -130,7 +130,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
         else
           console.log(`Running migration ${migrationFileName}...`);
 
-        this.executeMigration(dbConnection, migrationFileName, useTransaction, rollback).then(
+        this.executeMigration(application, dbConnection, migrationFileName, useTransaction, rollback).then(
           () => nextMigration(doneCallback, index + 1),
           (error) => {
             console.error(`Error while running migration ${migrationFileName}: `, error);
