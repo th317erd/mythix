@@ -175,7 +175,7 @@ class HTTPServer {
       () => rootNext(),
       (error) => {
         if (!(error instanceof HTTPBaseError))
-          this.getApplication().error('Error in middleware: ', error);
+          this.getApplication().getLogger().error('Error in middleware: ', error);
       },
     );
   }
