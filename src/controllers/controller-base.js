@@ -143,6 +143,22 @@ class ControllerBase {
     this.response.cookie(name, ('' + value), options || {});
   }
 
+  getHeader(name) {
+    return this.request.headers[name];
+  }
+
+  getHeaders(_names) {
+    let names   = Nife.toArray(_names).filter(Boolean);
+    let headers = {};
+
+    for (let i = 0, il = names.length; i < il; i++) {
+      let name = names[i];
+      headers[name] = this.getHeader(name);
+    }
+
+    return headers;
+  }
+
   setHeader(name, value) {
     this.response.header(name, value);
   }
