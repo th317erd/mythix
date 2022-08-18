@@ -12,6 +12,11 @@ class Model extends _Model {
     return this;
   }
 
+  static getModels() {
+    let connection = this.getConnection();
+    return connection.getModels();
+  }
+
   getModel(modelName) {
     return this.constructor.getModel(modelName);
   }
