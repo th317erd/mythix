@@ -1,6 +1,6 @@
 'use strict';
 
-/* global process */
+/* global Buffer */
 
 const Path          = require('path');
 const FileSystem    = require('fs');
@@ -420,6 +420,18 @@ class HTTPServer {
   createExpressApplication(options) {
     // eslint-disable-next-line new-cap
     let app = Express();
+
+    app.use(Express.raw({ type: 'application/json' }));
+
+    // Store _rawBody for request
+    app.use((request, response, next) => {
+      if ((/application\/json/i).test(request.headers['content-type']) && Buffer.isBuffer(request.body)) {
+        let bodyStr = request.body.toString('utf8');
+        request._rawBody = request.body = bodyStr;
+      }
+
+      next();
+    });
 
     ExpressBusBoy.extend(app, options.uploads);
 
