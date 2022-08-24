@@ -11,6 +11,10 @@ const { HTTPServerModule }  = require('../http-server/http-server-module');
 
 class TestDatabaseModule extends DatabaseModule {
   getTablePrefix() {
+    let app = this.getApplication();
+    if (typeof app.getTestTablePrefix === 'function')
+      return (app.getTestTablePrefix() || '');
+
     let prefix = super.getTablePrefix();
     return `${prefix.replace(/_test/g, '')}_test_`.replace(/_+/g, '_').replace(/\W+/g, '_');
   }

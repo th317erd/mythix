@@ -86,10 +86,10 @@ class DatabaseModule extends BaseModule {
 
   getTablePrefix() {
     let userSpecifiedPrefix = (this.databaseConfig) ? this.databaseConfig.tablePrefix : undefined;
-    if (Nife.isNotEmpty(userSpecifiedPrefix))
-      return userSpecifiedPrefix;
+    if (userSpecifiedPrefix != null)
+      return ('' + userSpecifiedPrefix);
 
-    return `${this.getApplication().getApplicationName()}_`;
+    return `${this.getApplication().getApplicationName()}_`.replace(/[^A-Za-z0-9_]+/g, '');
   }
 
   getConnection() {
