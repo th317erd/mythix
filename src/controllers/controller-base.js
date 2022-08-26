@@ -183,13 +183,13 @@ class ControllerBase {
     this.responseStatusCode = parseInt(code, 10);
   }
 
-  async handleIncomingRequest(request, response, { route, controllerMethod, startTime, params, query /* , controller, controllerInstance, */ }) {
-    this.route = route;
+  async handleIncomingRequest(request, response, args) {
+    this.route = args.route;
 
-    if (typeof this[controllerMethod] !== 'function')
-      this.throwInternalServerError(`Specified route handler named "${this.constructor.name}::${controllerMethod}" not found.`);
+    if (typeof this[args.controllerMethod] !== 'function')
+      this.throwInternalServerError(`Specified route handler named "${this.constructor.name}::${args.controllerMethod}" not found.`);
 
-    return await this[controllerMethod].call(this, { params, query, body: request.body, request, response, startTime }, this.getModels());
+    return await this[args.controllerMethod].call(this, { body: request.body, request, response, ...args }, this.getModels());
   }
 
   async handleOutgoingResponse(_controllerResult, request, response /*, { route, controller, controllerMethod, controllerInstance, startTime, params } */) {
