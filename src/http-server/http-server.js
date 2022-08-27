@@ -239,14 +239,21 @@ class HTTPServer {
   }
 
   createRequestLogger(application, request) {
-    if (request.mythixLogger)
+    let requestID = (Date.now() + Math.random()).toFixed(REQUEST_ID_POSTFIX_LENGTH);
+
+    if (request.mythixLogger) {
+      if (!request.mythixRequestID)
+        request.mythixRequestID = requestID;
+
       return request.mythixLogger;
+    }
 
     let logger        = application.getLogger();
     let loggerMethod  = ('' + request.method).toUpperCase();
     let loggerURL     = ('' + request.path);
-    let requestID     = (Date.now() + Math.random()).toFixed(REQUEST_ID_POSTFIX_LENGTH);
     let ipAddress     = Nife.get(request, 'client.remoteAddress', '<unknown IP address>');
+
+    request.mythixRequestID = requestID;
 
     return logger.clone({ formatter: (output) => `{${ipAddress}} - [#${requestID} ${loggerMethod} ${loggerURL}]: ${output}`});
   }
