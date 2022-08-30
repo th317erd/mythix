@@ -307,6 +307,7 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
   let appRootPath = (_appRootPath) ? Path.resolve(_appRootPath) : Path.resolve(mythixConfigPath, 'app');
 
   let defaultConfig = {
+    runtime:              process.env.MYTHIX_RUNTIME || 'node',
     applicationPath:      (config) => Path.resolve(config.appRootPath, 'application.js'),
     getApplicationClass:  (config) => {
       let Application = require(config.applicationPath);
@@ -337,13 +338,14 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
   return resolveConfig(defaultConfig);
 }
 
-function spawnCommand(args, options) {
+function spawnCommand(args, options, _config) {
+  const config    = _config || {};
   const { spawn } = require('child_process');
 
   return new Promise((resolve, reject) => {
     try {
       let childProcess = spawn(
-        'node',
+        config.runtime || 'node',
         args,
         Object.assign({}, options || {}, {
           env:    Object.assign({}, process.env, (options || {}).env || {}),
@@ -364,7 +366,7 @@ function spawnCommand(args, options) {
   });
 }
 
-async function executeCommand(configPath, applicationCommandsPath, yargsPath, simpleYargsPath, argv, commandPath, command) {
+async function executeCommand(configPath, applicationCommandsPath, yargsPath, simpleYargsPath, argv, commandPath, command, config) {
   try {
     let Klass         = CommandBase.commands[command];
     let nodeArguments = Klass.nodeArguments || [];
@@ -374,6 +376,7 @@ async function executeCommand(configPath, applicationCommandsPath, yargsPath, si
       args,
       {
         env: {
+          MYTHIX_RUNTIME:               process.env.MYTHIX_RUNTIME || config.runtime || 'node',
           MYTHIX_CONFIG_PATH:           configPath,
           MYTHIX_COMMAND_PATH:          commandPath,
           MYTHIX_APPLICATION_COMMANDS:  applicationCommandsPath,
@@ -382,6 +385,7 @@ async function executeCommand(configPath, applicationCommandsPath, yargsPath, si
           MYTHIX_EXECUTE_COMMAND:       command,
         },
       },
+      config,
     );
 
     process.exit(code);
