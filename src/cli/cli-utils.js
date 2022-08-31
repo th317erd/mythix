@@ -308,6 +308,7 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
 
   let defaultConfig = {
     runtime:              process.env.MYTHIX_RUNTIME || 'node',
+    runtimeArgs:          (process.env.MYTHIX_RUNTIME_ARGS || '').split(/\s+/g),
     applicationPath:      (config) => Path.resolve(config.appRootPath, 'application.js'),
     getApplicationClass:  (config) => {
       let Application = require(config.applicationPath);
@@ -346,7 +347,7 @@ function spawnCommand(args, options, _config) {
     try {
       let childProcess = spawn(
         config.runtime || 'node',
-        args,
+        (config.runtimeArgs || []).concat(args),
         Object.assign({}, options || {}, {
           env:    Object.assign({}, process.env, (options || {}).env || {}),
           stdio:  'inherit',
@@ -369,14 +370,14 @@ function spawnCommand(args, options, _config) {
 async function executeCommand(configPath, applicationCommandsPath, yargsPath, simpleYargsPath, argv, commandPath, command, config) {
   try {
     let Klass         = CommandBase.commands[command];
-    let nodeArguments = Klass.nodeArguments || [];
+    let nodeArguments = ((config.runtime || 'node') === 'node') ? (Klass.nodeArguments || []) : [];
     let args          = nodeArguments.concat([ commandPath ], argv);
 
     let code = await spawnCommand(
       args,
       {
         env: {
-          MYTHIX_RUNTIME:               process.env.MYTHIX_RUNTIME || config.runtime || 'node',
+          MYTHIX_RUNTIME:               config.runtime || process.env.MYTHIX_RUNTIME || 'node',
           MYTHIX_CONFIG_PATH:           configPath,
           MYTHIX_COMMAND_PATH:          commandPath,
           MYTHIX_APPLICATION_COMMANDS:  applicationCommandsPath,
