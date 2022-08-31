@@ -367,8 +367,9 @@ function spawnCommand(args, options, _config) {
   });
 }
 
-async function executeCommand(configPath, applicationCommandsPath, yargsPath, simpleYargsPath, argv, commandPath, command, config) {
+async function executeCommand(configPath, applicationCommandsPath, yargsPath, simpleYargsPath, argv, commandPath, command, _config) {
   try {
+    let config        = _config || {};
     let Klass         = CommandBase.commands[command];
     let nodeArguments = ((config.runtime || 'node') === 'node') ? (Klass.nodeArguments || []) : [];
     let args          = nodeArguments.concat([ commandPath ], argv);
