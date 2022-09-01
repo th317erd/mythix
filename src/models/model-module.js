@@ -2,8 +2,8 @@
 
 /* global __dirname */
 
-const Path            = require('path');
-const { BaseModule }  = require('../modules/base-module');
+const Path        = require('path');
+const BaseModule  = require('../modules/base-module');
 const {
   fileNameWithoutExtension,
   walkDir,

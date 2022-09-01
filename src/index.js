@@ -6,7 +6,7 @@ const HTTPServerScope   = require('./http-server');
 const ControllerScope   = require('./controllers');
 const CLIUtilsScope     = require('./cli');
 const TasksScope        = require('./tasks');
-const { Logger }        = require('./logger');
+const Logger            = require('./logger');
 const Utils             = require('./utils');
 const Modules           = require('./modules');
 
@@ -32,11 +32,13 @@ module.exports = {
   MimeUtils:              Utils.MimeUtils,
   Model:                  ModelScope.Model,
   Modules:                {
-    ...Modules,
-    HTTPServerModule: HTTPServerScope.HTTPServerModule,
-    ModelModule:      ModelScope.ModelModule,
-    TaskModule:       TasksScope.TaskModule,
-    ControllerModule: ControllerScope.ControllerModule,
+    BaseModule:         Modules.BaseModule,
+    DatabaseModule:     Modules.DatabaseModule,
+    FileWatcherModule:  Modules.FileWatcherModule,
+    HTTPServerModule:   HTTPServerScope.HTTPServerModule,
+    ModelModule:        ModelScope.ModelModule,
+    TaskModule:         TasksScope.TaskModule,
+    ControllerModule:   ControllerScope.ControllerModule,
   },
 
   Application,

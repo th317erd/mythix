@@ -125,6 +125,4 @@ function defineTask(taskName, definer, _parent) {
   };
 }
 
-module.exports = {
-  defineTask,
-};
+module.exports = defineTask;

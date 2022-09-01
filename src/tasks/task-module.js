@@ -1,7 +1,7 @@
 'use strict';
 
-const Nife            = require('nife');
-const { BaseModule }  = require('../modules/base-module');
+const Nife        = require('nife');
+const BaseModule  = require('../modules/base-module');
 const {
   fileNameWithoutExtension,
   walkDir,
@@ -358,6 +358,4 @@ class TaskModule extends BaseModule {
   }
 }
 
-module.exports = {
-  TaskModule,
-};
+module.exports = TaskModule;

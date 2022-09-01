@@ -117,6 +117,4 @@ class TaskBase {
   }
 }
 
-module.exports = {
-  TaskBase,
-};
+module.exports = TaskBase;

@@ -1,7 +1,7 @@
 'use strict';
 
 const Nife                = require('nife');
-const { BaseModule }      = require('../modules/base-module');
+const BaseModule          = require('../modules/base-module');
 const { ConnectionBase }  = require('mythix-orm');
 
 class DatabaseModule extends BaseModule {
@@ -156,6 +156,4 @@ class DatabaseModule extends BaseModule {
   }
 }
 
-module.exports = {
-  DatabaseModule,
-};
+module.exports = DatabaseModule;

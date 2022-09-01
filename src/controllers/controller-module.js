@@ -1,7 +1,7 @@
 'use strict';
 
 const Nife            = require('nife');
-const { BaseModule }  = require('../modules/base-module');
+const BaseModule      = require('../modules/base-module');
 const { buildRoutes } = require('./controller-utils');
 const {
   fileNameWithoutExtension,

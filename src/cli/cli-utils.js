@@ -5,7 +5,7 @@
 const Path        = require('path');
 const FileSystem  = require('fs');
 const Nife        = require('nife');
-const { Logger }  = require('../logger');
+const Logger      = require('../logger');
 
 const {
   walkDir,
@@ -220,6 +220,9 @@ function loadCommand(name) {
   let fullPath      = require.resolve(name);
   let CommandKlass  = require(fullPath);
 
+  if (CommandKlass && typeof CommandKlass !== 'function' && typeof CommandKlass.default === 'function')
+    CommandKlass = CommandKlass.default;
+
   CommandKlass.path = fullPath;
 
   return CommandKlass;
@@ -309,7 +312,7 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
   let defaultConfig = {
     runtime:              process.env.MYTHIX_RUNTIME || 'node',
     runtimeArgs:          (process.env.MYTHIX_RUNTIME_ARGS || '').split(/\s+/g),
-    applicationPath:      (config) => Path.resolve(config.appRootPath, 'application.js'),
+    applicationPath:      (config) => Path.resolve(config.appRootPath, 'application'),
     getApplicationClass:  (config) => {
       let Application = require(config.applicationPath);
       if (Application && typeof Application !== 'function' && typeof Application.Application === 'function')
