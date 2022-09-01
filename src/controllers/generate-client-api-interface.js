@@ -87,7 +87,7 @@ function nodeRequestHandler(routeName, requestOptions) {
         headers: Utils.cleanObjectProperties(Object.assign(
           {},
           headers,
-          Utils.keysToLowerCase(extraConfig.headers || {})
+          Utils.keysToLowerCase(extraConfig.headers || {}),
         )),
       },
     );
@@ -203,7 +203,7 @@ function browserRequestHandler(routeName, requestOptions) {
         headers: Utils.cleanObjectProperties(Object.assign(
           {},
           headers,
-          Utils.keysToLowerCase(extraConfig.headers || {})
+          Utils.keysToLowerCase(extraConfig.headers || {}),
         )),
       },
     );
