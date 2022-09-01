@@ -83,12 +83,18 @@ function nodeRequestHandler(routeName, requestOptions) {
       },
       requestOptions,
       extraConfig,
-      { headers:  Object.assign({}, headers, Utils.keysToLowerCase(extraConfig.headers || {})) },
+      {
+        headers: Utils.cleanObjectProperties(Object.assign(
+          {},
+          headers,
+          Utils.keysToLowerCase(extraConfig.headers || {}),
+        )),
+      },
     );
 
     delete options.data;
 
-    var thisRequest = HTTP.request(options, function(response) {
+    var thisRequest = HTTP.request(Utils.cleanObjectProperties(options), function(response) {
       var responseData = Buffer.alloc(0);
 
       response.on('data', function(chunk) {
@@ -172,7 +178,7 @@ function browserRequestHandler(routeName, requestOptions) {
     var url         = requestOptions.url;
     var data        = requestOptions.data;
     var extraConfig = {};
-    var headers     = Object.assign({ 'content-type': 'application/json; charset=UTF-8' }, Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
+    var headers     = Object.assign(Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
 
     if (data) {
       if (!method.match(/^(GET|HEAD)$/i)) {
@@ -193,12 +199,18 @@ function browserRequestHandler(routeName, requestOptions) {
       { method },
       requestOptions,
       extraConfig,
-      { headers:  Object.assign({}, headers, Utils.keysToLowerCase(extraConfig.headers || {})) },
+      {
+        headers: Utils.cleanObjectProperties(Object.assign(
+          {},
+          headers,
+          Utils.keysToLowerCase(extraConfig.headers || {}),
+        )),
+      },
     );
 
     delete options.data;
 
-    globalScope.fetch(url, options).then(
+    globalScope.fetch(url, Utils.cleanObjectProperties(options)).then(
       function(response) {
         if (typeof requestOptions.responseHandler === 'function')
           return requestOptions.responseHandler(response);
@@ -271,6 +283,22 @@ function generateUtils() {
       return newObj;
     }
 
+    function cleanObjectProperties(obj) {
+      var keys    = Object.keys(obj || {});
+      var newObj  = {};
+
+      for (var i = 0, il = keys.length; i < il; i++) {
+        var key   = keys[i];
+        var value = obj[key];
+        if (value == null || value == '')
+          continue;
+
+        newObj[key] = value;
+      }
+
+      return newObj;
+    }
+
     function injectURLParams(routeName, _options) {
       var options = _options || {};
       var params = options.params || {};
@@ -299,6 +327,7 @@ function generateUtils() {
       isEmpty,
       dataToQueryString,
       keysToLowerCase,
+      cleanObjectProperties,
       injectURLParams,
     };
   })();
@@ -350,11 +379,15 @@ function generateRoutes(_routes, _options) {
         contentType = contentType[0];
 
       clientOptions = {
-        credentials:  'same-origin',
-        headers:      {
-          'Content-Type': contentType,
-        },
+        credentials: 'same-origin',
       };
+
+      // Don't set content type for multipart/form-data
+      if (!(/multipart\/form-data/i).test(contentType)) {
+        clientOptions.headers = {
+          'Content-Type': contentType,
+        };
+      }
     }
 
     clientOptions = JSON.stringify(clientOptions, (key, value) => {

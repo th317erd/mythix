@@ -311,8 +311,8 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
 
   let defaultConfig = {
     runtime:              process.env.MYTHIX_RUNTIME || 'node',
-    runtimeArgs:          (process.env.MYTHIX_RUNTIME_ARGS || '').split(/\s+/g),
-    applicationPath:      (config) => Path.resolve(config.appRootPath, 'application'),
+    runtimeArgs:          (process.env.MYTHIX_RUNTIME_ARGS || '').split(/\s+/g).filter(Boolean),
+    applicationPath:      (config) => Path.resolve(config.appRootPath, 'application.js'),
     getApplicationClass:  (config) => {
       let Application = require(config.applicationPath);
       if (Application && typeof Application !== 'function' && typeof Application.Application === 'function')
@@ -350,7 +350,7 @@ function spawnCommand(args, options, _config) {
     try {
       let childProcess = spawn(
         config.runtime || 'node',
-        (config.runtimeArgs || []).concat(args),
+        (config.runtimeArgs || []).concat(args).filter(Boolean),
         Object.assign({}, options || {}, {
           env:    Object.assign({}, process.env, (options || {}).env || {}),
           stdio:  'inherit',
