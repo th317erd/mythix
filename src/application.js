@@ -351,6 +351,4 @@ class Application extends EventEmitter {
   }
 }
 
-module.exports = {
-  Application,
-};
+module.exports = Application;

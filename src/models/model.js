@@ -50,37 +50,6 @@ class Model extends _Model {
 
     return this.getDBConnection();
   }
-
-  overrideMethod(name, newMethod) {
-    let originalMethod = this[name];
-    if (typeof originalMethod !== 'function')
-      throw new TypeError(`Model: Error while attempting to override method "${name}: No such method found"`);
-
-    let boundMethod = newMethod.bind(this, originalMethod.bind(this));
-    boundMethod.unbound = newMethod;
-    boundMethod.super = originalMethod;
-
-    Object.defineProperties(this, {
-      [name]: {
-        writable:     true,
-        enumberable:  false,
-        configurable: true,
-        value:        boundMethod,
-      },
-    });
-
-    return originalMethod;
-  }
-
-  overrideMethods(methodsObj) {
-    let keys = Object.keys(methodsObj);
-    for (let i = 0, il = keys.length; i < il; i++) {
-      let name    = keys[i];
-      let method  = methodsObj[name];
-
-      this.overrideMethod(name, method);
-    }
-  }
 }
 
 module.exports = {

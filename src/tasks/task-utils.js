@@ -1,7 +1,7 @@
 'use strict';
 
-const Nife          = require('nife');
-const { TaskBase }  = require('./task-base');
+const Nife      = require('nife');
+const TaskBase  = require('./task-base');
 
 const SECONDS_PER_MINUTE      = 60;
 const MINUTES_PER_HOUR        = 60;
@@ -54,20 +54,20 @@ class TimeHelpers {
     return new TimeHelpers();
   }
 
-  days(number) {
-    return this.clone(number);
+  days(days) {
+    return this.clone(days);
   }
 
-  hours(number) {
-    return this.clone(undefined, number);
+  hours(hours) {
+    return this.clone(undefined, hours);
   }
 
-  minutes(number) {
-    return this.clone(undefined, undefined, number);
+  minutes(minutes) {
+    return this.clone(undefined, undefined, minutes);
   }
 
-  seconds(number) {
-    return this.clone(undefined, undefined, undefined, number);
+  seconds(seconds) {
+    return this.clone(undefined, undefined, undefined, seconds);
   }
 
   totalSeconds() {
@@ -124,5 +124,7 @@ function defineTask(taskName, definer, _parent) {
     return { [taskName]: Klass };
   };
 }
+
+defineTask.TimeHelpers = TimeHelpers;
 
 module.exports = defineTask;

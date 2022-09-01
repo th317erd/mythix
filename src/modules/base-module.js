@@ -5,6 +5,10 @@ class BaseModule {
     throw new Error('BaseModule::getModuleName: Should not have been called. Child module must implement "static getModuleName(){}"');
   }
 
+  static shouldUse() {
+    return true;
+  }
+
   constructor(application) {
     Object.defineProperties(this, {
       'application': {

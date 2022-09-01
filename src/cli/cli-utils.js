@@ -312,7 +312,7 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
   let defaultConfig = {
     runtime:              process.env.MYTHIX_RUNTIME || 'node',
     runtimeArgs:          (process.env.MYTHIX_RUNTIME_ARGS || '').split(/\s+/g).filter(Boolean),
-    applicationPath:      (config) => Path.resolve(config.appRootPath, 'application.js'),
+    applicationPath:      (config) => Path.resolve(config.appRootPath, 'application'),
     getApplicationClass:  (config) => {
       let Application = require(config.applicationPath);
       if (Application && typeof Application !== 'function' && typeof Application.Application === 'function')
