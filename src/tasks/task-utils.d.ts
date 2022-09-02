@@ -1,5 +1,6 @@
 import Application from "../application";
 import { GenericObject } from "../interfaces/common";
+import { TaskClass } from "./task-base";
 
 declare class _TimeHelpers {
   constructor(days?: number, hours?: number, minutes?: number, seconds?: number);
@@ -19,7 +20,7 @@ declare class _TimeHelpers {
 }
 
 declare interface _DefineTaskContext {
-  Parent: Function;
+  Parent: TaskClass;
   application: Application;
   connection: any; // TODO: Needs mythix-orm Connection
   dbConfig: GenericObject;
@@ -29,8 +30,8 @@ declare interface _DefineTaskContext {
 
 declare function defineTask(
   taskName: string,
-  definer: (context: _DefineTaskContext) => Function,
-  _parent?: Function
+  definer: (context: _DefineTaskContext) => TaskClass,
+  parent?: TaskClass
 ): Function;
 
 declare namespace defineTask {

@@ -1,5 +1,6 @@
 import { GenericObject } from './interfaces/common';
 import Logger, { LoggerClass, LoggerOptions } from './logger';
+import { ModelClass, ModelClasses } from './models/model';
 import { Modules, ModuleClasses, BaseModuleClass } from './modules/base-module';
 
 declare interface _ApplicationOptions {
@@ -54,6 +55,15 @@ declare class Application {
   public getLogger(): Logger;
   public start(): Promise<void>;
   public stop(exitCode?: number): Promise<void>;
+
+  // From DatabaseModule
+  public getDBConfig(): GenericObject;
+  public getDBTablePrefix(): string | null;
+  public getDBConnection(): any; // TODO: Need to be a mythix-orm connection
+
+  // From ModelModule
+  public getModel(modelName?: string): ModelClass | undefined;
+  public getModels(): ModelClasses;
 
   declare public isStarted: boolean;
   declare public isStopping: boolean;

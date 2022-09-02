@@ -127,6 +127,4 @@ class ModelModule extends BaseModule {
   }
 }
 
-module.exports = {
-  ModelModule,
-};
+module.exports = ModelModule;

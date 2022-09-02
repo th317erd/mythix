@@ -1,6 +1,6 @@
 'use strict';
 
-const { defineModel } = require('./model-utils');
+const defineModel = require('./model-utils');
 
 const ID_STRING_MAX_SIZE = 15;
 
