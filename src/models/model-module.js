@@ -114,7 +114,7 @@ class ModelModule extends BaseModule {
     let application = this.getApplication();
     let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
     if (!connection)
-      return;
+      return {};
 
     return connection.getModels();
   }

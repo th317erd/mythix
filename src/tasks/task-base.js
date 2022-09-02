@@ -55,17 +55,17 @@ class TaskBase {
   }
 
   getModel(name) {
-    let application = this.application;
+    let application = this.getApplication();
     return application.getModel(name);
   }
 
   getModels() {
-    let application = this.application;
+    let application = this.getApplication();
     return application.getModels();
   }
 
   getDBConnection() {
-    let application = this.application;
+    let application = this.getApplication();
     return application.getDBConnection();
   }
 
