@@ -30,7 +30,7 @@
     "express": "^4.17.3",
     "express-busboy": "github:th317erd/express-busboy#0754a570d7979097b31e48655b80d3fcd628d4e4",
     "form-data": "^4.0.0",
-    "mythix-orm": "^1.5.5",
+    "mythix-orm": "^1.5.6",
     "nife": "^1.11.3",
     "prompts": "^2.4.2"
   }
