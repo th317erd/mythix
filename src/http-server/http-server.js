@@ -50,19 +50,19 @@ class HTTPServer {
     Object.defineProperties(this, {
       'application': {
         writable:     false,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        application,
       },
       'server': {
         writable:     true,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        null,
       },
       'options': {
         writable:     false,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        opts,
       },

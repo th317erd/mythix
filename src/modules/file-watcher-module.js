@@ -38,7 +38,7 @@ class FileWatcherModule extends BaseModule {
     Object.defineProperties(application, {
       'autoReload': {
         writable:     true,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        this.autoReload.bind(this),
       },

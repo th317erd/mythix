@@ -12,13 +12,13 @@ class HTTPInterface {
     Object.defineProperties(this, {
       'defaultURL': {
         writable:     true,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        null,
       },
       'defaultHeaders': {
         writable:     true,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        {},
       },

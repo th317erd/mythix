@@ -17,13 +17,13 @@ class CommandBase {
     Object.defineProperties(this, {
       'application': {
         writable:     false,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        application,
       },
       'argv': {
         writable:     false,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        argv,
       },
@@ -57,7 +57,7 @@ function defineCommand(_commandName, definer, _parent) {
     Object.defineProperties(CommandBase, {
       'commands': {
         writable:     false,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        {},
       },

@@ -23,13 +23,13 @@ module.exports = defineCommand('shell', ({ Parent }) => {
       Object.defineProperties(this, {
         'defaultHeaders': {
           writable:     true,
-          enumberable:  false,
+          enumerable:  false,
           configurable: true,
           value:        {},
         },
         'defaultURL': {
           writable:     true,
-          enumberable:  false,
+          enumerable:  false,
           configurable: true,
           value:        null,
         },

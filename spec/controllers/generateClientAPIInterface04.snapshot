@@ -1,23 +1,23 @@
 "'use strict';
 
 (function(globalScope, environmentType) {
-  
+
   var Utils = (function() {
     function instanceOf(obj) {
       function testType(obj, _val) {
         function isDeferredType(obj) {
           if (obj instanceof Promise)
             return true;
-    
+
           if (typeof obj.then === 'function')
             return true;
-    
+
           return false;
         }
-    
+
         var val     = _val,
             typeOf  = (typeof obj);
-    
+
         if (val === String)
           val = 'string';
         else if (val === Number)
@@ -34,61 +34,61 @@
           val = 'promise';
         else if (val === BigInt)
           val = 'bigint';
-    
+
         if (val === 'object' && (obj.constructor === Object.prototype.constructor || obj.constructor.name === 'Object'))
           return true;
-    
+
         if ((val === 'promise' || val === 'deferred') && isDeferredType(obj))
           return true;
-    
+
         if (val !== 'object' && val === typeOf)
           return true;
-    
+
         if (val === 'number' && (typeof obj === 'number' || (obj instanceof Number)) && !isFinite(obj))
           return false;
-    
+
         if (val === 'number' && obj instanceof Number)
           return true;
-    
+
         if (val === 'string' && obj instanceof String)
           return true;
-    
+
         if (val === 'boolean' && obj instanceof Boolean)
           return true;
-    
+
         if (val === 'function' && typeOf === 'function')
           return true;
-    
+
         if (val === 'array' && obj instanceof Array)
           return true;
-    
+
         if (typeof val === 'function' && obj instanceof val)
           return true;
-    
+
         return false;
       }
-    
+
       if (obj == null)
         return false;
-    
+
       for (var i = 1, len = arguments.length; i < len; i++) {
         if (testType(obj, arguments[i]) === true)
           return true;
       }
-    
+
       return false;
     }
 
     function sizeOf(obj) {
       if (obj == null)
         return 0;
-    
+
       if ((typeof obj.length === 'number' || obj.length instanceof Number) && isFinite(obj.length))
         return obj.length;
-    
+
       if (obj.constructor === Object.prototype.constructor || obj.constructor.name === 'Object')
         return Object.keys(obj).length + Object.getOwnPropertySymbols(obj).length;
-    
+
       return 0;
     }
 
@@ -97,10 +97,10 @@
         var value = arguments[i];
         if (value == null)
           return true;
-    
+
         if (value === Infinity)
           continue;
-    
+
         if (instanceOf(value, 'string'))
           return !value.match(/\S/);
         else if (instanceOf(value, 'number') && isFinite(value))
@@ -108,7 +108,7 @@
         else if (!instanceOf(value, 'boolean', 'bigint', 'function') && sizeOf(value) == 0)
           return true;
       }
-    
+
       return false;
     }
 
@@ -116,14 +116,14 @@
       function fromObject(path, data) {
         let parts = [];
         let keys  = Object.keys(data);
-    
+
         for (let i = 0, il = keys.length; i < il; i++) {
           let key = keys[i];
           let value = data[key];
-    
+
           if (value && typeof value === 'object' && typeof value.valueOf === 'function')
             value = value.valueOf();
-    
+
           if (Array.isArray(value))
             parts = parts.concat(fromArray(`${path}[${key}]`, value));
           else if (value instanceof Object)
@@ -131,18 +131,18 @@
           else
             parts.push(`${encodeURIComponent(`${path}[${key}]`)}=${encodeURIComponent(value)}`);
         }
-    
+
         return parts.filter(Boolean);
       }
-    
+
       function fromArray(path, data) {
         let parts = [];
-    
+
         for (let i = 0, il = data.length; i < il; i++) {
           let value = data[i];
           if (value && typeof value === 'object' && typeof value.valueOf === 'function')
             value = value.valueOf();
-    
+
           if (Array.isArray(value))
             parts = parts.concat(fromArray(`${path}[]`, value));
           else if (value instanceof Object)
@@ -150,34 +150,34 @@
           else
             parts.push(`${encodeURIComponent(`${path}[]`)}=${encodeURIComponent(value)}`);
         }
-    
+
         return parts.filter(Boolean);
       }
-    
+
       if (!data || Utils.sizeOf(data) === 0)
         return '';
-    
+
       let initial = '?';
       let parts   = [];
       let keys    = Object.keys(data);
-    
+
       if (resolveInitial != null)
         initial = (typeof resolveInitial === 'function') ? resolveInitial.call(this) : resolveInitial;
-    
+
       for (let i = 0, il = keys.length; i < il; i++) {
         let name  = keys[i];
         let value = data[name];
-    
+
         if (Utils.isEmpty(value))
           continue;
-    
+
         if (value && typeof value === 'object' && typeof value.valueOf === 'function')
           value = value.valueOf();
-    
+
         name = (typeof nameFormatter === 'function') ? nameFormatter.call(this, name, value) : name;
         if (!name)
           continue;
-    
+
         if (Array.isArray(value))
           parts = parts.concat(fromArray(name, value));
         else if (value instanceof Object)
@@ -185,10 +185,10 @@
         else
           parts.push(encodeURIComponent(name) + '=' + encodeURIComponent(value));
       }
-    
+
       if (parts.length === 0)
         return '';
-    
+
       return initial + parts.join('&');
     }
 
@@ -242,51 +242,51 @@
       function getDefaultHeader(headerName) {
         return apiInterface.defaultHeaders[headerName];
       }
-  
+
       function getDefaultHeaders() {
         return apiInterface.defaultHeaders;
       }
-  
+
       function setDefaultHeader(headerName, value) {
         if (value == null) {
           delete apiInterface.defaultHeaders[headerName];
           return;
         }
-  
+
         apiInterface.defaultHeaders[headerName] = value;
       }
-  
+
       function setDefaultHeaders(headers) {
         var headerNames = Object.keys(headers);
         for (var i = 0, il = headerNames.length; i < il; i++) {
           var headerName  = headerNames[i];
           var value       = headers[headerName];
-  
+
           if (value == null) {
             delete apiInterface.defaultHeaders[headerName];
             continue;
           }
-  
+
           apiInterface.defaultHeaders[headerName] = value;
         }
       }
-  
+
       function nodeRequestHandler(routeName, requestOptions) {
         return new Promise((function(resolve, reject) {
           if (!requestOptions || Utils.isEmpty(requestOptions.url)) {
             reject([ 'API::', routeName, ': \"url\" is required.' ].join(''));
             return;
           }
-      
+
           var HTTP  = (requestOptions.httpModule) ? requestOptions.httpModule : require('http');
           var URL   = require('url');
-      
+
           var method      = (requestOptions.method || 'GET').toUpperCase();
           var url         = new URL.URL(requestOptions.url);
           var data        = requestOptions.data;
           var extraConfig = {};
           var headers     = Object.assign({}, Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
-      
+
           if (data) {
             if (!method.match(/^(GET|HEAD)$/i)) {
               if (data.constructor.name === 'FormData') {
@@ -296,7 +296,7 @@
               } else {
                 if ((headers['content-type'] || '').match(/application\/json/i))
                   data = JSON.stringify(data);
-      
+
                 extraConfig = {
                   headers: {
                     'content-length': Buffer.byteLength(data),
@@ -308,17 +308,17 @@
               if (queryString) {
                 var newParams = new URL.URLSearchParams(queryString);
                 var keys      = Array.from(newParams.keys());
-      
+
                 for (var i = 0, il = keys.length; i < il; i++) {
                   var key = keys[i];
                   url.searchParams.set(key, newParams.get(key));
                 }
               }
-      
+
               data = undefined;
             }
           }
-      
+
           var options = Object.assign(
             {
               protocol: url.protocol,
@@ -331,52 +331,52 @@
             extraConfig,
             { headers:  Object.assign({}, headers, Utils.keysToLowerCase(extraConfig.headers || {})) },
           );
-      
+
           delete options.data;
-      
+
           var thisRequest = HTTP.request(options, function(response) {
             var responseData = Buffer.alloc(0);
-      
+
             response.on('data', function(chunk) {
               responseData = Buffer.concat([ responseData, chunk ]);
             });
-      
+
             response.on('error', function(error) {
               reject(error);
             });
-      
+
             response.on('end', function() {
               response.rawBody = response.body = responseData;
-      
+
               try {
                 var contentType = response.headers['content-type'];
-      
+
                 if (contentType && contentType.match(/application\/json/i)) {
                   var data = JSON.parse(responseData.toString('utf8'));
-      
+
                   Object.defineProperties(data, {
                     '__response': {
                       writable:     true,
-                      enumberable:  false,
+                      enumerable:  false,
                       configurable: true,
                       value:        response,
                     },
                     '__statusCode': {
                       writable:     true,
-                      enumberable:  false,
+                      enumerable:  false,
                       configurable: true,
                       value:        response.status,
                     },
                     '__statusText': {
                       writable:     true,
-                      enumberable:  false,
+                      enumerable:  false,
                       configurable: true,
                       value:        response.statusText,
                     },
                   });
-      
+
                   response.body = data;
-      
+
                   resolve(data);
                 } else if (contentType && contentType.match(/text\/(plain|html)/)) {
                   response.body = responseData.toString('utf8');
@@ -389,11 +389,11 @@
               }
             });
           });
-      
+
           thisRequest.on('error', function(error) {
             reject(error);
           });
-      
+
           if (data) {
             if (data.constructor.name === 'FormData') {
               data.pipe(thisRequest);
@@ -406,25 +406,25 @@
           }
         }).bind(this));
       }
-  
+
       function browserRequestHandler(routeName, requestOptions) {
         return new Promise((function(resolve, reject) {
           if (!requestOptions || Utils.isEmpty(requestOptions.url)) {
             reject([ 'API::', routeName, ': \"url\" is required.' ].join(''));
             return;
           }
-      
+
           var method      = (requestOptions.method || 'GET').toUpperCase();
           var url         = requestOptions.url;
           var data        = requestOptions.data;
           var extraConfig = {};
           var headers     = Object.assign({ 'content-type': 'application/json; charset=UTF-8' }, Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
-      
+
           if (data) {
             if (!method.match(/^(GET|HEAD)$/i)) {
               if ((headers['content-type'] || '').match(/application\/json/i))
                 data = JSON.stringify(data);
-      
+
               extraConfig = {
                 body: data,
               };
@@ -434,54 +434,54 @@
                 url = url + queryString;
             }
           }
-      
+
           var options = Object.assign(
             { method },
             requestOptions,
             extraConfig,
             { headers:  Object.assign({}, headers, Utils.keysToLowerCase(extraConfig.headers || {})) },
           );
-      
+
           delete options.data;
-      
+
           globalScope.fetch(url, options).then(
             function(response) {
               if (typeof requestOptions.responseHandler === 'function')
                 return requestOptions.responseHandler(response);
-      
+
               if (!response.ok) {
                 var error = new Error(response.statusText);
                 error.response = response;
-      
+
                 reject(error);
                 return;
               }
-      
+
               var contentType = response.headers.get('Content-Type');
               if (contentType && contentType.match(/application\/json/i)) {
                 var data = response.json();
-      
+
                 Object.defineProperties(data, {
                   '__response': {
                     writable:     true,
-                    enumberable:  false,
+                    enumerable:  false,
                     configurable: true,
                     value:        response,
                   },
                   '__statusCode': {
                     writable:     true,
-                    enumberable:  false,
+                    enumerable:  false,
                     configurable: true,
                     value:        response.status,
                   },
                   '__statusText': {
                     writable:     true,
-                    enumberable:  false,
+                    enumerable:  false,
                     configurable: true,
                     value:        response.statusText,
                   },
                 });
-      
+
                 resolve(data);
               } else if (contentType && contentType.match(/text\/(plain|html)/i)) {
                 resolve(response.text());
@@ -495,13 +495,13 @@
           );
         }).bind(this));
       }
-  
+
       function makeRequest(routeName, options) {
-        
-        
+
+
         return (environmentType === 'browser') ? browserRequestHandler.call(this, routeName, options) : nodeRequestHandler.call(this, routeName, options);
       }
-  
+
       var apiInterface = Object.create({
         defaultHeaders: {},
         makeRequest,
@@ -510,35 +510,35 @@
         setDefaultHeader,
         setDefaultHeaders,
       });
-  
+
       var defaultRouteOptions = {};
-  
+
       apiInterface['createOrganization'] = (function createOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/', method: 'PUT' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('createOrganization', options); delete options.params; return makeRequest.call(this, 'createOrganization', options); }).bind(apiInterface);
-  
+
       apiInterface['getOrganization'] = (function getOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getOrganization', options); delete options.params; return makeRequest.call(this, 'getOrganization', options); }).bind(apiInterface);
-  
+
       apiInterface['getOrganizations'] = (function getOrganizations(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getOrganizations', options); delete options.params; return makeRequest.call(this, 'getOrganizations', options); }).bind(apiInterface);
-  
+
       apiInterface['getUser'] = (function getUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/<<userID>>', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getUser', options); delete options.params; return makeRequest.call(this, 'getUser', options); }).bind(apiInterface);
-  
+
       apiInterface['getUsers'] = (function getUsers(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getUsers', options); delete options.params; return makeRequest.call(this, 'getUsers', options); }).bind(apiInterface);
-  
+
       apiInterface['inviteUserToOrganization'] = (function inviteUserToOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>/inviteUser', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('inviteUserToOrganization', options); delete options.params; return makeRequest.call(this, 'inviteUserToOrganization', options); }).bind(apiInterface);
-  
+
       apiInterface['login'] = (function login(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/authenticate', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('login', options); delete options.params; return makeRequest.call(this, 'login', options); }).bind(apiInterface);
-  
+
       apiInterface['registerUser'] = (function registerUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/registerUser', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('registerUser', options); delete options.params; return makeRequest.call(this, 'registerUser', options); }).bind(apiInterface);
-  
+
       apiInterface['searchOrganizations'] = (function searchOrganizations(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/search', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('searchOrganizations', options); delete options.params; return makeRequest.call(this, 'searchOrganizations', options); }).bind(apiInterface);
-  
+
       apiInterface['searchUsers'] = (function searchUsers(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/search', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('searchUsers', options); delete options.params; return makeRequest.call(this, 'searchUsers', options); }).bind(apiInterface);
-  
+
       apiInterface['sendMagicLink'] = (function sendMagicLink(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/sendMagicLink', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('sendMagicLink', options); delete options.params; return makeRequest.call(this, 'sendMagicLink', options); }).bind(apiInterface);
-  
+
       apiInterface['updateOrganization'] = (function updateOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('updateOrganization', options); delete options.params; return makeRequest.call(this, 'updateOrganization', options); }).bind(apiInterface);
-  
+
       apiInterface['updateUser'] = (function updateUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/<<userID>>', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('updateUser', options); delete options.params; return makeRequest.call(this, 'updateUser', options); }).bind(apiInterface);
-  
+
       return apiInterface;
     }
 

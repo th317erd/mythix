@@ -5,19 +5,19 @@ class TaskBase {
     Object.defineProperties(this, {
       'application': {
         writable:     false,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        application,
       },
       'logger': {
         writable:     true,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        logger,
       },
       'runID': {
         writable:     false,
-        enumberable:  false,
+        enumerable:  false,
         configurable: true,
         value:        runID,
       },
