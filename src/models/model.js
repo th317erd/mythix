@@ -63,7 +63,7 @@ class Model extends _Model {
     Object.defineProperties(this, {
       [name]: {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        boundMethod,
       },

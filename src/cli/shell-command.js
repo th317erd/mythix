@@ -13,9 +13,18 @@ const {
 
 module.exports = defineCommand('shell', ({ Parent }) => {
   return class ShellCommand extends Parent {
-    static description    = 'Drop into an application shell to execute commands directly';
+    static runtimeArguments = {
+      'node': [ '--experimental-repl-await', '--experimental-top-level-await' ],
+    };
 
-    static nodeArguments  = [ '--experimental-repl-await', '--experimental-top-level-await' ];
+    static commandArguments() {
+      return {
+        help: {
+          '@usage': 'mythix-cli shell',
+          '@title': 'Drop into an server shell to execute commands directly',
+        },
+      };
+    }
 
     constructor(...args) {
       super(...args);
@@ -23,13 +32,13 @@ module.exports = defineCommand('shell', ({ Parent }) => {
       Object.defineProperties(this, {
         'defaultHeaders': {
           writable:     true,
-          enumerable:  false,
+          enumerable:   false,
           configurable: true,
           value:        {},
         },
         'defaultURL': {
           writable:     true,
-          enumerable:  false,
+          enumerable:   false,
           configurable: true,
           value:        null,
         },

@@ -12,22 +12,28 @@ const {
   fileNameWithoutExtension,
 } = require('../utils/file-utils');
 
+const { CMDed } = require('cmded');
+
 class CommandBase {
-  constructor(application, argv) {
+  constructor(application, options) {
     Object.defineProperties(this, {
       'application': {
         writable:     false,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        application,
       },
-      'argv': {
+      'options': {
         writable:     false,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
-        value:        argv,
+        value:        options,
       },
     });
+  }
+
+  getOptions() {
+    return this.options;
   }
 
   getApplication() {
@@ -47,17 +53,12 @@ class CommandBase {
 
 let loadingAllCommandsInProgress = false;
 
-CommandBase.defaultArguments = `
-[-e,-env:string(Environment to use)=$NODE_ENV|development(Default "development")]
-[--mythixConfig:string(Path to .mythix-config.js)=$MYTHIX_CONFIG_PATH]
-`.trim();
-
 function defineCommand(_commandName, definer, _parent) {
   if (!CommandBase.commands) {
     Object.defineProperties(CommandBase, {
       'commands': {
         writable:     false,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        {},
       },
@@ -81,7 +82,6 @@ function defineCommand(_commandName, definer, _parent) {
     let mythixApplicationCommandsPath = process.env['MYTHIX_APPLICATION_COMMANDS'];
     if (mythixCommandPath && mythixApplicationCommandsPath)
       loadCommands(mythixApplicationCommandsPath, [ mythixCommandPath ]);
-
   }
 
   if (Nife.instanceOf(parent, 'string')) {
@@ -102,20 +102,6 @@ function defineCommand(_commandName, definer, _parent) {
     throw new Error(`Error while defining command ${commandName}: "execute" method is required`);
 
   Klass.commandName = commandName;
-  if (!Klass.commandArguments)
-    Klass.commandArguments = '';
-
-  if (!Klass.description)
-    Klass.description = '';
-
-  if (Klass.commandArguments.indexOf(CommandBase.defaultArguments) < 0)
-    Klass.commandArguments = `${Klass.commandArguments} ${CommandBase.defaultArguments}`.trim();
-  else
-    Klass.commandArguments = Klass.commandArguments.trim();
-
-  Klass.commandString = `${commandName}(${Klass.description}) ${(Klass.commandArguments) ? Klass.commandArguments : ''}`.trim();
-
-  //console.log('COMMAND STRING: ', name, Klass.commandString.replace(/\n/gm, ' '));
 
   // Executor method. This gets invoked in a separate node process
   // The command script is executed directly via node when the
@@ -123,74 +109,86 @@ function defineCommand(_commandName, definer, _parent) {
   // "executeCommand" below, which spawns a node process that
   // targets this command script.
   Klass.execute = async function() {
-    let yargsPath = process.env['MYTHIX_YARGS_PATH'];
-    if (!yargsPath)
-      yargsPath = Path.dirname(require.resolve('yargs'));
+    // eslint-disable-next-line new-cap
+    let commandContext = CMDed((context) => {
+      let { $, Types, store, scope } = context;
 
-    let simpleYargsPath = process.env['MYTHIX_SIMPLE_YARGS_PATH'];
-    if (!simpleYargsPath)
-      simpleYargsPath = Path.dirname(require.resolve('simple-yargs', '..'));
+      // Parse these even though they are no longer needed
+      // so that we ensure they are "consumed".
+      $('--config', Types.STRING({
+        format: Path.resolve,
+      })) || store({ config: (Nife.isNotEmpty(process.env.MYTHIX_CONFIG_PATH)) ? Path.resolve(process.env.MYTHIX_CONFIG_PATH) : Path.join(process.env.PWD, '.mythix-config.js') });
 
-    let yargs             = require(Path.resolve(yargsPath, 'yargs'));
-    let { hideBin }       = require(Path.resolve(yargsPath, 'helpers'));
-    const SimpleYargs     = require(simpleYargsPath);
-    let argv              = hideBin(process.argv).concat('');
-    let rootCommand       = yargs(argv);
+      $('--runtime', Types.STRING());
 
-    rootCommand = SimpleYargs.buildCommands(rootCommand, async function(command, args) {
-      let application;
+      $('-e', Types.STRING(), { name: 'environment' });
+      $('--env', Types.STRING(), { name: 'environment' });
 
-      try {
-        let PWD               = process.env['PWD'];
-        let mythixConfigPath  = args.mythixConfig;
+      let runner = null;
 
-        if (Nife.isEmpty(mythixConfigPath))
-          mythixConfigPath = process.env['MYTHIX_CONFIG_PATH'];
-
-        if (Nife.isEmpty(mythixConfigPath))
-          mythixConfigPath = PWD;
-
-        let config            = loadMythixConfig(mythixConfigPath);
-        let Application       = config.getApplicationClass(config);
-        let applicationConfig = Klass.applicationConfig;
-
-        if (typeof applicationConfig === 'function')
-          applicationConfig = applicationConfig(config, Application);
-        else if (applicationConfig)
-          applicationConfig = Nife.extend(true, { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false }, applicationConfig);
-
-
-        if (!applicationConfig)
-          applicationConfig = { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false };
-
-        let doStartApplication = (applicationConfig.autoStart !== false);
-
-        delete applicationConfig.autoStart;
-
-        application = await createApplication(Application, Object.assign({ exitOnShutdown: 1 }, applicationConfig), false);
-
-        let environment = args.env;
-        if (Nife.isEmpty(environment))
-          environment = application.getConfigValue('environment', 'development');
-
-        application.setConfig({ environment: environment });
-
-        if (doStartApplication)
-          await application.start();
-
-        let commandInstance = new Klass(application, args);
-        let result          = await commandInstance.execute.call(commandInstance, args);
-
-        await application.stop(result || 0);
-      } catch (error) {
-        console.log(`Error while executing command "${command}"`, error);
-
-        if (application)
-          await application.stop(1);
+      if (typeof Klass.commandArguments === 'function') {
+        let result = (Klass.commandArguments() || {});
+        runner = result.runner;
       }
-    }, [ Klass.commandString ]);
 
-    rootCommand.parse();
+      return scope(commandName, (context) => {
+        if (typeof runner === 'function')
+          return runner(context);
+
+        return true;
+      });
+    });
+
+    if (!commandContext)
+      return;
+
+    let application;
+
+    try {
+      let PWD               = process.env['PWD'];
+      let mythixConfigPath  = commandContext.config || process.env['MYTHIX_CONFIG_PATH'];
+
+      if (Nife.isEmpty(mythixConfigPath))
+        mythixConfigPath = PWD;
+
+      let config            = loadMythixConfig(mythixConfigPath);
+      let Application       = config.getApplicationClass(config);
+      let applicationConfig = Klass.applicationConfig;
+
+      if (typeof applicationConfig === 'function')
+        applicationConfig = applicationConfig(config, Application);
+      else if (applicationConfig)
+        applicationConfig = Nife.extend(true, { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false }, applicationConfig);
+
+      if (!applicationConfig)
+        applicationConfig = { httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false };
+
+      let doStartApplication = (applicationConfig.autoStart !== false);
+
+      delete applicationConfig.autoStart;
+
+      application = await createApplication(Application, Object.assign({ exitOnShutdown: 1 }, applicationConfig), false);
+
+      let environment = commandContext.environment;
+      if (Nife.isEmpty(environment))
+        environment = application.getConfigValue('environment', 'development');
+
+      application.setConfig({ environment: environment });
+
+      if (doStartApplication)
+        await application.start();
+
+      let commandOptions  = commandContext[commandName] || {};
+      let commandInstance = new Klass(application, commandOptions);
+      let result          = await commandInstance.execute.call(commandInstance, commandOptions);
+
+      await application.stop(result || 0);
+    } catch (error) {
+      console.log(`Error while executing command "${commandName}"`, error);
+
+      if (application)
+        await application.stop(1);
+    }
   };
 
   CommandBase.commands[commandName] = Klass;
@@ -202,7 +200,6 @@ function defineCommand(_commandName, definer, _parent) {
       console.log(error);
     });
   }
-
 
   return Klass;
 }
@@ -292,7 +289,7 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
   try {
     let stats = FileSystem.statSync(mythixConfigPath);
     if (stats.isDirectory())
-      configPath = Path.resolve(mythixConfigPath, '.mythix-config.js');
+      configPath = Path.resolve(mythixConfigPath, '.mythix-config');
     else if (stats.isFile(mythixConfigPath))
       mythixConfigPath = Path.dirname(mythixConfigPath);
   } catch (error) {
@@ -309,7 +306,7 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
   let defaultConfig = {
     runtime:              process.env.MYTHIX_RUNTIME || 'node',
     runtimeArgs:          (process.env.MYTHIX_RUNTIME_ARGS || '').split(/\s+/g).filter(Boolean),
-    applicationPath:      (config) => Path.resolve(config.appRootPath, 'application.js'),
+    applicationPath:      (config) => Path.resolve(config.appRootPath, 'application'),
     getApplicationClass:  (config) => {
       let Application = require(config.applicationPath);
       if (Application && typeof Application !== 'function' && typeof Application.Application === 'function')
@@ -367,27 +364,34 @@ function spawnCommand(args, options, _config) {
   });
 }
 
-async function executeCommand(configPath, applicationCommandsPath, yargsPath, simpleYargsPath, argv, commandPath, command, _config) {
+async function executeCommand(_config, appOptions, commandContext, CommandKlass, argv) {
+  let command = commandContext.command;
+
   try {
-    let config        = _config || {};
-    let Klass         = CommandBase.commands[command];
-    let nodeArguments = ((config.runtime || 'node') === 'node') ? (Klass.nodeArguments || []) : [];
-    let args          = nodeArguments.concat([ commandPath ], argv);
+    let config            = _config || {};
+    let configPath        = commandContext.config;
+    let commandPath       = CommandKlass.path;
+    let commandsPath      = appOptions.commandsPath;
+    let runtime           = commandContext.runtime || config.runtime || process.env.MYTHIX_RUNTIME || 'node';
+    let runtimeArguments  = ((CommandKlass.runtimeArguments || {})[runtime]) || [];
+    let args              = runtimeArguments.concat([ commandPath ], argv);
 
     let code = await spawnCommand(
       args,
       {
         env: {
-          MYTHIX_RUNTIME:               config.runtime || process.env.MYTHIX_RUNTIME || 'node',
+          NODE_ENV:                     commandContext.environment || '',
+          MYTHIX_RUNTIME:               runtime,
           MYTHIX_CONFIG_PATH:           configPath,
           MYTHIX_COMMAND_PATH:          commandPath,
-          MYTHIX_APPLICATION_COMMANDS:  applicationCommandsPath,
-          MYTHIX_YARGS_PATH:            yargsPath,
-          MYTHIX_SIMPLE_YARGS_PATH:     simpleYargsPath,
+          MYTHIX_APPLICATION_COMMANDS:  commandsPath,
           MYTHIX_EXECUTE_COMMAND:       command,
         },
       },
-      config,
+      {
+        ...config,
+        ...commandContext,
+      },
     );
 
     process.exit(code);

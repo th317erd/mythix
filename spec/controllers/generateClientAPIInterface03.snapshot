@@ -330,19 +330,19 @@
                 Object.defineProperties(data, {
                   '__response': {
                     writable:     true,
-                    enumerable:  false,
+                    enumerable:   false,
                     configurable: true,
                     value:        response,
                   },
                   '__statusCode': {
                     writable:     true,
-                    enumerable:  false,
+                    enumerable:   false,
                     configurable: true,
                     value:        response.status,
                   },
                   '__statusText': {
                     writable:     true,
-                    enumerable:  false,
+                    enumerable:   false,
                     configurable: true,
                     value:        response.statusText,
                   },

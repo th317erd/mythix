@@ -54,13 +54,13 @@ function buildPatternMatcher(_patterns, _opts) {
     Object.defineProperties(matchFunc, {
       'regexp': {
         writable:     false,
-        enumerable:  false,
+        enumerable:   false,
         configurable: false,
         value:        matchRE,
       },
       'directPatterns': {
         writable:     false,
-        enumerable:  false,
+        enumerable:   false,
         configurable: false,
         value:        undefined,
       },
@@ -118,13 +118,13 @@ function buildPatternMatcher(_patterns, _opts) {
   Object.defineProperties(matchFunc, {
     'regexp': {
       writable:     false,
-      enumerable:  false,
+      enumerable:   false,
       configurable: false,
       value:        matchRE,
     },
     'directPatterns': {
       writable:     false,
-      enumerable:  false,
+      enumerable:   false,
       configurable: false,
       value:        directPatterns,
     },
@@ -252,19 +252,19 @@ function buildPathMatcher(routeName, customParserTypes) {
   Object.defineProperties(matchFunc, {
     'regexp': {
       writable:     false,
-      enumerable:  false,
+      enumerable:   false,
       configurable: false,
       value:        matcherRE,
     },
     'params': {
       writable:     false,
-      enumerable:  false,
+      enumerable:   false,
       configurable: false,
       value:        params,
     },
     'sanitizedPath': {
       writable:     false,
-      enumerable:  false,
+      enumerable:   false,
       configurable: false,
       value:        sanitizedPath,
     },

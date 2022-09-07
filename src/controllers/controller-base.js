@@ -8,36 +8,36 @@ class ControllerBase {
     Object.defineProperties(this, {
       'application': {
         writable:     false,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        application,
       },
       'request': {
         writable:     false,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        request,
       },
       'response': {
         writable:     false,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        response,
       },
       'logger': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        logger,
       },
       'route': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        null,
       },
       'method': {
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         get:          () => {
           if (!this.request)
@@ -48,7 +48,7 @@ class ControllerBase {
         set:          () => {},
       },
       'contentType': {
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         get:          () => {
           if (!this.request)
@@ -60,7 +60,7 @@ class ControllerBase {
       },
       'responseStatusCode': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        200,
       },

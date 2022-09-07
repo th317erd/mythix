@@ -16,25 +16,25 @@ class TimeHelpers {
     Object.defineProperties(this, {
       '_days': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        _days || 0,
       },
       '_hours': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        _hours || 0,
       },
       '_minutes': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        _minutes || 0,
       },
       '_seconds': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        _seconds || 0,
       },

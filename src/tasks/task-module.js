@@ -257,7 +257,7 @@ class TaskModule extends BaseModule {
     Object.defineProperties(this.tasks, {
       '_intervalTimerID': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        setInterval(this.runTasks.bind(this), 1 * MILLISECONDS_PER_SECOND),
       },

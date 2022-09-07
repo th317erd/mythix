@@ -13,7 +13,7 @@ const { ModelModule }       = require('./models/model-module');
 const { HTTPServerModule }  = require('./http-server/http-server-module');
 const { ControllerModule }  = require('./controllers/controller-module');
 const { TaskModule }        = require('./tasks/task-module');
-const { FileWatcherModule } = require('./modules/file-watcher-module.js');
+const { FileWatcherModule } = require('./modules/file-watcher-module');
 const { wrapConfig }        = require('./utils');
 
 // Trace what is requesting the application exit

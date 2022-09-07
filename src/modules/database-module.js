@@ -38,19 +38,19 @@ class DatabaseModule extends BaseModule {
     Object.defineProperties(application, {
       'getDBTablePrefix': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getTablePrefix.bind(this),
       },
       'getDBConnection': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getConnection.bind(this),
       },
       'getDBConfig': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getConfig.bind(this),
       },

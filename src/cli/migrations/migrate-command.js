@@ -10,13 +10,25 @@ const MILLISECONDS_PER_SECOND = 1000.0;
 
 module.exports = defineCommand('migrate', ({ Parent }) => {
   return class MigrateCommand extends Parent {
-    static description      = 'Run all migrations that have not yet been ran';
+    static commandArguments() {
+      return {
+        help: {
+          /* eslint-disable key-spacing */
+          '@usage': 'mythix-cli migrate [options]',
+          '@title': 'Run or rollback migrations',
+          '-r={revision number} | -r {revision number} | --revision={revision number} | --revision {revision number}': 'Start operation at revision specified. For rollbacks, this specifies the revision to stop at (inclusive).',
+          '--rollback': 'Rollback migrations to the revision number specified, or rollback the last migration if no revision number is specified.',
+        },
+        runner: ({ $, Types }) => {
+          $('-r', Types.STRING(), { name: 'revision' });
+          $('--revision', Types.STRING(), { name: 'revision' });
 
-    static commandArguments = `
-      [-r,-revision:string(Start operation at revision specified. For rollbacks, this specifies the revision to stop at [inclusive])]
-      [-rollback:boolean(Reverse migration order, rolling back each migration from latest to specified revision)=false(Default is false)]
-      [-transaction:boolean(Use a DB transaction for migrations)=false(Default is false)]
-    `;
+          $('--rollback', Types.STRING());
+
+          return true;
+        },
+      };
+    }
 
     getMigrationFiles(migrationsPath) {
       try {

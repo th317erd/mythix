@@ -30,13 +30,13 @@ class ModelModule extends BaseModule {
     Object.defineProperties(application, {
       'getModel': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getModel.bind(this),
       },
       'getModels': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getModels.bind(this),
       },

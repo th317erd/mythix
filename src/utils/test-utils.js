@@ -37,7 +37,7 @@ class TestHTTPServerModule extends HTTPServerModule {
     Object.defineProperties(this, {
       'host': {
         writable:     true,
-        enumerable:  false,
+        enumerable:   false,
         configurable: true,
         value:        {
           hostname: httpServerConfig.host,
@@ -81,7 +81,7 @@ function createTestApplication(Application) {
       Object.defineProperties(this, {
         'httpInterface': {
           writable:     true,
-          enumerable:  false,
+          enumerable:   false,
           configurable: true,
           value:        new HTTPInterface(),
         },
