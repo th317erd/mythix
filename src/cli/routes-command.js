@@ -8,9 +8,16 @@ const TAB_SIZE = 8;
 
 module.exports = defineCommand('routes', ({ Parent }) => {
   return class RoutesCommand extends Parent {
-    static description        = 'List application routes';
+    static applicationConfig = { database: false, logger: { level: Logger.LEVEL_ERROR } };
 
-    static applicationConfig  = { database: false, logger: { level: Logger.LEVEL_ERROR } };
+    static commandArguments() {
+      return {
+        help: {
+          '@usage': 'mythix-cli routes',
+          '@title': 'List application routes',
+        },
+      };
+    }
 
     buildRoutes(httpServer, routes) {
       let application       = this.getApplication();

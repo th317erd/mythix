@@ -1,8 +1,8 @@
 {
   "name": "mythix",
-  "version": "2.4.10",
+  "version": "2.4.14",
   "description": "Mythix is a NodeJS web-app framework",
-  "main": "src/index.js",
+  "main": "src/index",
   "scripts": {
     "test": "node ./node_modules/.bin/jasmine",
     "test-watch": "watch 'clear ; node --trace-warnings ./node_modules/.bin/jasmine' . --wait=3 --interval=1"
@@ -27,10 +27,11 @@
   },
   "dependencies": {
     "chokidar": "^3.5.3",
+    "cmded": "^1.2.1",
     "express": "^4.17.3",
     "express-busboy": "github:th317erd/express-busboy#0754a570d7979097b31e48655b80d3fcd628d4e4",
     "form-data": "^4.0.0",
-    "mythix-orm": "^1.5.2",
+    "mythix-orm": "^1.5.6",
     "nife": "^1.11.3",
     "prompts": "^2.4.2"
   }

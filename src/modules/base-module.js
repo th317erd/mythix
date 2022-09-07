@@ -13,7 +13,7 @@ class BaseModule {
     Object.defineProperties(this, {
       'application': {
         writable:     false,
-        enumberable:  false,
+        enumerable:   false,
         configurable: true,
         value:        application,
       },

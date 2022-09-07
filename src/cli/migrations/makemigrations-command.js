@@ -37,15 +37,16 @@ ${postCode}
 
 module.exports = defineCommand('makemigrations', ({ Parent }) => {
   return class MakeMigrationsCommand extends Parent {
-    static description      = 'Create migration for current model schema';
-
-    // static nodeArguments    = [ '--inspect-brk' ];
-
-    static commandArguments = `
-      [-p,-preview:boolean(Preview what the generated migration would look like without migrating anything)]
-      [-n,-name:string(Specify a name for your migration)]
-      [-c,-comment:string(Specify a comment for your migration)]
-    `;
+    static commandArguments() {
+      return {
+        help: {
+          // eslint-disable-next-line key-spacing
+          '@usage': 'mythix-cli makemigrations [options]',
+          '@title': 'Generate a migration file',
+          '-n={name} | -n {name} | --name={name} | --name {name}': 'Specify the name of the generated migration file',
+        },
+      };
+    }
 
     getRevisionNumber() {
       let date = new Date();
@@ -1119,8 +1120,6 @@ module.exports = defineCommand('makemigrations', ({ Parent }) => {
       let postCodeParts   = [];
       let models          = dbSchema.models;
       let dbTableSchema   = dbSchema.dbTableSchema;
-
-      debugger;
 
       // Now create migration
       for (let i = 0, il = schemaDiff.length; i < il; i++) {

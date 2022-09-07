@@ -38,13 +38,13 @@ class HTTPServerModule extends BaseModule {
     Object.defineProperties(application, {
       'getHTTPServer': {
         writable:     true,
-        enumberable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getHTTPServer.bind(this),
       },
       'getHTTPServerConfig': {
         writable:     true,
-        enumberable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getHTTPServerConfig.bind(this),
       },

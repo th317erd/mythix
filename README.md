@@ -314,11 +314,9 @@ module.exports = defineModel('Product', ({ Parent, Type, Relation }) => {
 
 The `mythix-cli` can load commands from `mythix`, as well as custom commands you define. For example, if you create a command named `deploy`, then that command can be ran like so: `mythix-cli deploy`. Commands can inherit from other commands in `mythix`, including commands built directly into `mythix`.
 
-Your command class needs to have a `static definition` string specified, or your command will not show up in `mythix-cli --help`.
+A `static commandArguments` method is used to define the `help` for your command, and to define a `Runner` to gather arguments for your command. This `Runner` is a [CMDed](https://www.npmjs.com/package/cmded) `Runner`, so please refer to the [CMDed](https://www.npmjs.com/package/cmded) documentation for how to properly create a `Runner` for your command.
 
-`mythix` handles all the command line arguments for you. All you need to do is define a `static commandArguments` string on your command class to list your command arguments. Command arguments use the [simple-yargs](https://www.npmjs.com/package/simple-yargs) module to parse command line arguments.
-
-You can optionally define a `static nodeArguments` array of strings, which define the arguments for node that will be used when spawning this command via the CLI.
+You can optionally define a `static runtimeArguments` object, defining an array of strings arguments for each `runtime`. A `runtime` would be something like `node`, `ts-node`, or `babel-node`.
 
 There is also the static property `static applicationConfig` which can be an object specifying the options for your `Application` class, or, if this is a method, should return the options for your `Application` class. If this is a method, then the options it returns are the *only* options that will be passed to your `Application` class upon instantiation. If this is an object, then the `mythix-cli` will deliberately merge other options in (such as `{ httpServer: false, runTasks: false, autoReload: false }`), as most commands don't want an HTTP server, tasks, or auto-reloading running.
 
@@ -331,8 +329,28 @@ const { defineCommand } = require('mythix');
 
 module.exports = defineCommand('deploy', ({ Parent }) => {
   return class DeployCommand extends Parent {
-    static definition = 'Deploy application to servers';
-    static commandArguments = '<-target:string(Target server to deploy to)';
+    static runtimeArguments = {
+      'node': [ '--inspect' ],
+    };
+
+    static commandArguments() {
+      return {
+        // CMDed help
+        help: {
+          '@usage': 'mythix-cli deploy [options]',
+          '@title': 'Deploy the application to the specified target servers',
+          '-t={target} | -t {target} | --target={target} | --target {target}': 'Target server to deploy to',
+        },
+        // CMDed runner
+        runner: ({ $, store, Types }) => {
+          $('--target', Types.STRING(), { name: 'target' })
+            || $('-t', Types.STRING(), { name: 'target' })
+            || store({ target: 'production' }); // Default value
+
+          return true;
+        },
+      };
+    }
 
     async execute(args) {
       // args contains all your command line arguments parsed
@@ -474,12 +492,12 @@ When the `mythix-cli` is invoked, it will always pass a `{ cli: true }` option t
 
 A little bit should be mentioned about how the `mythix-cli` command works. When it is invoked, the first thing it does is search for your `Application` class. When it finds it, it will then create an instance of your application to fetch all your application defined paths. Once it has the paths you specified for your application, it will then load all commands it finds (both internal 'mythix' commands, and any custom commands you have defined).
 
-When a command is invoked, the `mythix-cli` will deliberately launch a new `node` process to execute the command specified. This is so that each command can specify its own custom `nodeArguments` (if desired).
+When a command is invoked, the `mythix-cli` will deliberately launch a new process using the specified `runtime` (default is `node`) to execute the command specified. This is so that each command can specify its own custom `runtimeArguments` (if desired).
 
 Because of the way this works, your application will be instantiated twice:
 
 * Once, and first, to load your application configuration (specifically your defined paths). This part of the process will *not* start your application, but simply instantiate it.
-* Second, your application will be instantiated again in the new spawned `node` process, and this time your application will also be started. Once your application has been successfully instantiated and started, then the command will run.
+* Second, your application will be instantiated again in the new spawned `runtime` (default `node`) process, and this time your application will also be started. Once your application has been successfully instantiated and started, then the command will run.
 
 Most commands by default will start your application with the options `{ httpServer: false, autoReload: false, runTasks: false }`. This informs your application NOT to start the web-server, NOT to start the task worker, and to NOT auto-reload files on change (which often isn't desired for many commands).
 
@@ -620,7 +638,7 @@ Create a new command class, giving your command the name specified by the `comma
 #### Static Class Properties
 
 * static **description** *`<string>`* - The description to give to this command. If this is not provided, then your command's "help" will not be shown when you run `mythix-cli --help`.
-* static **nodeArguments** *`<Array[<string>]>`* - An array of string arguments to use as command line arguments when invoking your command with `node`. These are NOT your command's arguments, but rather the arguments to give to `node`.
+* static **runtimeArguments** *`{ [key: string]: <Array[<string>]> }`* - An object containing runtime name keys, where each key value is an array of string arguments to use as command line arguments when invoking your command with the specified runtime. These are NOT your command's arguments, but rather the arguments to give to the specified runtime. For example, for the default `node` runtime, this might look something like `{ node: [ '--inspect' ] }`.
 * static **commandArguments** *`<string>`* - A string containing your command arguments, their descriptions, their types, and their default values. [simple-yargs](https://www.npmjs.com/package/simple-yargs) is used to parse these command argument strings, so refer to its documentation for how to define your command arguments.
 * static **applicationConfig** *`<object> | <function>`* - Define the options passed to your `Application.constructor`. If this is a simple object, then the `mythix-cli` will inject some default options that make sense for most commands. If this is a function, then it should return an options object. When this is a function, the `mythix-cli` will not inject any arguments, but instead will pass your options directly to `Application.constructor` without modification.
 

@@ -30,13 +30,13 @@ class ModelModule extends BaseModule {
     Object.defineProperties(application, {
       'getModel': {
         writable:     true,
-        enumberable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getModel.bind(this),
       },
       'getModels': {
         writable:     true,
-        enumberable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getModels.bind(this),
       },
@@ -114,7 +114,7 @@ class ModelModule extends BaseModule {
     let application = this.getApplication();
     let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
     if (!connection)
-      return;
+      return {};
 
     return connection.getModels();
   }

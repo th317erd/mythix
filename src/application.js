@@ -7,13 +7,13 @@ const Path                  = require('path');
 const FileSystem            = require('fs');
 const EventEmitter          = require('events');
 const OS                    = require('os');
-const Logger                = require('./logger');
-const DatabaseModule        = require('./modules/database-module');
-const ModelModule           = require('./models/model-module');
-const HTTPServerModule      = require('./http-server/http-server-module');
-const ControllerModule      = require('./controllers/controller-module');
-const TaskModule            = require('./tasks/task-module');
-const FileWatcherModule     = require('./modules/file-watcher-module.js');
+const { Logger }            = require('./logger');
+const { DatabaseModule }    = require('./modules/database-module');
+const { ModelModule }       = require('./models/model-module');
+const { HTTPServerModule }  = require('./http-server/http-server-module');
+const { ControllerModule }  = require('./controllers/controller-module');
+const { TaskModule }        = require('./tasks/task-module');
+const { FileWatcherModule } = require('./modules/file-watcher-module');
 const { wrapConfig }        = require('./utils');
 
 // Trace what is requesting the application exit
@@ -351,4 +351,4 @@ class Application extends EventEmitter {
   }
 }
 
-module.exports = Application;
+module.exports = { Application };

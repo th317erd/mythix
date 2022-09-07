@@ -117,19 +117,19 @@ function nodeRequestHandler(routeName, requestOptions) {
             Object.defineProperties(data, {
               '__response': {
                 writable:     true,
-                enumberable:  false,
+                enumerable:   false,
                 configurable: true,
                 value:        response,
               },
               '__statusCode': {
                 writable:     true,
-                enumberable:  false,
+                enumerable:   false,
                 configurable: true,
                 value:        response.status,
               },
               '__statusText': {
                 writable:     true,
-                enumberable:  false,
+                enumerable:   false,
                 configurable: true,
                 value:        response.statusText,
               },
@@ -230,19 +230,19 @@ function browserRequestHandler(routeName, requestOptions) {
           Object.defineProperties(data, {
             '__response': {
               writable:     true,
-              enumberable:  false,
+              enumerable:   false,
               configurable: true,
               value:        response,
             },
             '__statusCode': {
               writable:     true,
-              enumberable:  false,
+              enumerable:   false,
               configurable: true,
               value:        response.status,
             },
             '__statusText': {
               writable:     true,
-              enumberable:  false,
+              enumerable:   false,
               configurable: true,
               value:        response.statusText,
             },
@@ -579,7 +579,7 @@ function generateAPIInterface(routes, _options) {
 
     function assignHelp(func, methodName, help) {
       Object.defineProperty(func, 'help', {
-        enumberable:  false,
+        enumerable:   false,
         configurable: false,
         get: () => {
           if (!help || !help.description) {

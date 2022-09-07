@@ -84,7 +84,7 @@ class TaskModule extends BaseModule {
     let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
     let dbConfig    = (typeof application.getDBConfig === 'function') ? application.getDBConfig() : null;
     let tasks       = {};
-    let args        = { application: this, connection, dbConfig };
+    let args        = { application, connection, dbConfig };
 
     for (let i = 0, il = taskFiles.length; i < il; i++) {
       let taskFile = taskFiles[i];
@@ -160,7 +160,7 @@ class TaskModule extends BaseModule {
       try {
         if (!TaskKlass.keepAlive || !taskInstance) {
           logger        = createTaskLogger();
-          taskInstance  = new TaskKlass(this, logger, runID, { lastTime, currentTime, diff });
+          taskInstance  = new TaskKlass(this.getApplication(), logger, runID, { lastTime, currentTime, diff });
 
           taskInfo.taskInstance = taskInstance;
 
@@ -257,7 +257,7 @@ class TaskModule extends BaseModule {
     Object.defineProperties(this.tasks, {
       '_intervalTimerID': {
         writable:     true,
-        enumberable:  false,
+        enumerable:   false,
         configurable: true,
         value:        setInterval(this.runTasks.bind(this), 1 * MILLISECONDS_PER_SECOND),
       },

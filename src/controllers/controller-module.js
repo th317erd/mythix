@@ -38,7 +38,7 @@ class ControllerModule extends BaseModule {
     Object.defineProperties(application, {
       'getController': {
         writable:     true,
-        enumberable:  false,
+        enumerable:   false,
         configurable: true,
         value:        this.getController.bind(this),
       },
