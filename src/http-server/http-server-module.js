@@ -1,7 +1,7 @@
 'use strict';
 
 const Nife            = require('nife');
-const BaseModule      = require('../modules/base-module');
+const { BaseModule }  = require('../modules/base-module');
 const { HTTPServer }  = require('./http-server');
 
 class HTTPServerModule extends BaseModule {
@@ -103,6 +103,4 @@ class HTTPServerModule extends BaseModule {
   }
 }
 
-module.exports = {
-  HTTPServerModule,
-};
+module.exports = { HTTPServerModule };

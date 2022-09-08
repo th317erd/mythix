@@ -1,15 +1,15 @@
 import { GenericObject } from '../interfaces/common';
-import Application from '../application';
-import Logger from '../logger';
+import { Application } from '../application';
+import { Logger } from '../logger';
 
-declare interface _BaseModuleClass {
+export declare interface BaseModuleClass {
   new(application: Application): BaseModule;
 }
 
-declare type _ModuleClasses = Array<_BaseModuleClass>;
-declare type _Modules = Array<BaseModule>;
+export declare type ModuleClasses = Array<BaseModuleClass>;
+export declare type Modules = Array<BaseModule>;
 
-declare class BaseModule {
+export declare class BaseModule {
   public declare static fileWatcherQueueName: string;
 
   public static getModuleName(): string;
@@ -27,11 +27,3 @@ declare class BaseModule {
 
   declare public application: Application;
 }
-
-declare namespace BaseModule {
-  export type BaseModuleClass = _BaseModuleClass;
-  export type ModuleClasses = _ModuleClasses;
-  export type Modules = _Modules;
-}
-
-export = BaseModule;

@@ -40,4 +40,4 @@ class BaseModule {
   }
 }
 
-module.exports = BaseModule;
+module.exports = { BaseModule };

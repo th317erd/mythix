@@ -183,16 +183,17 @@ class ControllerBase {
     this.responseStatusCode = parseInt(code, 10);
   }
 
-  async handleIncomingRequest(request, response, args) {
-    this.route = args.route;
+  async handleIncomingRequest(request, response, context) {
+    this.route = context.route;
 
-    if (typeof this[args.controllerMethod] !== 'function')
-      this.throwInternalServerError(`Specified route handler named "${this.constructor.name}::${args.controllerMethod}" not found.`);
+    if (typeof this[context.controllerMethod] !== 'function')
+      this.throwInternalServerError(`Specified route handler named "${this.constructor.name}::${context.controllerMethod}" not found.`);
 
-    return await this[args.controllerMethod].call(this, { body: request.body, request, response, ...args }, this.getModels());
+    return await this[context.controllerMethod].call(this, { body: request.body, request, response, ...context }, this.getModels());
   }
 
-  async handleOutgoingResponse(_controllerResult, request, response /*, { route, controller, controllerMethod, controllerInstance, startTime, params } */) {
+  // eslint-disable-next-line no-unused-vars
+  async handleOutgoingResponse(_controllerResult, request, response, context) {
     // Has a response already been sent?
     if (response.statusMessage)
       return;

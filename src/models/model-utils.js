@@ -1,7 +1,7 @@
 'use strict';
 
 const { Types } = require('mythix-orm');
-const ModelBase = require('./model');
+const { Model: ModelBase } = require('./model');
 
 function defineModel(modelName, definer, _parent) {
   return function({ application, connection }) {
@@ -42,4 +42,4 @@ function defineModel(modelName, definer, _parent) {
   };
 }
 
-module.exports = defineModel;
+module.exports = { defineModel };

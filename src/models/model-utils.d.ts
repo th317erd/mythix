@@ -1,7 +1,7 @@
-import Application from "../application";
+import { Application } from "../application";
 import { ModelClass } from "./model";
 
-declare interface _DefineModelContext {
+export declare interface DefineModelContext {
   Parent: ModelClass;
   Types: any; // TODO: Needs mythix-orm
   connection: any; // TODO: Needs mythix-orm
@@ -9,14 +9,9 @@ declare interface _DefineModelContext {
   application: Application;
 }
 
-declare function defineModel(
+export declare function defineModel(
   modelName: string,
-  definer: (context: _DefineModelContext) => ModelClass,
+  // TODO: "connection" needs mythix-orm
+  definer: (context: DefineModelContext) => ModelClass,
   parent?: ModelClass,
-);
-
-declare namespace defineModel {
-  export type DefineModelContext = _DefineModelContext;
-}
-
-export = defineModel;
+): (context: { application: Application, connection: any }) => ModelClass;

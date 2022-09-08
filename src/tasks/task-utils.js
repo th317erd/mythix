@@ -127,4 +127,4 @@ function defineTask(taskName, definer, _parent) {
 
 defineTask.TimeHelpers = TimeHelpers;
 
-module.exports = defineTask;
+module.exports = { defineTask };

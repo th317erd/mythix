@@ -52,16 +52,16 @@ class TestHTTPServerModule extends HTTPServerModule {
   }
 }
 
-function createTestApplication(Application) {
-  const Klass = class TestApplication extends Application {
-    static APP_NAME = `${(Nife.isNotEmpty(Application.APP_NAME)) ? Application.APP_NAME : 'mythix'}_test`;
+function createTestApplication(ApplicationClass) {
+  const Klass = class TestApplication extends ApplicationClass {
+    static APP_NAME = `${(Nife.isNotEmpty(ApplicationClass.APP_NAME)) ? ApplicationClass.APP_NAME : 'mythix'}_test`;
 
     // Swap out modules for test config
     static getDefaultModules() {
-      let defaultModules = Application.getDefaultModules();
+      let defaultModules = ApplicationClass.getDefaultModules();
 
-      defaultModules = Application.replaceModule(defaultModules, DatabaseModule, TestDatabaseModule);
-      defaultModules = Application.replaceModule(defaultModules, HTTPServerModule, TestHTTPServerModule);
+      defaultModules = ApplicationClass.replaceModule(defaultModules, DatabaseModule, TestDatabaseModule);
+      defaultModules = ApplicationClass.replaceModule(defaultModules, HTTPServerModule, TestHTTPServerModule);
 
       return defaultModules;
     }
@@ -229,4 +229,4 @@ function createTestApplication(Application) {
   return Klass;
 }
 
-module.exports = createTestApplication;
+module.exports = { createTestApplication };

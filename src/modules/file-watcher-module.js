@@ -1,8 +1,8 @@
 'use strict';
 
-const chokidar    = require('chokidar');
-const Nife        = require('nife');
-const BaseModule  = require('../modules/base-module');
+const chokidar        = require('chokidar');
+const Nife            = require('nife');
+const { BaseModule }  = require('../modules/base-module');
 
 class FileWatcherModule extends BaseModule {
   static getModuleName() {
@@ -217,4 +217,4 @@ class FileWatcherModule extends BaseModule {
   }
 }
 
-module.exports = FileWatcherModule;
+module.exports = { FileWatcherModule };

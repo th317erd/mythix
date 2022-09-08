@@ -13,6 +13,18 @@ module.exports = defineModel('Migration', ({ Parent, Types }) => {
         primaryKey:   true,
         index:        true,
       },
+      createdAt: {
+        type:         Types.DATETIME,
+        defaultValue: Types.DATETIME.Default.NOW,
+        allowNull:    false,
+        index:        true,
+      },
+      updatedAt: {
+        type:         Types.DATETIME,
+        defaultValue: Types.DATETIME.Default.NOW.UPDATE,
+        allowNull:    false,
+        index:        true,
+      },
     };
   };
 });

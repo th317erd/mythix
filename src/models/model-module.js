@@ -2,8 +2,8 @@
 
 /* global __dirname */
 
-const Path        = require('path');
-const BaseModule  = require('../modules/base-module');
+const Path            = require('path');
+const { BaseModule }  = require('../modules/base-module');
 const {
   fileNameWithoutExtension,
   walkDir,
@@ -127,4 +127,4 @@ class ModelModule extends BaseModule {
   }
 }
 
-module.exports = ModelModule;
+module.exports = { ModelModule };

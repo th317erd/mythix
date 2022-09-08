@@ -1,7 +1,7 @@
 import { GenericObject } from '../interfaces/common';
-import BaseModule from './base-module';
+import { BaseModule } from './base-module';
 
-declare class DatabaseModule extends BaseModule {
+export declare class DatabaseModule extends BaseModule {
   public getDatabaseConfig(): GenericObject;
   public getConfig(): GenericObject;
   public getTablePrefix(): string | null;
@@ -11,5 +11,3 @@ declare class DatabaseModule extends BaseModule {
   declare public connection: any; // TODO: Needs mythix-orm connection
   declare public databaseConfig: GenericObject;
 }
-
-export = DatabaseModule;

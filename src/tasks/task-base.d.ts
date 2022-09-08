@@ -1,15 +1,15 @@
 import { GenericObject } from "../interfaces/common";
-import Application from "../application";
-import Logger from "../logger";
+import { Application } from "../application";
+import { Logger } from "../logger";
 import { ModelClass, ModelClasses } from "../models/model";
 
-declare type _Tasks = { [key: string]: TaskBase };
+export declare type Tasks = { [ key: string ]: TaskBase };
 
-declare interface _TaskClass {
+export declare interface TaskClass {
   new(application: Application, logger: Logger, runID: string): TaskBase;
 }
 
-declare interface _TaskInfo {
+export declare interface TaskInfo {
   _startTime: number;
   lastTime: number;
   failedCount: number;
@@ -19,12 +19,16 @@ declare interface _TaskInfo {
   stop: boolean;
 }
 
-declare class TaskBase {
-  public static onTaskClassCreate(Klass: Function): Function;
+export declare class TaskBase {
+  public static onTaskClassCreate(Klass: TaskClass): TaskClass;
 
-  public static getFrequency(Task: TaskBase, taskIndex?: number): number;
-  public static getStartDelay(Task: TaskBase, taskIndex?: number): number;
-  public static shouldRun(Task: TaskBase, taskIndex: number, lastTime: number | null, currentTime: number, diff: number): boolean;
+  public static getFrequency(taskIndex?: number): number;
+  public static getStartDelay(taskIndex?: number): number;
+  public static shouldRun(taskIndex: number, lastTime: number | null, currentTime: number, diff: number): boolean;
+
+  declare public application: Application;
+  declare public logger: Logger;
+  declare public runID: string;
 
   public constructor(application: Application, logger: Logger, runID: string);
   public start(options?: GenericObject): Promise<any>;
@@ -36,18 +40,6 @@ declare class TaskBase {
   public getModel(name: string): ModelClass;
   public getModels(): ModelClasses;
   public getDBConnection(): any; // TODO: Needs Connection from mythix-orm
-  public getFrequency(task: TaskBase, taskIndex?: number): number;
-  public getStartDelay(task: TaskBase, taskIndex?: number): number;
-
-  declare public application: Application;
-  declare public logger: Logger;
-  declare public runID: string;
+  public getFrequency(taskIndex?: number): number;
+  public getStartDelay(taskIndex?: number): number;
 }
-
-declare namespace TaskBase {
-  export type TaskClass = _TaskClass;
-  export type Tasks = _Tasks;
-  export type TaskInfo = _TaskInfo;
-}
-
-export = TaskBase;

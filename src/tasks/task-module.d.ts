@@ -1,7 +1,7 @@
-import BaseModule from "../modules/base-module";
+import { BaseModule } from "../modules/base-module";
 import { Tasks, TaskInfo } from "./task-base";
 
-declare class TaskModule extends BaseModule {
+export declare class TaskModule extends BaseModule {
   public getTaskFilePaths(tasksPath: string): Array<string>;
   public loadTasks(tasksPath: string): Tasks;
   public runTasks(): Promise<void>;
@@ -13,7 +13,5 @@ declare class TaskModule extends BaseModule {
   public waitForAllTasksToFinish(): Promise<void>;
 
   declare public tasks: Tasks;
-  declare public taskInfo: { [key: string]: TaskInfo };
+  declare public taskInfo: { [ key: string ]: TaskInfo };
 }
-
-export = TaskModule;

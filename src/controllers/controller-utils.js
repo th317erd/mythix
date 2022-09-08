@@ -14,6 +14,8 @@ function defineController(controllerName, definer, _parent) {
       controllerName,
     });
 
+    Klass.getControllerName = () => controllerName;
+
     return { [controllerName]: Klass };
   };
 }
@@ -62,7 +64,7 @@ function buildPatternMatcher(_patterns, _opts) {
         writable:     false,
         enumerable:   false,
         configurable: false,
-        value:        undefined,
+        value:        [],
       },
     });
 
@@ -271,21 +273,6 @@ function buildPathMatcher(routeName, customParserTypes) {
   });
 
   return matchFunc;
-}
-
-function getRouteProperties(route) {
-  let props = {};
-
-  for (let i = 0, il = ROUTE_PROPERTIES.length; i < il; i++) {
-    let propName  = ROUTE_PROPERTIES[i];
-    let value     = route[propName];
-    if (value === undefined)
-      continue;
-
-    props[propName] = value;
-  }
-
-  return props;
 }
 
 function compileRoutes(routes, customParserTypes, _context) {

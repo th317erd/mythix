@@ -1,4 +1,4 @@
-declare interface _LoggerWriter {
+export declare interface LoggerWriter {
   error: (...args: Array<any>) => void;
   warn: (...args: Array<any>) => void;
   info: (...args: Array<any>) => void;
@@ -6,20 +6,20 @@ declare interface _LoggerWriter {
   log: (...args: Array<any>) => void;
 }
 
-declare type _ErrorStackFormatterMethod = (rootPath: string, error: Error) => void;
+export declare type ErrorStackFormatterMethod = (rootPath: string, error: Error) => void;
 
-declare interface _LoggerClass {
-  new(options?: _LoggerOptions): Logger;
+export declare interface LoggerClass {
+  new(options?: LoggerOptions): Logger;
 }
 
-declare interface _LoggerOptions {
+export declare interface LoggerOptions {
   level?: number;
-  writer?: string | _LoggerWriter | null;
+  writer?: string | LoggerWriter | null;
   rootPath?: string;
-  errorStackFormatter?: _ErrorStackFormatterMethod;
+  errorStackFormatter?: ErrorStackFormatterMethod;
 }
 
-declare class Logger {
+export declare class Logger {
   public static LEVEL_ERROR: number;
   public static LEVEL_LOG: number;
   public static LEVEL_WARN: number;
@@ -34,11 +34,11 @@ declare class Logger {
   declare protected _rootPath: string;
   declare protected _errorStackFormatter: string;
 
-  constructor(options?: _LoggerOptions);
+  constructor(options?: LoggerOptions);
 
   public getLevel(): number;
   public setLevel(level: number): void;
-  public clone(extraOpts?: _LoggerOptions): Logger;
+  public clone(extraOpts?: LoggerOptions): Logger;
   public isErrorLevel(): boolean;
   public isLogLevel(): boolean;
   public isWarningLevel(): boolean;
@@ -53,12 +53,3 @@ declare class Logger {
 
   public stop(): Promise<any>;
 }
-
-declare namespace Logger {
-  export type LoggerWriter = _LoggerWriter;
-  export type ErrorStackFormatterMethod = _ErrorStackFormatterMethod;
-  export type LoggerOptions = _LoggerOptions;
-  export type LoggerClass = _LoggerClass;
-}
-
-export = Logger;

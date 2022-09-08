@@ -52,4 +52,4 @@ class Model extends _Model {
   }
 }
 
-module.exports = Model;
+module.exports = { Model };

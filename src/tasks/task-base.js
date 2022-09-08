@@ -2,22 +2,18 @@
 
 class TaskBase {
   static onTaskClassCreate(Klass) {
-    Klass.getFrequency  = Klass.getFrequency.bind(this, Klass);
-    Klass.getStartDelay = Klass.getStartDelay.bind(this, Klass);
-    Klass.shouldRun     = Klass.shouldRun.bind(this, Klass);
-
     return Klass;
   }
 
   // eslint-disable-next-line no-unused-vars
-  static getFrequency(Task, taskIndex) {
-    return Task._frequency || 0;
+  static getFrequency(taskIndex) {
+    return this._frequency || 0;
   }
 
-  static getStartDelay(Task, taskIndex) {
-    let workers     = Task.workers || 1;
-    let frequency   = Task.getFrequency(taskIndex);
-    let startDelay  = Task._startDelay || 0;
+  static getStartDelay(taskIndex) {
+    let workers     = this.workers || 1;
+    let frequency   = this.getFrequency(taskIndex);
+    let startDelay  = this._startDelay || 0;
 
     if (workers > 1) {
       let shift = (frequency / workers);
@@ -27,15 +23,15 @@ class TaskBase {
     return startDelay;
   }
 
-  static shouldRun(Task, taskIndex, lastTime, currentTime, diff) {
+  static shouldRun(taskIndex, lastTime, currentTime, diff) {
     if (!lastTime) {
-      if (diff >= Task.getStartDelay(taskIndex))
+      if (diff >= this.getStartDelay(taskIndex))
         return true;
 
       return false;
     }
 
-    if (diff >= Task.getFrequency(taskIndex))
+    if (diff >= this.getFrequency(taskIndex))
       return true;
 
     return false;
@@ -109,13 +105,13 @@ class TaskBase {
     return application.getDBConnection();
   }
 
-  getFrequency(task, taskIndex) {
-    return this.constructor.getFrequency(task, taskIndex);
+  getFrequency(taskIndex) {
+    return this.constructor.getFrequency(taskIndex);
   }
 
-  getStartDelay(task, taskIndex) {
-    return this.constructor.getStartDelay(task, taskIndex);
+  getStartDelay(taskIndex) {
+    return this.constructor.getStartDelay(taskIndex);
   }
 }
 
-module.exports = TaskBase;
+module.exports = { TaskBase };
