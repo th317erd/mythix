@@ -15,11 +15,11 @@ const { HTTPInterface } = require('./http-interface');
 
 module.exports = {
   CryptoUtils,
-  fileNameWithoutExtension,
   HTTPUtils,
   MimeUtils,
   TestUtils,
+  HTTPInterface,
+  fileNameWithoutExtension,
   walkDir,
   wrapConfig,
-  HTTPInterface,
 };

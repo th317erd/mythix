@@ -204,8 +204,8 @@ function defineCommand(_commandName, definer, _parent) {
   return Klass;
 }
 
-async function createApplication(Application, opts) {
-  let application = new Application(Object.assign({ cli: true }, opts || {}));
+async function createApplication(ApplicationClass, opts) {
+  let application = new ApplicationClass(Object.assign({ cli: true }, opts || {}));
 
   if (Nife.isNotEmpty(opts))
     application.setOptions(Object.assign(opts || {}));

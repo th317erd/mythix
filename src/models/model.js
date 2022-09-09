@@ -21,6 +21,10 @@ class Model extends _Model {
     return this.constructor.getModel(modelName);
   }
 
+  getModels() {
+    return this.constructor.getModels();
+  }
+
   getApplication() {
     return this.constructor.getApplication();
   }

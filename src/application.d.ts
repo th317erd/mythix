@@ -51,7 +51,7 @@ export declare class Application {
   public getOptions(): ApplicationOptions;
   public setOptions(options: ApplicationOptions): Application;
   public loadConfig(configPath: string): GenericObject;
-  public getConfigValue(key: string, defaultValue: any, type: string): any;
+  public getConfigValue(key: string, defaultValue?: any, type?: string): any;
   public getConfig(): GenericObject;
   public setConfig(options: GenericObject): Application;
   public getApplicationName(): string;

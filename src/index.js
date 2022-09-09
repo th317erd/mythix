@@ -15,7 +15,6 @@ module.exports = {
   defineController:       ControllerScope.defineController,
   defineModel:            ModelScope.defineModel,
   defineTask:             TasksScope.defineTask,
-  createTestApplication:  Utils.TestUtils.createTestApplication,
 
   CLI:                    CLIUtilsScope,
   ControllerBase:         ControllerScope.ControllerBase,
@@ -25,7 +24,6 @@ module.exports = {
   HTTPErrors:             HTTPServerScope.HTTPErrors,
   HTTPServer:             HTTPServerScope.HTTPServer,
   HTTPUtils:              Utils.HTTPUtils,
-  Middleware:             HTTPServerScope.Middleware,
   TaskBase:               TasksScope.TaskBase,
   Tasks:                  TasksScope,
   TestUtils:              Utils.TestUtils,

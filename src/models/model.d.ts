@@ -14,6 +14,7 @@ export declare class Model {
   public static getModels(): ModelClasses;
 
   public getModel(modelName?: string): ModelClass | undefined;
+  public getModels(): ModelClasses;
   public getApplication(): Application;
   public getLogger(): Logger;
   public getDBConnection(connection): any; // TODO: Needs Connection from mythix-orm

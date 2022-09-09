@@ -1,3 +1,3 @@
 export * from './task-base';
-export * from './task-module';
-export * from './task-utils';
+export * as TaskUtils from './task-utils';
+export { defineTask } from './task-utils';

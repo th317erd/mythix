@@ -29,8 +29,8 @@ export declare function buildPatternMatcher(
   options?: BuildPatternMatcherOptions
 ): PatternMatcherMethod;
 
-export declare interface DefineControllerContext {
-  Parent: ControllerClass;
+export declare interface DefineControllerContext<T = ControllerClass> {
+  Parent: T;
   application: Application;
   server: HTTPServer;
   controllerName: string;
@@ -40,10 +40,11 @@ export declare function buildMethodMatcher(patterns: RoutePatterns): PatternMatc
 export declare function buildContentTypeMatcher(patterns: RoutePatterns): PatternMatcherMethod;
 export declare function buildPathMatcher(routeName: string, customParserTypes: GenericObject): PathMatcherMethod;
 export declare function buildRoutes(routes: GenericObject | Array<GenericObject>, customParserTypes?: GenericObject): Array<GenericObject>;
-export declare function defineController(
+
+export declare function defineController<T = ControllerClass>(
   controllerName: string,
-  definer: (context: DefineControllerContext) => ControllerClass,
-  parent?: ControllerClass
+  definer: (context: DefineControllerContext<T>) => ControllerClass,
+  parent?: T
 ): (context: {
   application: Application,
   server: HTTPServer,
