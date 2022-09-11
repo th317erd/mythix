@@ -1,3 +1,4 @@
+import { ConnectionBase } from "mythix-orm";
 import { Application } from "../application";
 import { GenericObject } from "../interfaces/common";
 import { TaskClass } from "./task-base";
@@ -19,14 +20,12 @@ export declare class TimeHelpers {
   declare public _seconds: number;
 }
 
-export declare interface TimeHelpersClass {
-  new(days?: number, hours?: number, minutes?: number, seconds?: number): TimeHelpers;
-}
+export declare type TimeHelpersClass = typeof TimeHelpers;
 
 export declare interface DefineTaskContext {
   Parent: TaskClass;
   application: Application;
-  connection: any; // TODO: Needs mythix-orm Connection
+  connection: ConnectionBase;
   dbConfig: GenericObject;
   taskName: string;
   time: TimeHelpers;
@@ -38,7 +37,7 @@ export declare function defineTask(
   parent?: TaskClass,
 ): (context: {
   application: Application,
-  connection: any, // TODO: Need mythix-orm
+  connection: ConnectionBase,
   dbConfig: GenericObject,
 }) => TaskClass;
 

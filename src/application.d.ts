@@ -1,13 +1,11 @@
+import { ConnectionBase, ModelClass, Models } from 'mythix-orm';
 import { ControllerClass } from './controllers/controller-base';
 import { HTTPServer } from './http-server/http-server';
 import { GenericObject } from './interfaces/common';
 import { Logger, LoggerClass, LoggerOptions } from './logger';
-import { ModelClass, ModelClasses } from './models/model';
 import { Modules, ModuleClasses, BaseModuleClass } from './modules/base-module';
 
-export declare interface ApplicationClass {
-  new(options?: ApplicationOptions): Application;
-}
+export declare type ApplicationClass = typeof Application;
 
 export declare interface ApplicationOptions {
   environment: string;
@@ -65,14 +63,14 @@ export declare class Application {
   // From DatabaseModule
   public getDBConfig(): GenericObject;
   public getDBTablePrefix(): string | null;
-  public getDBConnection(): any; // TODO: Need to be a mythix-orm connection
+  public getDBConnection(): ConnectionBase;
 
   // From FileWatcherModule
   public autoReload(enable?: boolean, shuttingDown?: boolean): Promise<void>;
 
   // From ModelModule
   public getModel(modelName?: string): ModelClass | undefined;
-  public getModels(): ModelClasses;
+  public getModels(): Models;
 
   // From ControllerModule
   public getController(name: string): { controller: ControllerClass, controllerMethod: string | undefined };

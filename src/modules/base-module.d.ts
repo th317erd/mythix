@@ -2,9 +2,7 @@ import { GenericObject } from '../interfaces/common';
 import { Application } from '../application';
 import { Logger } from '../logger';
 
-export declare interface BaseModuleClass {
-  new(application: Application): BaseModule;
-}
+export declare type BaseModuleClass = typeof BaseModule;
 
 export declare type ModuleClasses = Array<BaseModuleClass>;
 export declare type Modules = Array<BaseModule>;
@@ -13,7 +11,7 @@ export declare class BaseModule {
   public declare static fileWatcherQueueName: string;
 
   public static getModuleName(): string;
-  public static shouldUse(options?: GenericObject)
+  public static shouldUse(options?: GenericObject): boolean;
 
   public fileWatcherGetMonitorPaths(options?: GenericObject): Array<string>;
   public fileWatcherHandler(options?: GenericObject): Promise<void>;

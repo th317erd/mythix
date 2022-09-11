@@ -1,13 +1,11 @@
 import { GenericObject } from "../interfaces/common";
 import { Application } from "../application";
 import { Logger } from "../logger";
-import { ModelClass, ModelClasses } from "../models/model";
+import { ConnectionBase, ModelClass, Models } from "mythix-orm";
 
 export declare type Tasks = { [ key: string ]: TaskBase };
 
-export declare interface TaskClass {
-  new(application: Application, logger: Logger, runID: string): TaskBase;
-}
+export declare type TaskClass = typeof TaskBase;
 
 export declare interface TaskInfo {
   _startTime: number;
@@ -38,8 +36,8 @@ export declare class TaskBase {
   public getRunID(): string;
   public getNumberOfWorkers(): number;
   public getModel(name: string): ModelClass;
-  public getModels(): ModelClasses;
-  public getDBConnection(): any; // TODO: Needs Connection from mythix-orm
+  public getModels(): Models;
+  public getDBConnection(): ConnectionBase;
   public getFrequency(taskIndex?: number): number;
   public getStartDelay(taskIndex?: number): number;
 }

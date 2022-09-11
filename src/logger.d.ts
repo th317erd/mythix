@@ -8,9 +8,7 @@ export declare interface LoggerWriter {
 
 export declare type ErrorStackFormatterMethod = (rootPath: string, error: Error) => void;
 
-export declare interface LoggerClass {
-  new(options?: LoggerOptions): Logger;
-}
+export declare type LoggerClass = typeof Logger;
 
 export declare interface LoggerOptions {
   level?: number;

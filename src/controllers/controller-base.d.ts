@@ -2,11 +2,9 @@ import { Application } from "../application";
 import { Logger } from "../logger";
 import { Request, Response } from 'express';
 import { GenericObject } from "../interfaces/common";
-import { ModelClass, ModelClasses } from "../models";
+import { ConnectionBase, ModelClass, Models } from "mythix-orm";
 
-export declare interface ControllerClass {
-  new(application: Application, logger: Logger, request: Request, response: Response): ControllerBase;
-}
+export declare type ControllerClass = typeof ControllerBase;
 
 export declare type ControllerClasses = { [ key: string ]: ControllerClass };
 
@@ -37,8 +35,8 @@ export declare class ControllerBase {
   public getApplication(): Application;
   public getLogger(): Logger;
   public getModel(name?: string): ModelClass | undefined;
-  public getModels(): ModelClasses;
-  public getDBConnection(): any; // TODO: Needs mythix-orm
+  public getModels(): Models;
+  public getDBConnection(): ConnectionBase;
   public prepareToThrowError(ErrorClass: Function, args: Array<any>): Error;
   public throwNotFoundError(...args: Array<any>): void;
   public throwBadRequestError(...args: Array<any>): void;

@@ -1,16 +1,19 @@
+import { HelpInterface, Runner } from "cmded";
+import { ConnectionBase } from "mythix-orm";
 import { Application, ApplicationClass, ApplicationOptions } from "../application";
 import { GenericObject } from "../interfaces/common";
 import { Logger } from "../logger";
 
-export declare interface CommandClass {
-  new(application: Application, options?: GenericObject): CommandBase;
-}
+export declare type CommandClass = typeof CommandBase;
 
 export declare type CommandClasses = { [ key: string ]: CommandClass };
 
 export declare class CommandBase {
   declare public static commands: GenericObject;
   declare public static commandName: string;
+  declare public static applicationConfig?: GenericObject | (() => GenericObject);
+  declare public static commandArguments?: () => { help: HelpInterface, runner: Runner };
+  declare public static runtimeArguments?: { [ key: string ]: Array<string> };
   public static execute(): Promise<void>;
 
   declare public application: Application;
@@ -20,7 +23,7 @@ export declare class CommandBase {
   getOptions(): GenericObject;
   getApplication(): Application;
   getLogger(): Logger;
-  getDBConnection(): any; // TODO: needs mythix-orm connection
+  getDBConnection(): ConnectionBase;
 }
 
 export declare interface DefineCommandContext {
