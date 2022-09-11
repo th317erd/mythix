@@ -3,6 +3,7 @@ import { Logger } from "../logger";
 import { Request, Response } from 'express';
 import { GenericObject } from "../interfaces/common";
 import { ConnectionBase, ModelClass, Models } from "mythix-orm";
+import { HTTPBaseError } from "../http-server/http-errors";
 
 export declare type ControllerClass = typeof ControllerBase;
 
@@ -37,7 +38,7 @@ export declare class ControllerBase {
   public getModel(name?: string): ModelClass | undefined;
   public getModels(): Models;
   public getDBConnection(): ConnectionBase;
-  public prepareToThrowError(ErrorClass: Function, args: Array<any>): Error;
+  public prepareToThrowError(ErrorClass: Function, args: Array<any>): HTTPBaseError;
   public throwNotFoundError(...args: Array<any>): void;
   public throwBadRequestError(...args: Array<any>): void;
   public throwUnauthorizedError(...args: Array<any>): void;

@@ -1,6 +1,10 @@
 import { GenericObject } from "../interfaces/common";
 
 export declare class HTTPBaseError extends Error {
+  declare public route: GenericObject;
+  declare public statusCode: number;
+  declare public headers: GenericObject;
+
   constructor(route: GenericObject | null | undefined, message?: string, statusCode?: number);
   getMessage(): string;
 }
