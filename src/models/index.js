@@ -2,7 +2,7 @@
 
 const { Model }       = require('./model');
 const { ModelModule } = require('./model-module');
-const MigrationModel = require('./migration-model');
+const { MigrationModel } = require('./migration-model');
 const {
   defineModel,
   registerModel,
