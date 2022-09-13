@@ -20,21 +20,21 @@
   "homepage": "https://github.com/th317erd/mythix#readme",
   "devDependencies": {
     "@spothero/eslint-plugin-spothero": "github:spothero/eslint-plugin-spothero",
-    "@types/node": "^18.7.16",
+    "@types/node": "^18.7.17",
     "colors": "^1.4.0",
     "diff": "^5.1.0",
-    "eslint": "^8.13.0",
-    "jasmine": "^4.0.2"
+    "eslint": "^8.23.1",
+    "jasmine": "^4.4.0"
   },
   "dependencies": {
     "@types/events": "^3.0.0",
     "chokidar": "^3.5.3",
-    "cmded": "^1.2.1",
-    "express": "^4.17.3",
+    "cmded": "^1.2.3",
+    "express": "^4.18.1",
     "express-busboy": "github:th317erd/express-busboy#0754a570d7979097b31e48655b80d3fcd628d4e4",
     "form-data": "^4.0.0",
-    "mythix-orm": "^1.5.6",
-    "nife": "^1.11.3",
+    "mythix-orm": "^1.6.2",
+    "nife": "^1.12.1",
     "prompts": "^2.4.2"
   }
 }
