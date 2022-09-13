@@ -1,9 +1,9 @@
-import { Application } from "../application";
-import { Logger } from "../logger";
+import { Application } from '../application';
+import { Logger } from '../logger';
 import { Request, Response } from 'express';
-import { GenericObject } from "../interfaces/common";
-import { ConnectionBase, ModelClass, Models } from "mythix-orm";
-import { HTTPBaseError } from "../http-server/http-errors";
+import { GenericObject } from '../interfaces/common';
+import { ConnectionBase, ModelClass, Models } from 'mythix-orm';
+import { HTTPBaseError } from '../http-server/http-errors';
 
 export declare type ControllerClass = typeof ControllerBase;
 

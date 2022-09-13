@@ -1,8 +1,8 @@
-import { GenericObject } from "../interfaces/common";
-import { Application } from "../application";
+import { GenericObject } from '../interfaces/common';
+import { Application } from '../application';
 import { Application as ExpressApplication, Request, Response } from 'express';
-import { Logger } from "../logger";
-import { ControllerClass, ControllerContext } from "../controllers/controller-base";
+import { Logger } from '../logger';
+import { ControllerClass, ControllerContext } from '../controllers/controller-base';
 
 export declare class HTTPServer {
   declare public application: Application;

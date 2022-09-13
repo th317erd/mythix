@@ -1,5 +1,5 @@
-import { Application } from "../application";
-import { GenericObject } from "../interfaces/common";
+import { Application } from '../application';
+import { GenericObject } from '../interfaces/common';
 
 export declare interface GenerateClientInterfaceOptions {
   globalName?: string;

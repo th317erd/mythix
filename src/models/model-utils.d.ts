@@ -1,5 +1,5 @@
-import { ConnectionBase, Types } from "mythix-orm";
-import { Application } from "../application";
+import { ConnectionBase, Types } from 'mythix-orm';
+import { Application } from '../application';
 
 export declare interface DefineModelContext<T> {
   Parent: T;

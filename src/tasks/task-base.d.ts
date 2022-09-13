@@ -1,7 +1,7 @@
-import { GenericObject } from "../interfaces/common";
-import { Application } from "../application";
-import { Logger } from "../logger";
-import { ConnectionBase, ModelClass, Models } from "mythix-orm";
+import { GenericObject } from '../interfaces/common';
+import { Application } from '../application';
+import { Logger } from '../logger';
+import { ConnectionBase, ModelClass, Models } from 'mythix-orm';
 
 export declare type Tasks = { [ key: string ]: TaskBase };
 

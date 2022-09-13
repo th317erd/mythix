@@ -1,7 +1,7 @@
-import { ConnectionBase } from "mythix-orm";
-import { Application } from "../application";
-import { GenericObject } from "../interfaces/common";
-import { TaskClass } from "./task-base";
+import { ConnectionBase } from 'mythix-orm';
+import { Application } from '../application';
+import { GenericObject } from '../interfaces/common';
+import { TaskClass } from './task-base';
 
 export declare class TimeHelpers {
   constructor(days?: number, hours?: number, minutes?: number, seconds?: number);

@@ -1,7 +1,7 @@
-import { Application } from "../application";
-import { Logger } from "../logger";
+import { Application } from '../application';
+import { Logger } from '../logger';
 import { ConnectionBase, Model as _Model, ModelClass } from 'mythix-orm';
-import { DefineModelContext } from "./model-utils";
+import { DefineModelContext } from './model-utils';
 
 export declare class Model extends _Model {
   declare public static getTableName: () => string;

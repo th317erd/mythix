@@ -1,8 +1,8 @@
-import { HelpInterface, Runner } from "cmded";
-import { ConnectionBase } from "mythix-orm";
-import { Application, ApplicationClass, ApplicationOptions } from "../application";
-import { GenericObject } from "../interfaces/common";
-import { Logger } from "../logger";
+import { HelpInterface, Runner } from 'cmded';
+import { ConnectionBase } from 'mythix-orm';
+import { Application, ApplicationClass, ApplicationOptions } from '../application';
+import { GenericObject } from '../interfaces/common';
+import { Logger } from '../logger';
 
 export declare type CommandClass = typeof CommandBase;
 

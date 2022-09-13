@@ -1,4 +1,4 @@
-import { GenericObject } from "../interfaces/common";
+import { GenericObject } from '../interfaces/common';
 
 export declare class HTTPInterface {
   declare public defaultURL: string | null;

@@ -1,5 +1,5 @@
-import { BaseModule } from "../modules/base-module";
-import { Tasks, TaskInfo } from "./task-base";
+import { BaseModule } from '../modules/base-module';
+import { Tasks, TaskInfo } from './task-base';
 
 export declare class TaskModule extends BaseModule {
   public getTaskFilePaths(tasksPath: string): Array<string>;

@@ -1,7 +1,7 @@
-import { Application } from "../application";
-import { HTTPServer } from "../http-server";
-import { GenericObject } from "../interfaces/common";
-import { ControllerClass } from "./controller-base";
+import { Application } from '../application';
+import { HTTPServer } from '../http-server';
+import { GenericObject } from '../interfaces/common';
+import { ControllerClass } from './controller-base';
 
 export declare interface BuildPatternMatcherOptions {
   strict?: boolean;
