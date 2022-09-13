@@ -80,7 +80,7 @@ class ControllerModule extends BaseModule {
 
       try {
         let controllerGenerator = require(controllerFile);
-        if (controllerGenerator['default'] && typeof controllerGenerator['default'] === 'function')
+        if (controllerGenerator.__esModule)
           controllerGenerator = controllerGenerator['default'];
 
         Object.assign(controllers, controllerGenerator(args));

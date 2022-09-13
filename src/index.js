@@ -14,6 +14,7 @@ module.exports = {
   defineCommand:          CLIUtilsScope.defineCommand,
   defineController:       ControllerScope.defineController,
   defineModel:            ModelScope.defineModel,
+  registerModel:          ModelScope.registerModel,
   defineTask:             TasksScope.defineTask,
 
   CLI:                    CLIUtilsScope,

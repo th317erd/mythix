@@ -434,7 +434,13 @@ class HTTPServer {
     app.use((request, response, next) => {
       if ((/application\/json/i).test(request.headers['content-type']) && Buffer.isBuffer(request.body)) {
         let bodyStr = request.body.toString('utf8');
-        request._rawBody = request.body = bodyStr;
+        request._rawBody = bodyStr;
+
+        try {
+          request.body = JSON.parse(bodyStr);
+        } catch (error) {
+          request.body = bodyStr;
+        }
       }
 
       next();

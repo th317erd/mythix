@@ -86,7 +86,7 @@ class ModelModule extends BaseModule {
 
       try {
         let modelGenerator = require(modelFile);
-        if (modelGenerator['default'] && typeof modelGenerator['default'] === 'function')
+        if (modelGenerator.__esModule)
           modelGenerator = modelGenerator['default'];
 
         Object.assign(models, modelGenerator(args));

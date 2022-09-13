@@ -91,7 +91,7 @@ class TaskModule extends BaseModule {
 
       try {
         let taskGenerator = require(taskFile);
-        if (taskGenerator['default'] && typeof taskGenerator['default'] === 'function')
+        if (taskGenerator.__esModule)
           taskGenerator = taskGenerator['default'];
 
         Object.assign(tasks, taskGenerator(args));

@@ -232,7 +232,10 @@ class Application extends EventEmitter {
     try {
       let appOptions = this.getOptions();
 
-      const config = require(configPath);
+      let config = require(configPath);
+      if (config.__esModule)
+        config = config['default'];
+
       return wrapConfig(Object.assign({}, config || {}, { environment: (appOptions.environment || config.environment || 'development')}));
     } catch (error) {
       this.getLogger().error(`Error while trying to load application configuration ${configPath}: `, error);

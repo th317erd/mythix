@@ -374,7 +374,7 @@ function generateRoutes(_routes, _options) {
     if (clientOptions == null) {
       var contentType = route.accept;
       if (Nife.isEmpty(contentType))
-        contentType = 'application/json; charset=UTF-8';
+        contentType = 'application/json';
       else if (Array.isArray(contentType))
         contentType = contentType[0];
 
