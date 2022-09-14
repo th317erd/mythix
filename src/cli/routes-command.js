@@ -1,7 +1,7 @@
 'use strict';
 
 const { defineCommand } = require('./cli-utils');
-const Logger            = require('../logger');
+const { Logger }        = require('../logger');
 const { buildRoutes }   = require('../controllers/controller-utils');
 
 const TAB_SIZE = 8;

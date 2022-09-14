@@ -4,7 +4,7 @@
 
 const Nife                  = require('nife');
 const { Utils }             = require('mythix-orm');
-const Logger                = require('../logger');
+const { Logger }            = require('../logger');
 const { DatabaseModule }    = require('../modules/database-module');
 const { HTTPInterface }     = require('./http-interface');
 const { HTTPServerModule }  = require('../http-server/http-server-module');

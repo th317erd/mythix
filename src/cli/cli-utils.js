@@ -5,7 +5,7 @@
 const Path        = require('path');
 const FileSystem  = require('fs');
 const Nife        = require('nife');
-const Logger      = require('../logger');
+const { Logger }  = require('../logger');
 
 const {
   walkDir,

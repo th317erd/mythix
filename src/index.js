@@ -1,12 +1,12 @@
 'use strict';
 
 const { Application }   = require('./application');
+const { Logger }        = require('./logger');
 const ModelScope        = require('./models');
 const HTTPServerScope   = require('./http-server');
 const ControllerScope   = require('./controllers');
 const CLIUtilsScope     = require('./cli');
 const TasksScope        = require('./tasks');
-const Logger            = require('./logger');
 const Utils             = require('./utils');
 const Modules           = require('./modules');
 
