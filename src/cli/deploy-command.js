@@ -18,12 +18,14 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
     static commandArguments() {
       return {
         help: {
-          '@usage':     'mythix-cli deploy {target}',
-          '@title':     'Deploy your application to the specified target',
-          '--dry-run':  'Show what would be deployed without actually deploying',
+          '@usage':       'mythix-cli deploy {target}',
+          '@title':       'Deploy your application to the specified target',
+          '--dry-run':    'Show what would be deployed without actually deploying',
+          '--no-cleanup': 'File prep in the temporary file location will not be cleaned up after processing',
         },
         runner: ({ $, Types }) => {
           $('--dry-run', Types.BOOLEAN());
+          $('--no-cleanup', Types.BOOLEAN());
 
           return $(
             /[\w-]+/,
@@ -68,7 +70,11 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       return date.toISOString().replace(/\.[^.]+$/, '').replace(/\D/g, '');
     }
 
-    collectFilesToDeploy(config) {
+    stripPostfixSlashFromPath(path) {
+      return path.replace(/[/\\]+$/, '');
+    }
+
+    collectFilesToDeploy(rootPath, config) {
       const filterFunc = (context) => {
         const matchesAnyPattern = (patterns) => {
           for (let i = 0, il = patterns.length; i < il; i++) {
@@ -111,7 +117,6 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
 
       let {
         git,
-        rootPath,
         include,
         exclude,
       } = config;
@@ -175,6 +180,34 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       }
     }
 
+    async cleanup(dryRun, deployConfig) {
+      let { tempLocation } = deployConfig;
+      let removeCommand;
+
+      tempLocation = this.stripPostfixSlashFromPath(tempLocation);
+
+      if (process.platform === 'win32') {
+        removeCommand = {
+          command:  'rmdir',
+          args:     [
+            tempLocation,
+            '/Q',
+            '/S',
+          ],
+        };
+      } else {
+        removeCommand = {
+          command:  'rm',
+          args:     [
+            '-fr',
+            tempLocation,
+          ],
+        };
+      }
+
+      await this.spawnCommand(false, removeCommand.command, removeCommand.args);
+    }
+
     async cloneProject(dryRun, deployConfig) {
       let {
         git,
@@ -187,11 +220,11 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         repository,
       } = (git || {});
 
-      rootPath = rootPath.replace(/[/\\]+$/, '');
+      rootPath = this.stripPostfixSlashFromPath(rootPath);
 
       let targetPath = Path.join(tempLocation, 'project');
 
-      if (true) {
+      if (!repository) {
         let copyCommand;
 
         if (process.platform === 'win32') {
@@ -218,38 +251,131 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           };
         }
 
-        await this.spawnCommand(dryRun, copyCommand.command, copyCommand.args);
+        await this.spawnCommand(false, copyCommand.command, copyCommand.args);
       } else {
+        let args = [
+          'clone',
+          repository,
+        ];
 
+        if (branch) {
+          args.push('-b');
+          args.push(branch);
+        }
+
+        args.push(targetPath);
+
+        await this.spawnCommand(
+          false,
+          'git',
+          args,
+        );
       }
     }
 
-    async cleanup(dryRun, deployConfig) {
-      let { tempLocation } = deployConfig;
-      let removeCommand;
+    async copyFile(dryRun, sourceFilePath, targetFilePath) {
+      let targetDir = Path.dirname(targetFilePath);
+      if (!FileSystem.existsSync(targetDir))
+        await this.mkdirSync(false, targetDir);
 
-      tempLocation = tempLocation.replace(/[/\\]+$/, '');
+      console.log(`    (running)$ cp ${sourceFilePath} ${targetFilePath}`);
+      FileSystem.copyFileSync(sourceFilePath, targetFilePath);
+    }
 
-      if (process.platform === 'win32') {
-        removeCommand = {
-          command:  'rmdir',
-          args:     [
-            tempLocation,
-            '/Q',
-            '/S',
-          ],
-        };
-      } else {
-        removeCommand = {
-          command:  'rm',
-          args:     [
-            '-fr',
-            tempLocation,
-          ],
-        };
+    async prepRemote(target, targetOptions, deployConfig) {
+
+    }
+
+    async postDeploy(target, targetOptions, deployConfig) {
+      let targetIndex = deployConfig.targets.indexOf(target);
+      if (targetIndex === 0) {
+        // Migrations here
+      }
+    }
+
+    async copyProjectFilesToDeployFolder(dryRun, deployConfig) {
+      let {
+        tempLocation,
+        version,
+      } = deployConfig;
+
+      let projectLocation       = Path.join(tempLocation, 'project');
+      let deployFolderLocation  = Path.join(tempLocation, ('' + version));
+
+      let filesToDeploy = this.collectFilesToDeploy(projectLocation, deployConfig);
+      if (Nife.isEmpty(filesToDeploy)) {
+        console.error('Nothing to deploy');
+        return 1;
       }
 
-      await this.spawnCommand(dryRun, removeCommand.command, removeCommand.args);
+      for (let i = 0, il = filesToDeploy.length; i < il; i++) {
+        let sourcePath        = filesToDeploy[i];
+        let relativeFilePath  = sourcePath.substring(projectLocation.length).replace(/^[/\\]+/, '');
+        let targetPath        = Path.join(deployFolderLocation, relativeFilePath);
+
+        await this.copyFile(dryRun, sourcePath, targetPath);
+      }
+    }
+
+    async prepProjectPreDeploy(dryRun, deployConfig) {
+      let {
+        tempLocation,
+        version,
+        installModulesCommand,
+      } = deployConfig;
+
+      let deployLocation = Path.join(tempLocation, ('' + version));
+
+      if (!installModulesCommand) {
+        let yarnLockLocation = Path.join(deployLocation, 'yarn.lock');
+        if (FileSystem.existsSync(yarnLockLocation))
+          installModulesCommand = { command: 'yarn', args: [] };
+        else
+          installModulesCommand = { command: 'npm', args: [ 'i' ] };
+      } else if (Nife.isEmpty(typeof installModulesCommand !== 'function' && Nife.isEmpty(installModulesCommand.command))) {
+        throw new Error('You specified a "installModulesCommand" in your deploy config, but no "command" property found... you need to specify "installModulesCommand" as an object "{ installModulesCommand: { command: "npm", args: [ "i" ] } }", or as a function.');
+      }
+
+      if (typeof installModulesCommand === 'function') {
+        await installModulesCommand(deployConfig);
+      } else {
+        await this.spawnCommand(
+          false,
+          installModulesCommand.command,
+          installModulesCommand.args || [],
+          {
+            cwd: deployLocation,
+            env: {
+              pwd: deployLocation,
+            },
+          },
+        );
+      }
+    }
+
+    async archiveProject(dryRun, deployConfig) {
+      let {
+        tempLocation,
+        version,
+      } = deployConfig;
+
+      let archiveLocation = Path.join(tempLocation, `${version}.tar.gz`);
+
+      await this.spawnCommand(
+        false,
+        'tar',
+        [
+          '-czf',
+          archiveLocation,
+          `.${Path.sep}${version}`,
+        ],
+        {
+          cwd: tempLocation,
+          env: {
+            pwd: tempLocation,
+          },
+        },
+      );
     }
 
     async execute(args) {
@@ -324,13 +450,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         return 1;
       }
 
-      let filesToDeploy = this.collectFilesToDeploy(deployConfig);
-      if (Nife.isEmpty(filesToDeploy)) {
-        console.error('Nothing to deploy');
-        return 1;
-      }
-
-      let dryRun = args.dryRun;
+      let dryRun = deployConfig.dryRun = args.dryRun;
       let {
         git,
         tempLocation,
@@ -360,15 +480,15 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           console.log(`    -> ${target}`);
         }
 
-        console.log('');
-        console.log('  Files:');
+        // console.log('');
+        // console.log('  Files:');
 
-        for (let i = 0, il = filesToDeploy.length; i < il; i++) {
-          let fileName          = filesToDeploy[i];
-          let relativeFileName  = fileName.substring(deployConfig.rootPath.length).replace(/^[/\\]+/, '');
+        // for (let i = 0, il = filesToDeploy.length; i < il; i++) {
+        //   let fileName          = filesToDeploy[i];
+        //   let relativeFileName  = fileName.substring(deployConfig.rootPath.length).replace(/^[/\\]+/, '');
 
-          console.log(`    -> ./${relativeFileName}`);
-        }
+        //   console.log(`    -> ./${relativeFileName}`);
+        // }
 
         if (Nife.isEmpty(branch)) {
           console.log('');
@@ -391,14 +511,19 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         }
 
         await this.cloneProject(dryRun, deployConfig);
+        await this.copyProjectFilesToDeployFolder(dryRun, deployConfig);
+        await this.prepProjectPreDeploy(dryRun, deployConfig);
+        await this.archiveProject(dryRun, deployConfig);
       } catch (error) {
         console.error(error);
         return 1;
       } finally {
-        try {
-          await this.cleanup(dryRun, deployConfig);
-        } catch (error) {
-          console.error('Error while attempting to clean up after operation: ', error);
+        if (!args.noCleanup) {
+          try {
+            await this.cleanup(dryRun, deployConfig);
+          } catch (error) {
+            console.error('Error while attempting to clean up after operation: ', error);
+          }
         }
       }
     }
