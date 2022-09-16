@@ -54,8 +54,6 @@ class TestHTTPServerModule extends HTTPServerModule {
 
 function createTestApplication(ApplicationClass) {
   const Klass = class TestApplication extends ApplicationClass {
-    static APP_NAME = `${(Nife.isNotEmpty(ApplicationClass.APP_NAME)) ? ApplicationClass.APP_NAME : 'mythix'}_test`;
-
     // Swap out modules for test config
     static getDefaultModules() {
       let defaultModules = ApplicationClass.getDefaultModules();
@@ -72,6 +70,7 @@ function createTestApplication(ApplicationClass) {
         autoReload:   false,
         runTasks:     false,
         testMode:     true,
+        appName:      `${(Nife.isNotEmpty(ApplicationClass.APP_NAME)) ? ApplicationClass.APP_NAME : 'mythix'}_test`,
       }, _opts || {});
 
       super(opts);

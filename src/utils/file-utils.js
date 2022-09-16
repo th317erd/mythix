@@ -14,7 +14,16 @@ function walkDir(rootPath, _options, _callback, _allFiles, _depth) {
   for (let i = 0, il = fileNames.length; i < il; i++) {
     let fileName      = fileNames[i];
     let fullFileName  = Path.join(rootPath, fileName);
-    let stats         = FileSystem.statSync(fullFileName);
+    let stats;
+
+    try {
+      stats = FileSystem.statSync(fullFileName);
+    } catch (error) {
+      if (error.code === 'ENOENT')
+        continue;
+
+      throw error;
+    }
 
     if (typeof filterFunc === 'function' && !filterFunc(fullFileName, fileName, stats, rootPath, depth))
       continue;

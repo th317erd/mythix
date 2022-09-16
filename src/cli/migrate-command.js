@@ -2,8 +2,8 @@
 
 const Path              = require('path');
 const Nife              = require('nife');
-const { defineCommand } = require('../cli-utils');
-const { walkDir }       = require('../../utils/file-utils');
+const { defineCommand } = require('./cli-utils');
+const { walkDir }       = require('../utils/file-utils');
 
 const TIMESTAMP_LENGTH        = 14;
 const MILLISECONDS_PER_SECOND = 1000.0;

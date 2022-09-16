@@ -151,6 +151,11 @@ class Application extends EventEmitter {
       opts.tempPath = Path.resolve(OS.tmpdir(), this.getApplicationName().replace(/[^\w-]/g, ''), ('' + process.pid));
   }
 
+  getApplicationName() {
+    let options = this.getOptions();
+    return options.appName || this.constructor.APP_NAME;
+  }
+
   getTempPath() {
     let options = this.getOptions();
     return options.tempPath;
@@ -260,11 +265,6 @@ class Application extends EventEmitter {
   setConfig(opts) {
     Nife.extend(true, this.config.CONFIG, opts);
     return this;
-  }
-
-  getApplicationName() {
-    let options = this.getOptions();
-    return options.appName;
   }
 
   getRoutes() {

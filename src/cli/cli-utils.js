@@ -1,6 +1,6 @@
 'use strict';
 
-/* global process, __dirname */
+/* global process, __dirname, Buffer */
 
 const Path        = require('path');
 const FileSystem  = require('fs');
@@ -12,7 +12,10 @@ const {
   fileNameWithoutExtension,
 } = require('../utils/file-utils');
 
-const { CMDed } = require('cmded');
+const {
+  CMDed,
+  showHelp,
+} = require('cmded');
 
 class CommandBase {
   constructor(application, options) {
@@ -48,6 +51,70 @@ class CommandBase {
   getDBConnection() {
     let application = this.getApplication();
     return application.getDBConnection();
+  }
+
+  spawnCommand(command, args, options) {
+    const { spawn } = require('child_process');
+
+    return new Promise((resolve, reject) => {
+      try {
+        let childProcess = spawn(
+          command,
+          args,
+          Object.assign({}, options || {}, {
+            env: Object.assign({}, process.env, (options || {}).env || {}),
+          }),
+        );
+
+        let output = [];
+        let errors = [];
+
+        childProcess.stdout.on('data', (data) => {
+          output.push(data);
+        });
+
+        childProcess.stderr.on('data', (data) => {
+          errors.push(data);
+        });
+
+        childProcess.on('error', (error) => {
+          reject({
+            stdout: Buffer.concat(output).toString('utf8'),
+            stderr: Buffer.concat(errors).toString('utf8'),
+            code:   1,
+            error,
+          });
+        });
+
+        childProcess.on('close', (code) => {
+          resolve({
+            stdout: Buffer.concat(output).toString('utf8'),
+            stderr: Buffer.concat(errors).toString('utf8'),
+            error:  null,
+            code,
+          });
+        });
+      } catch (error) {
+        reject({
+          stdout: '',
+          stderr: '',
+          code:   1,
+          error,
+        });
+      }
+    });
+  }
+
+  getCommandFiles(filterFunc) {
+    let application         = this.getApplication();
+    let applicationOptions  = application.getOptions();
+    let internalCommands    = getCommandFiles(getInternalCommandsPath(), filterFunc);
+    let externalCommands    = [];
+
+    if (Nife.isNotEmpty(applicationOptions.commandsPath))
+      externalCommands = getCommandFiles(applicationOptions.commandsPath, filterFunc);
+
+    return [].concat(internalCommands, externalCommands);
   }
 }
 
@@ -109,36 +176,66 @@ function defineCommand(_commandName, definer, _parent) {
   // "executeCommand" below, which spawns a node process that
   // targets this command script.
   Klass.execute = async function() {
-    // eslint-disable-next-line new-cap
-    let commandContext = CMDed((context) => {
-      let { $, Types, store, scope } = context;
+    let helpShown = false;
 
-      // Parse these even though they are no longer needed
-      // so that we ensure they are "consumed".
-      $('--config', Types.STRING({
-        format: Path.resolve,
-      })) || store({ config: (Nife.isNotEmpty(process.env.MYTHIX_CONFIG_PATH)) ? Path.resolve(process.env.MYTHIX_CONFIG_PATH) : Path.join(process.env.PWD, '.mythix-config.js') });
+    const customShowHelp = (subHelp) => {
+      if (helpShown)
+        return;
 
-      $('--runtime', Types.STRING());
+      helpShown = true;
 
-      $('-e', Types.STRING(), { name: 'environment' });
-      $('--env', Types.STRING(), { name: 'environment' });
+      showHelp(subHelp);
+    };
 
-      let runner = null;
+    const getArgumentsContext = async (application) => {
+      // eslint-disable-next-line new-cap
+      return await CMDed(async (context) => {
+        let { $, Types, store, scope } = context;
 
-      if (typeof Klass.commandArguments === 'function') {
-        let result = (Klass.commandArguments() || {});
-        runner = result.runner;
-      }
+        // Parse these even though they are no longer needed
+        // so that we ensure they are "consumed".
+        $('--config', Types.STRING({
+          format: Path.resolve,
+        })) || store({ config: (Nife.isNotEmpty(process.env.MYTHIX_CONFIG_PATH)) ? Path.resolve(process.env.MYTHIX_CONFIG_PATH) : Path.join(process.env.PWD, '.mythix-config') });
 
-      return scope(commandName, (context) => {
-        if (typeof runner === 'function')
-          return runner(context);
+        $('--runtime', Types.STRING());
 
-        return true;
+        $('-e', Types.STRING(), { name: 'environment' });
+        $('--env', Types.STRING(), { name: 'environment' });
+
+        if (!application)
+          return true;
+
+        store('executing', true);
+        store('mythixApplication', application);
+
+        // Consume the command name
+        $(commandName, ({ fetch, showHelp }) => {
+          if (fetch('help', false))
+            showHelp(commandName);
+
+          return true;
+        });
+
+        let runner = null;
+        if (typeof Klass.commandArguments === 'function') {
+          let result = ((await Klass.commandArguments(application, 'runner')) || {});
+          runner = result.runner;
+        }
+
+        return await scope(commandName, async (context) => {
+          if (typeof runner === 'function')
+            return await runner(context);
+
+          return true;
+        });
+      }, {
+        helpArgPattern: null,
+        showHelp:       customShowHelp,
       });
-    });
+    };
 
+    let commandContext = await getArgumentsContext();
     if (!commandContext)
       return;
 
@@ -178,9 +275,11 @@ function defineCommand(_commandName, definer, _parent) {
       if (doStartApplication)
         await application.start();
 
+      commandContext = await getArgumentsContext(application);
+
       let commandOptions  = commandContext[commandName] || {};
       let commandInstance = new Klass(application, commandOptions);
-      let result          = await commandInstance.execute.call(commandInstance, commandOptions);
+      let result          = await commandInstance.execute.call(commandInstance, commandOptions, commandContext);
 
       await application.stop(result || 0);
     } catch (error) {
@@ -225,35 +324,42 @@ function loadCommand(name) {
   return CommandKlass;
 }
 
+function getCommandFiles(commandsPath, filterFunc) {
+  try {
+    return walkDir(commandsPath, {
+      filter: (fullFileName, fileName, stats) => {
+        if (typeof filterFunc === 'function')
+          return filterFunc(fullFileName, fileName, stats);
+
+        if (fileName.match(/^_/))
+          return false;
+
+        if (stats.isFile() && !fileNameWithoutExtension(fileName).match(/-command$/))
+          return false;
+
+        return true;
+      },
+    });
+  } catch (error) {
+    if (error.code === 'ENOENT')
+      return [];
+
+    console.error(error);
+    throw error;
+  }
+}
+
+function getInternalCommandsPath() {
+  return Path.resolve(__dirname);
+}
+
 function loadCommands(applicationCommandsPath, skip) {
-  const getCommandFiles = (commandsPath) => {
-    try {
-      return walkDir(commandsPath, {
-        filter: (fullFileName, fileName, stats) => {
-          if (fileName.match(/^_/))
-            return false;
-
-          if (stats.isFile() && !fileNameWithoutExtension(fileName).match(/-command$/))
-            return false;
-
-          return true;
-        },
-      });
-    } catch (error) {
-      if (error.code === 'ENOENT')
-        return [];
-
-      console.error(error);
-      throw error;
-    }
-  };
-
   if (loadingAllCommandsInProgress)
     return;
 
   loadingAllCommandsInProgress = true;
 
-  let mythixCommandFiles      = getCommandFiles(Path.resolve(__dirname));
+  let mythixCommandFiles      = getCommandFiles(getInternalCommandsPath());
   let applicationCommandFiles = getCommandFiles(applicationCommandsPath);
   let allCommandFiles         = [].concat(mythixCommandFiles, applicationCommandFiles);
 
@@ -324,6 +430,9 @@ function loadMythixConfig(_mythixConfigPath, _appRootPath) {
   try {
     if (FileSystem.existsSync(configPath)) {
       let mythixConfig = require(configPath);
+      if (mythixConfig.__esModule)
+        mythixConfig = mythixConfig['default'];
+
       if (!mythixConfig.appRootPath)
         mythixConfig.appRootPath = appRootPath;
 
@@ -407,6 +516,8 @@ async function executeCommand(_config, appOptions, commandContext, CommandKlass,
 module.exports = {
   CommandBase,
   loadMythixConfig,
+  getInternalCommandsPath,
+  getCommandFiles,
   loadCommand,
   loadCommands,
   defineCommand,

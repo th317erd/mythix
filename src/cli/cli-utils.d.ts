@@ -1,4 +1,5 @@
 import { HelpInterface, Runner } from 'cmded';
+import { Stats } from 'fs';
 import { ConnectionBase } from 'mythix-orm';
 import { Application, ApplicationClass, ApplicationOptions } from '../application';
 import { GenericObject } from '../interfaces/common';
@@ -7,6 +8,8 @@ import { Logger } from '../logger';
 export declare type CommandClass = typeof CommandBase;
 
 export declare type CommandClasses = { [ key: string ]: CommandClass };
+
+export declare type FileFilterCallback = (fullFileName: string, fileName: string, stats?: Stats) => boolean;
 
 export declare class CommandBase {
   declare public static commands: GenericObject;
@@ -24,6 +27,14 @@ export declare class CommandBase {
   getApplication(): Application;
   getLogger(): Logger;
   getDBConnection(): ConnectionBase;
+
+  spawnCommand(
+    command: string,
+    args: Array<string>,
+    options?: GenericObject
+  ): Promise<{ stdout: string, stderr: string, error: any, code: number }>;
+
+  getCommandFiles(filterFunc?: FileFilterCallback): Array<string>;
 }
 
 export declare interface DefineCommandContext {
@@ -61,3 +72,6 @@ export declare function executeCommand(
   CommandKlass: CommandClass,
   argv: Array<string>
 ): void;
+
+export declare function getInternalCommandsPath(): string;
+export declare function getCommandFiles(commandsPath: string, filterFunc?: FileFilterCallback): Array<string>;
