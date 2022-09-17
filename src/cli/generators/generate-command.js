@@ -73,7 +73,16 @@ function loadGeneratorCommands(application, operationName) {
 
 module.exports = defineCommand('generate', ({ Parent }) => {
   return class GenerateCommand extends Parent {
-    static applicationConfig = { database: false, logger: { level: Logger.LEVEL_ERROR } };
+    static applicationConfig = () => {
+      return {
+        httpServer: false,
+        autoReload: false,
+        runTasks:   false,
+        logger:     {
+          level: Logger.LEVEL_ERROR,
+        },
+      };
+    };
 
     static commandArguments(application, operationName) {
       let generatorCommands = loadGeneratorCommands(application, operationName);

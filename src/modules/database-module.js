@@ -89,7 +89,7 @@ class DatabaseModule extends BaseModule {
     if (userSpecifiedPrefix != null)
       return ('' + userSpecifiedPrefix);
 
-    return `${this.getApplication().getApplicationName()}_`.replace(/[^A-Za-z0-9_]+/g, '');
+    return `${this.getApplication().getApplicationName()}_`.replace(/[^A-Za-z0-9_]+/g, '_').replace(/_+/g, '_');
   }
 
   getConnection() {

@@ -5,9 +5,12 @@
 const Path              = require('path');
 const FileSystem        = require('fs');
 const Nife              = require('nife');
+const { Utils }         = require('mythix-orm');
 const { CommandBase }   = require('../cli-utils');
 
-function generateMigration(migrationID, upCode, downCode, preCode, postCode) {
+class ValidationError extends Error {}
+
+function generateMigration(migrationID, upCode, downCode) {
   let template =
 `
 const MIGRATION_ID = '${migrationID}';
@@ -15,20 +18,10 @@ const MIGRATION_ID = '${migrationID}';
 module.exports = {
   MIGRATION_ID,
   up: async function(connection) {
-${preCode}
-    try {
 ${upCode}
-    } finally {
-${postCode}
-    }
   },
   down: async function(connection) {
-${preCode}
-    try {
 ${downCode}
-    } finally {
-${postCode}
-    }
   },
 };
 `;
@@ -151,13 +144,65 @@ class GenerateMigrationCommand extends CommandBase {
       return 1;
     }
 
-    let content   = await this[methodName](args);
-    let finalPath = Path.join(args.outputPath, migrationName);
+    try {
+      let content   = await this[methodName](args);
+      let finalPath = Path.join(args.outputPath, migrationName);
 
-    console.log('Would write content:\n', content);
+      console.log(`Would write content:\n${content}`);
 
-    // FileSystem.writeFileSync(migrationWritePath, migrationSource, 'utf8');
-    console.log(`New migration to revision ${args.version} has been written to file "${finalPath}"`);
+      // FileSystem.writeFileSync(migrationWritePath, migrationSource, 'utf8');
+
+      console.log(`New migration to revision ${args.version} has been written to file "${finalPath}"`);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        console.error(error.message + '\n');
+        return 1;
+      }
+
+      throw error;
+    }
+  }
+
+  tabIn(str, amount = 1) {
+    let parts = new Array(amount);
+    for (let i = 0; i < amount; i++)
+      parts.push('  ');
+
+    let ws = parts.join('');
+    return str.trim().replace(/^/gm, ws);
+  }
+
+  operationAddModels(args) {
+    if (Nife.isEmpty(args.remaining))
+      throw new ValidationError('No model name(s) provided. Try this instead: \n\nmythix-cli generate migration add models \'{model name}\' ...');
+
+    let application       = this.getApplication();
+    let connection        = application.getDBConnection();
+    let queryGenerator    = connection.getQueryGenerator();
+    let statements        = [];
+    let reverseStatements = [];
+
+    let modelNames = Utils.sortModelNamesByCreationOrder(connection, Nife.uniq(args.remaining));
+    for (let i = 0, il = modelNames.length; i < il; i++) {
+      let modelName = modelNames[i];
+      let Model     = connection.getModel(modelName);
+
+      let createTable = queryGenerator.generateCreateTableStatement(Model);
+      statements.push(`    // Create ${modelName} table\n    await connection.query(\`\n${this.tabIn(createTable, 3)}\`,\n      { logger: console },\n    );`);
+
+      let dropTable = queryGenerator.generateDropTableStatement(Model, { cascade: true });
+      reverseStatements.push(`    // Drop ${modelName} table\n    await connection.query(\n      \`${dropTable.trim()}\`,\n      { logger: console },\n    );`);
+    }
+
+    return generateMigration(
+      args.version,
+      statements.join('\n\n'),
+      reverseStatements.reverse().join('\n\n'),
+    );
+  }
+
+  operationAddModel(args) {
+    return this.operationAddModels(args);
   }
 }
 

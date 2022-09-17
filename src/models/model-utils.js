@@ -9,7 +9,7 @@ function _setupModel(modelName, _Model, { application, connection }) {
   let tablePrefix = application.getDBTablePrefix();
 
   if (tablePrefix)
-    tableName = (`${tablePrefix}${tableName}`);
+    tableName = `${tablePrefix}${tableName}`.replace(/_+/g, '_');
 
   Model.getTableName  = () => tableName;
   Model.getModelName  = () => modelName;
