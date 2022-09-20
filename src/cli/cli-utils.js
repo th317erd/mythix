@@ -61,7 +61,7 @@ class CommandBase {
         let childProcess = spawn(
           command,
           args,
-          Object.assign({}, options || {}, {
+          Object.assign({ shell: true }, options || {}, {
             env: Object.assign({}, process.env, (options || {}).env || {}),
           }),
         );
@@ -87,12 +87,23 @@ class CommandBase {
         });
 
         childProcess.on('close', (code) => {
-          resolve({
-            stdout: Buffer.concat(output).toString('utf8'),
-            stderr: Buffer.concat(errors).toString('utf8'),
-            error:  null,
-            code,
-          });
+          if (code !== 0) {
+            let error = Buffer.concat(errors).toString('utf8');
+
+            reject({
+              stdout: Buffer.concat(output).toString('utf8'),
+              stderr: error,
+              error:  error,
+              code,
+            });
+          } else {
+            resolve({
+              stdout: Buffer.concat(output).toString('utf8'),
+              stderr: Buffer.concat(errors).toString('utf8'),
+              error:  null,
+              code,
+            });
+          }
         });
       } catch (error) {
         reject({
@@ -134,22 +145,6 @@ function defineCommand(_commandName, definer, _parent) {
 
   let commandName = _commandName.toLowerCase();
   let parent      = _parent;
-
-  let doExecuteCommand    = process.env['MYTHIX_EXECUTE_COMMAND'];
-  let executeImmediately  = false;
-
-  // Is this command script being executed directly?
-  // If so, make certain to load all commands.
-  // This is required, so that commands that inherit
-  // from other commands will continue to work.
-  if (doExecuteCommand === commandName && !loadingAllCommandsInProgress) {
-    executeImmediately = true;
-
-    let mythixCommandPath             = process.env['MYTHIX_COMMAND_PATH'];
-    let mythixApplicationCommandsPath = process.env['MYTHIX_APPLICATION_COMMANDS'];
-    if (mythixCommandPath && mythixApplicationCommandsPath)
-      loadCommands(mythixApplicationCommandsPath, [ mythixCommandPath ]);
-  }
 
   if (Nife.instanceOf(parent, 'string')) {
     if (!CommandBase.commands[parent])
@@ -292,14 +287,6 @@ function defineCommand(_commandName, definer, _parent) {
 
   CommandBase.commands[commandName] = Klass;
 
-  // If this command file was loaded directly, and it was requested
-  // that we execute it, then do so right now
-  if (executeImmediately) {
-    Klass.execute().then(() => {}, (error) => {
-      console.log(error);
-    });
-  }
-
   return Klass;
 }
 
@@ -366,7 +353,6 @@ function loadCommands(applicationCommandsPath, skip) {
   allCommandFiles.forEach((commandPath) => {
     if (skip && skip.indexOf(commandPath) >= 0)
       return;
-
 
     loadCommand(commandPath);
   });
@@ -486,7 +472,7 @@ async function executeCommand(_config, appOptions, commandContext, CommandKlass,
     let commandsPath      = appOptions.commandsPath;
     let runtime           = commandContext.runtime || config.runtime || process.env.MYTHIX_RUNTIME || 'node';
     let runtimeArguments  = ((CommandKlass.runtimeArguments || {})[runtime]) || [];
-    let args              = runtimeArguments.concat([ commandPath ], argv);
+    let args              = runtimeArguments.concat([ Path.resolve(__dirname, 'command-executor.js') ], argv);
 
     let code = await spawnCommand(
       args,
