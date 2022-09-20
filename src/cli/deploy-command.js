@@ -6,10 +6,13 @@ const Nife              = require('nife');
 const Path              = require('path');
 const OS                = require('os');
 const FileSystem        = require('fs');
+const { URL }           = require('url');
 const micromatch        = require('micromatch');
 const { defineCommand } = require('./cli-utils');
 const { Logger }        = require('../logger');
 const { walkDir }       = require('../utils/file-utils');
+
+const DEFAULT_SSH_PORT = 22;
 
 module.exports = defineCommand('deploy', ({ Parent }) => {
   return class DeployCommand extends Parent {
@@ -43,6 +46,10 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           );
         },
       };
+    }
+
+    joinUnixPath(...args) {
+      return args.join('/').replace(/\/{2,}/g, '/');
     }
 
     async spawnCommand(dryRun, command, args, options) {
@@ -208,7 +215,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       await this.spawnCommand(false, removeCommand.command, removeCommand.args);
     }
 
-    async cloneProject(dryRun, deployConfig) {
+    async cloneProject(deployConfig) {
       let {
         git,
         tempLocation,
@@ -282,21 +289,11 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       FileSystem.copyFileSync(sourceFilePath, targetFilePath);
     }
 
-    async prepRemote(target, targetOptions, deployConfig) {
-
-    }
-
-    async postDeploy(target, targetOptions, deployConfig) {
-      let targetIndex = deployConfig.targets.indexOf(target);
-      if (targetIndex === 0) {
-        // Migrations here
-      }
-    }
-
-    async copyProjectFilesToDeployFolder(dryRun, deployConfig) {
+    async copyProjectFilesToDeployFolder(deployConfig) {
       let {
         tempLocation,
         version,
+        dryRun,
       } = deployConfig;
 
       let projectLocation       = Path.join(tempLocation, 'project');
@@ -317,19 +314,23 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       }
     }
 
-    async prepProjectPreDeploy(dryRun, deployConfig) {
+    async installModulesForApp(target, deployConfig) {
       let {
         tempLocation,
         version,
         installModulesCommand,
       } = deployConfig;
 
+      let {
+        remoteLocation,
+      } = target;
+
       let deployLocation = Path.join(tempLocation, ('' + version));
 
       if (!installModulesCommand) {
         let yarnLockLocation = Path.join(deployLocation, 'yarn.lock');
         if (FileSystem.existsSync(yarnLockLocation))
-          installModulesCommand = { command: 'yarn', args: [] };
+          installModulesCommand = { command: 'yarn', args: [ 'install' ] };
         else
           installModulesCommand = { command: 'npm', args: [ 'i' ] };
       } else if (Nife.isEmpty(typeof installModulesCommand !== 'function' && Nife.isEmpty(installModulesCommand.command))) {
@@ -339,27 +340,25 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       if (typeof installModulesCommand === 'function') {
         await installModulesCommand(deployConfig);
       } else {
-        await this.spawnCommand(
-          false,
-          installModulesCommand.command,
-          installModulesCommand.args || [],
-          {
-            cwd: deployLocation,
-            env: {
-              pwd: deployLocation,
-            },
-          },
-        );
+        await this.executeRemoteCommands(target, deployConfig, [
+          { command: 'cd', args: [ `"${remoteLocation}"` ] },
+          installModulesCommand,
+          { ...installModulesCommand, args: (installModulesCommand.args || []).concat('mythix-cli') },
+        ]);
       }
     }
 
-    async archiveProject(dryRun, deployConfig) {
+    // eslint-disable-next-line no-unused-vars
+    async prepProjectPreDeploy(deployConfig) {
+    }
+
+    async archiveProject(deployConfig) {
       let {
         tempLocation,
         version,
       } = deployConfig;
 
-      let archiveLocation = Path.join(tempLocation, `${version}.tar.gz`);
+      let archiveLocation = deployConfig.archiveLocation = Path.join(tempLocation, `${version}.tar.gz`);
 
       await this.spawnCommand(
         false,
@@ -378,9 +377,269 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       );
     }
 
-    async execute(args) {
-      let application   = this.getApplication();
-      let appName       = application.getApplicationName() || 'mythix';
+    getTargetInfo(target) {
+      let {
+        uri,
+        ssh,
+        scp,
+      } = target;
+
+      if (!ssh)
+        ssh = { command: 'ssh' };
+
+      if (!scp)
+        scp = { command: 'scp' };
+
+      if (Nife.isEmpty(ssh.command))
+        ssh.command = 'ssh';
+
+      if (Nife.isEmpty(scp.command))
+        scp.command = 'scp';
+
+      let port = target.port || uri.port;
+      if (!port) {
+        port = DEFAULT_SSH_PORT;
+      } else {
+        port = parseInt(port, 10);
+        if (!isFinite(port))
+          port = DEFAULT_SSH_PORT;
+      }
+
+      return {
+        origin:   uri.origin,
+        protocol: (uri.protocol || '').replace(/:+$/, ''),
+        username: uri.username,
+        password: uri.password,
+        host:     uri.host,
+        hostname: uri.hostname,
+        pathname: uri.pathname,
+        ...target,
+        ssh,
+        scp,
+        port,
+      };
+    }
+
+    substituteURLParams(target, value) {
+      let substitutionMap = {
+        TARGET_ORIGIN:      target.origin,
+        TARGET_PROTOCOL:    target.protocol,
+        TARGET_USERNAME:    target.username,
+        TARGET_PASSWORD:    target.password,
+        TARGET_HOST:        target.host,
+        TARGET_HOSTNAME:    target.hostname,
+        TARGET_PORT:        target.port,
+        TARGET_PATHNAME:    this.stripPostfixSlashFromPath(target.pathname),
+        TARGET_DEPLOY_PATH: target.remoteLocation,
+      };
+
+      let keys  = Object.keys(substitutionMap);
+      let re    = new RegExp(`\\$\\{(${keys.join('|')})\\}`, 'g');
+
+      return ('' + value).replace(re, (m, name) => {
+        return substitutionMap[name];
+      });
+    }
+
+    sudo(deployConfig) {
+      return (deployConfig.useSudo === false) ? '' : 'sudo ';
+    }
+
+    async executeRemoteCommands(target, deployConfig, commands) {
+      let {
+        dryRun,
+      } = deployConfig;
+
+      let {
+        hostname,
+        username,
+        port,
+        ssh,
+      } = target;
+
+      let {
+        command,
+        args,
+      } = ssh;
+
+      if (Nife.isEmpty(args) && port !== DEFAULT_SSH_PORT)
+        args = [ '-p', port ];
+
+      let commandString = commands.map((command) => {
+        if (Nife.isEmpty(command.args))
+          return `${this.sudo(deployConfig)}${command.command}`;
+
+        const escapeArgument = (arg) => {
+          if (arg.indexOf('\'') < 0)
+            return arg;
+
+          return `'${this.substituteURLParams(target, arg).replace(/'/g, '\'')}'`;
+        };
+
+        return `${this.sudo(deployConfig)}${command.command} ${command.args.map(escapeArgument).join(' ')}`;
+      }).join(' && ');
+
+      if (Nife.isNotEmpty(args))
+        args = args.map((arg) => this.substituteURLParams(target, arg)).join(' ');
+
+      commandString = `${command}${(Nife.isNotEmpty(args)) ? ` ${args}` : ''} ${(Nife.isNotEmpty(username)) ? `'${username}@${hostname}'` : `'${hostname}'`} '${commandString}'`;
+
+      if (dryRun)
+        console.log(`    (would run)$ ${commandString}`);
+    }
+
+    async iterateDeployTargets(deployConfig, callback) {
+      const invokeCallback = (_target, index) => {
+        let target = this.getTargetInfo(_target);
+        return callback({
+          ...target,
+          index,
+          remoteLocation: this.joinUnixPath(decodeURIComponent(target.pathname), ('' + deployConfig.version)),
+        }, deployConfig);
+      };
+
+      let targets = deployConfig.targets;
+
+      if (deployConfig.parallelDeploy !== false) {
+        let promises = [];
+
+        for (let i = 0, il = targets.length; i < il; i++) {
+          let target = targets[i];
+          promises.push(invokeCallback(target, i));
+        }
+
+        return await Promise.all(promises);
+      } else {
+        let results = [];
+
+        for (let i = 0, il = targets.length; i < il; i++) {
+          let target = targets[i];
+          results.push(await invokeCallback(target, i));
+        }
+
+        return results;
+      }
+    }
+
+    async allRemotesPreDeploy(deployConfig) {
+      return await this.iterateDeployTargets(deployConfig, this.remotePreDeploy.bind(this));
+    }
+
+    async remotePreDeploy(target, deployConfig) {
+      if (typeof target.preDeploy === 'function')
+        return await target.preDeploy.call(this, target, deployConfig);
+
+      await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'mkdir', args: [ '-p', decodeURIComponent(target.pathname) ] },
+      ]);
+    }
+
+    async allRemotesDeploy(deployConfig) {
+      return await this.iterateDeployTargets(deployConfig, this.remoteDeploy.bind(this));
+    }
+
+    async copyArchiveToRemote(target, deployConfig) {
+      let {
+        dryRun,
+        archiveLocation,
+      } = deployConfig;
+
+      if (!deployConfig.archiveLocation)
+        throw new Error('Unable to find the location of the archive to send to the remote server');
+
+      let {
+        uri,
+        hostname,
+        pathname,
+        username,
+        port,
+        scp,
+      } = target;
+
+      let {
+        command,
+        args,
+      } = scp;
+
+      if (Nife.isEmpty(args)) {
+        if (port !== DEFAULT_SSH_PORT)
+          args = [ '-P', port ];
+        else
+          args = [];
+      }
+
+      await this.spawnCommand(
+        dryRun,
+        command,
+        args.concat([
+          `'${deployConfig.archiveLocation}'`,
+          (Nife.isNotEmpty(username)) ? `'${username}@${hostname}:/tmp/'` : `'${hostname}:/tmp/'`,
+        ]),
+      );
+
+      let archiveFileName = Path.basename(archiveLocation);
+      let sourceLocation = `"/tmp/${archiveFileName}"`;
+      let targetLocation = `"${decodeURIComponent(target.pathname)}/"`;
+
+      await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'cp', args: [ sourceLocation, targetLocation ] },
+        { command: 'rm -f', args: [ `"/tmp/${archiveFileName}"` ] },
+        { command: 'cd', args: [ targetLocation ] },
+        { command: 'tar', args: [ '-xf', `"./${archiveFileName}"` ] },
+      ]);
+    }
+
+    async remoteDeploy(target, deployConfig) {
+      if (typeof target.deploy === 'function')
+        return await target.deploy.call(this, target, deployConfig);
+
+      await this.copyArchiveToRemote(target, deployConfig);
+    }
+
+    async allRemotesPostDeploy(deployConfig) {
+      return await this.iterateDeployTargets(deployConfig, this.remotePostDeploy.bind(this));
+    }
+
+    async remotePostDeploy(target, deployConfig) {
+      if (typeof target.postDeploy === 'function')
+        return await target.postDeploy.call(this, target, deployConfig);
+
+      let {
+        relativeConfigPath,
+      } = deployConfig;
+
+      let targetConfigPath  = this.joinUnixPath(decodeURIComponent(target.pathname), 'shared', 'config');
+      let sourceConfigPath  = this.joinUnixPath(decodeURIComponent(target.pathname), '' + deployConfig.version, relativeConfigPath);
+
+      await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'test', args: [ '!', '-d', `"${targetConfigPath}"`, '&&', `${this.sudo(deployConfig)}cp -a "${sourceConfigPath}" "${targetConfigPath}"` ] },
+      ]);
+
+      await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'rm', args: [ '-fr', `"${sourceConfigPath}"` ] },
+        { command: 'ln', args: [ '-s', `"${targetConfigPath}"`, `"${sourceConfigPath}"` ] },
+      ]);
+
+      await this.installModulesForApp(target, deployConfig);
+
+      if (target.index === 0) {
+        // Migrations here
+      }
+    }
+
+    async allRemotesFinalizeDeploy(deployConfig) {
+      return await this.iterateDeployTargets(deployConfig, this.remoteFinalizeDeploy.bind(this));
+    }
+
+    async remoteFinalizeDeploy(target, deployConfig) {
+      if (typeof target.finalizeDeploy === 'function')
+        return await target.finalizeDeploy.call(this, target, deployConfig);
+    }
+
+    async loadDeployConfig(args) {
+      let application = this.getApplication();
+      let appOptions  = application.getOptions();
+      let appName     = application.getApplicationName() || 'mythix';
       let configPath;
       let deployConfig;
 
@@ -398,9 +657,41 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         deployConfig = deployConfig[args.target];
 
         if (Nife.isEmpty(deployConfig.targets)) {
-          console.error('"targets" is required. "targets" in deployment configuration is empty.');
+          console.error('"targets" is empty in your deploy config. "targets" is required, and must specify at least one remote target to deploy to.');
           return 1;
         }
+
+        if (!Nife.instanceOf(deployConfig.targets, 'array')) {
+          console.error('"targets" is not an array. "targets" in your deploy config must be an array of remote targets.');
+          return 1;
+        }
+
+        deployConfig.targets = deployConfig.targets.filter(Boolean).map((target) => {
+          if (Nife.instanceOf(target, 'string')) {
+            return {
+              rawURI: ('' + target),
+              uri:    new URL('' + target),
+            };
+          }
+
+          if (!Nife.instanceOf(target, 'object'))
+            throw new Error(`Bad value detected in "targets" in deploy config: "${target}". All targets must either be a string (URI), or an object with a "uri" property.`);
+
+          return {
+            ...target,
+            rawURI: ('' + target.uri),
+            uri:    new URL('' + target.uri),
+          };
+        });
+
+        deployConfig.targets.forEach((target, index) => {
+          let { uri, rawURI } = target;
+          if (Nife.isEmpty(uri.hostname))
+            throw new Error(`Bad "uri" specified for "targets[${index}]": "${rawURI}". No "hostname" found.`);
+
+          if (Nife.isEmpty(uri.pathname))
+            throw new Error(`Bad "uri" specified for "targets[${index}]": "${rawURI}". No "pathname" found.`);
+        });
 
         deployConfig.version = this.getRevisionNumber();
 
@@ -409,6 +700,8 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
 
         if (!deployConfig.rootPath)
           deployConfig.rootPath = Path.dirname(configPath);
+
+        deployConfig.relativeConfigPath = appOptions.configPath.substring(deployConfig.rootPath.length).replace(/^[/\\.]+/, '').replace(/[/\\]+$/, '');
 
         let git = deployConfig.git || {};
         if (git.useGitIgnore) {
@@ -437,16 +730,29 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
             return 1;
           }
         }
+
+        return deployConfig;
       } catch (error) {
         if (error.code === 'MODULE_NOT_FOUND') {
           if (!configPath)
             configPath = Path.resolve(process.cwd(), '.mythix-deploy.js');
 
-          console.error(`Unable to find deployment config "${configPath}"`);
-          return 1;
+          throw new Error(`Unable to find deployment config "${configPath}"`);
         }
 
-        console.error(error);
+        throw error;
+      }
+    }
+
+    async execute(args) {
+      let application   = this.getApplication();
+      let appName       = application.getApplicationName() || 'mythix';
+      let deployConfig;
+
+      try {
+        deployConfig = await this.loadDeployConfig(args);
+      } catch (error) {
+        console.error(error.message);
         return 1;
       }
 
@@ -463,42 +769,39 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       } = (git || {});
 
       if (dryRun) {
-        console.log('------------ DRY RUN ------------');
-        console.log(`----- Deploy ${deployConfig.version} -----`);
+        console.log('|-------------- DRY RUN --------------|');
+        console.log('| 1. Temporary files will be created  |');
+        console.log('| 2. Repository will be cloned        |');
+        console.log('| 3. Files will be archived           |');
+        console.log('| 4. Will verify SSH connections      |');
+        console.log('| 5. Will *NOT* actually deploy app   |');
+        console.log('| 6. Will *NOT* migrate database      |');
+        console.log('|-------------------------------------|');
         console.log('');
-        console.log(`  Application name: ${appName}`);
-        console.log('');
-        console.log(`  Temporary file location: ${deployConfig.tempLocation}`);
-        console.log('');
-        console.log(`  Project file location: ${deployConfig.rootPath}`);
-        console.log('');
-        console.log('  Targets:');
-
-        let targets = deployConfig.targets;
-        for (let i = 0, il = targets.length; i < il; i++) {
-          let target = targets[i];
-          console.log(`    -> ${target}`);
-        }
-
-        // console.log('');
-        // console.log('  Files:');
-
-        // for (let i = 0, il = filesToDeploy.length; i < il; i++) {
-        //   let fileName          = filesToDeploy[i];
-        //   let relativeFileName  = fileName.substring(deployConfig.rootPath.length).replace(/^[/\\]+/, '');
-
-        //   console.log(`    -> ./${relativeFileName}`);
-        // }
-
-        if (Nife.isEmpty(branch)) {
-          console.log('');
-          console.log('  !!!WARNING!!! "branch" is not set in your deploy configuration. The current file structure will be deployed "as-is". It is highly recommended that you set a "branch" in your deploy configuration.');
-        }
-
-        console.log('');
-
-        console.log('  Command log:');
       }
+
+      console.log(`-------- Deploy ${deployConfig.version} --------`);
+      console.log(`  Application name: ${appName}`);
+      console.log(`  Application config location: ./${deployConfig.relativeConfigPath}`);
+      console.log(`  Temporary file location: ${deployConfig.tempLocation}`);
+      console.log(`  Project file location: ${deployConfig.rootPath}`);
+      console.log('');
+      console.log('  Targets:');
+
+      let targets = deployConfig.targets;
+      for (let i = 0, il = targets.length; i < il; i++) {
+        let target = targets[i];
+        console.log(`    -> ${target.uri}`);
+      }
+
+      if (Nife.isEmpty(branch)) {
+        console.log('');
+        console.log('  !!!WARNING!!! "branch" is not set in your deploy configuration. The current file structure will be deployed "as-is". It is highly recommended that you set a "branch" in your deploy configuration.');
+      }
+
+      console.log('');
+
+      console.log('  Command log:');
 
       try {
         this.mkdirSync(dryRun, tempLocation);
@@ -510,10 +813,13 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
             git.repository = repository;
         }
 
-        await this.cloneProject(dryRun, deployConfig);
-        await this.copyProjectFilesToDeployFolder(dryRun, deployConfig);
-        await this.prepProjectPreDeploy(dryRun, deployConfig);
-        await this.archiveProject(dryRun, deployConfig);
+        await this.cloneProject(deployConfig);
+        await this.copyProjectFilesToDeployFolder(deployConfig);
+        await this.prepProjectPreDeploy(deployConfig);
+        await this.archiveProject(deployConfig);
+        await this.allRemotesPreDeploy(deployConfig);
+        await this.allRemotesDeploy(deployConfig);
+        await this.allRemotesPostDeploy(deployConfig);
       } catch (error) {
         console.error(error);
         return 1;
