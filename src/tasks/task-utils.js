@@ -1,7 +1,7 @@
 'use strict';
 
-const Nife      = require('nife');
-const TaskBase  = require('./task-base');
+const Nife          = require('nife');
+const { TaskBase }  = require('./task-base');
 
 const SECONDS_PER_MINUTE      = 60;
 const MINUTES_PER_HOUR        = 60;
