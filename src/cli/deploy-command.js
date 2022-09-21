@@ -12,7 +12,8 @@ const { defineCommand } = require('./cli-utils');
 const { Logger }        = require('../logger');
 const { walkDir }       = require('../utils/file-utils');
 
-const DEFAULT_SSH_PORT = 22;
+const DEFAULT_SSH_PORT                = 22;
+const LATEST_DEPLOY_VERSIONS_TO_KEEP  = 5;
 
 module.exports = defineCommand('deploy', ({ Parent }) => {
   return class DeployCommand extends Parent {
@@ -494,12 +495,12 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       if (options && Nife.isNotEmpty(options.sshArgs))
         args = args.concat(options.sshArgs);
       else
-        args = args.concat([ '-t' ]);
+        args = args.concat([ '-t', '-q' ]);
 
       if (Nife.isNotEmpty(args))
         args = args.map((arg) => this.substituteURLParams(target, arg));
 
-      await this.spawnCommand(
+      return await this.spawnCommand(
         dryRun,
         command,
         args.concat([
@@ -560,9 +561,13 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       return await this.iterateDeployTargets(deployConfig, this.remoteDeploy.bind(this));
     }
 
-    async copyFileToRemote(target, deployConfig, filePath) {
+    async copyFileToRemote(target, deployConfig, _filePath, options) {
+      let filePath = _filePath;
+      let fileName = Path.basename(filePath);
+
       let {
         dryRun,
+        tempLocation,
       } = deployConfig;
 
       let {
@@ -584,6 +589,16 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           args = [];
       }
 
+      if (!dryRun && options && typeof options.substituteContent === 'function') {
+        let content = FileSystem.readFileSync(filePath, 'utf8');
+        content = options.substituteContent.call(this, content);
+
+        await this.mkdirSync(false, tempLocation);
+
+        filePath = Path.join(tempLocation, fileName);
+        FileSystem.writeFileSync(filePath, content, 'utf8');
+      }
+
       await this.spawnCommand(
         dryRun,
         command,
@@ -593,7 +608,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         ]),
       );
 
-      return `/tmp/${Path.basename(filePath)}`;
+      return `/tmp/${fileName}`;
     }
 
     async copyArchiveToRemote(target, deployConfig) {
@@ -638,20 +653,25 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         relativeConfigPath,
       } = deployConfig;
 
-      let deployLocation      = this.joinUnixPath(decodeURIComponent(target.pathname), '' + deployConfig.version);
-      let targetConfigPath    = this.joinUnixPath(decodeURIComponent(target.pathname), 'shared', 'config');
-      let sourceConfigPath    = this.joinUnixPath(deployLocation, relativeConfigPath);
-      let currentLinkLocation = this.joinUnixPath(decodeURIComponent(target.pathname), 'current');
+      let deployLocation    = this.joinUnixPath(decodeURIComponent(target.pathname), '' + deployConfig.version);
+      let targetConfigPath  = this.joinUnixPath(decodeURIComponent(target.pathname), 'shared', 'config');
+      let sourceConfigPath  = this.joinUnixPath(deployLocation, relativeConfigPath);
+      let nodeModulesLink   = this.joinUnixPath(targetConfigPath, 'node_modules');
 
+      // Ensure shared/config exists
       await this.executeRemoteCommands(target, deployConfig, [
         { command: 'test', args: [ '!', '-d', `"${targetConfigPath}"`, '&&', `${this.sudo(deployConfig)}cp -a "${sourceConfigPath}" "${targetConfigPath}"`, '|| true' ] },
       ]);
 
+      // Ensure shared/config/node_modules symlink exists
+      await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'test', args: [ '!', '-e', `"${nodeModulesLink}"`, '&&', `{ cd "${targetConfigPath}"; ${this.sudo(deployConfig)}ln -s "../../current/node_modules" "node_modules"; }`, '|| true' ] },
+      ]);
+
+      // Remove app/config and symlink to ../shared/app/config
       await this.executeRemoteCommands(target, deployConfig, [
         { command: 'rm', args: [ '-fr', `"${sourceConfigPath}"` ] },
         { command: 'ln', args: [ '-s', `"${targetConfigPath}"`, `"${sourceConfigPath}"` ] },
-        { command: 'rm', args: [ '-f', `"${currentLinkLocation}"` ] },
-        { command: 'ln', args: [ '-s', `"${deployLocation}"`, `"${currentLinkLocation}"` ] },
       ]);
 
       await this.installModulesForApp(target, deployConfig);
@@ -663,6 +683,25 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         this.remoteFinalizeDeploy.bind(this),
         { parallelDeploy: false },
       );
+    }
+
+    async cleanupOldDeployVersions(target, deployConfig) {
+      let deployLocation = decodeURIComponent(target.pathname);
+
+      let result = await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'ls', args: [ '-1', `"${deployLocation}"`, '|', 'grep', '-P', '"\\d+"' ] },
+      ]);
+
+      let versions          = result.stdout.split(/\n+/g).map((part) => part.trim()).filter(Boolean).sort();
+      let versionsToRemove  = versions.slice(0, -LATEST_DEPLOY_VERSIONS_TO_KEEP);
+
+      if (Nife.isNotEmpty(versionsToRemove)) {
+        versionsToRemove = versionsToRemove.map((part) => `"${this.joinUnixPath(deployLocation, part)}"`);
+
+        await this.executeRemoteCommands(target, deployConfig, [
+          { command: 'rm', args: [ '-fr' ].concat(versionsToRemove) },
+        ]);
+      }
     }
 
     async remoteFinalizeDeploy(target, deployConfig) {
@@ -677,6 +716,18 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           { command: 'bash', args: [ '--login', '-c', '"mythix-cli migrate"' ] },
         ]);
       }
+
+      // Finally, upon success, swap the "current" symlink to
+      // point to the new deploy
+      let deployLocation      = this.joinUnixPath(decodeURIComponent(target.pathname), '' + deployConfig.version);
+      let currentLinkLocation = this.joinUnixPath(decodeURIComponent(target.pathname), 'current');
+      await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'rm', args: [ '-f', `"${currentLinkLocation}"` ] },
+        { command: 'ln', args: [ '-s', `"${deployLocation}"`, `"${currentLinkLocation}"` ] },
+      ]);
+
+      // Cleanup old deploy versions
+      await this.cleanupOldDeployVersions(target, deployConfig);
 
       if (Nife.isNotEmpty(target.restartService)) {
         await this.executeRemoteCommands(target, deployConfig, [
@@ -716,6 +767,8 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           console.error('"targets" is not an array. "targets" in your deploy config must be an array of remote targets.');
           return 1;
         }
+
+        deployConfig.target = args.target;
 
         deployConfig.targets = deployConfig.targets.filter(Boolean).map((target) => {
           if (Nife.instanceOf(target, 'string')) {
@@ -877,6 +930,8 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         await this.allRemotesDeploy(deployConfig);
         await this.allRemotesPostDeploy(deployConfig);
         await this.allRemotesFinalizeDeploy(deployConfig);
+
+        console.log(`Deployment of version "${deployConfig.version}" completed successfully!`);
       } catch (error) {
         console.error(error);
         return 1;
