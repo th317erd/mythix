@@ -478,7 +478,7 @@ async function executeCommand(_config, appOptions, commandContext, CommandKlass,
       args,
       {
         env: {
-          NODE_ENV:                     commandContext.environment || '',
+          NODE_ENV:                     commandContext.environment || process.env.NODE_ENV,
           MYTHIX_RUNTIME:               runtime,
           MYTHIX_CONFIG_PATH:           configPath,
           MYTHIX_COMMAND_PATH:          commandPath,
