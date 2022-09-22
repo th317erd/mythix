@@ -709,11 +709,14 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         return await target.finalizeDeploy.call(this, target, deployConfig);
 
       if (target.index === 0) {
-        let targetLocation = `"${decodeURIComponent(target.pathname)}/"`;
+        let targetLocation = `"${decodeURIComponent(target.pathname)}/current"`;
+
+        let serviceUser   = target.serviceUser || target.uri.username;
+        let serviceGroup  = target.serviceGroup || serviceUser;
 
         await this.executeRemoteCommands(target, deployConfig, [
-          { command: 'cd', args: [ targetLocation ], sudo: false },
-          { command: 'bash', args: [ '--login', '-c', '"mythix-cli migrate"' ] },
+          { sudo: false, command: 'cd', args: [ targetLocation ] },
+          { sudo: false, command: 'sudo', args: [ '-u', serviceUser, '-g', serviceGroup, `NODE_ENV=${deployConfig.target} mythix-cli migrate` ] },
         ]);
       }
 
