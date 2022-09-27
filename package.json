@@ -35,7 +35,7 @@
     "form-data": "^4.0.0",
     "luxon": "^3.0.4",
     "micromatch": "^4.0.5",
-    "mythix-orm": "^1.7.0",
+    "mythix-orm": "^1.7.1",
     "nife": "^1.12.1",
     "prompts": "^2.4.2"
   }
