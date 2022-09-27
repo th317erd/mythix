@@ -1,8 +1,8 @@
-import { Moment } from 'moment';
+import { DateTime } from 'luxon';
 import { Model } from './model';
 
 export declare class MigrationModel extends Model {
   declare public id: string;
-  declare public createdAt: Moment | string;
-  declare public updatedAt: Moment | string;
+  declare public createdAt: DateTime | string;
+  declare public updatedAt: DateTime | string;
 }
