@@ -64,18 +64,6 @@ function createTestApplication(ApplicationClass) {
       return defaultModules;
     }
 
-    createDatabaseConnection() {
-      const NOOP = () => {};
-
-      return {
-        isStarted:      () => true,
-        start:          NOOP,
-        stop:           NOOP,
-        registerModels: NOOP,
-        getModels:      () => ({}),
-      };
-    }
-
     constructor(_opts) {
       let opts = Nife.extend(true, {
         environment:  'test',
@@ -97,6 +85,20 @@ function createTestApplication(ApplicationClass) {
           value:        new HTTPInterface(),
         },
       });
+
+      if (!this.createDatabaseConnection) {
+        this.createDatabaseConnection = (function createDatabaseConnection() {
+          const NOOP = () => {};
+
+          return {
+            isStarted:      () => true,
+            start:          NOOP,
+            stop:           NOOP,
+            registerModels: NOOP,
+            getModels:      () => ({}),
+          };
+        }).bind(this);
+      }
     }
 
     getTestingLoggerConfig(loggerOpts) {
