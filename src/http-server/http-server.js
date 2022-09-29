@@ -301,22 +301,32 @@ class HTTPServer {
   }
 
   async sendRequestToController(request, response, context) {
-    let controllerInstance = context.controllerInstance;
+    const executeRequest = async () => {
+      let controllerInstance = context.controllerInstance;
 
-    // Compile query params
-    context.query = this.compileQueryParams(context.route, context.query, (context.route && context.route.queryParams));
+      // Compile query params
+      context.query = this.compileQueryParams(context.route, context.query, (context.route && context.route.queryParams));
 
-    let route = context.route;
+      let route = context.route;
 
-    // Execute middleware if any exists
-    let middleware = (typeof controllerInstance.getMiddleware === 'function') ? controllerInstance.getMiddleware.call(controllerInstance, context) : [];
-    if (route && Nife.instanceOf(route.middleware, 'array') && Nife.isNotEmpty(route.middleware))
-      middleware = route.middleware.concat((middleware) ? middleware : []);
+      // Execute middleware if any exists
+      let middleware = (typeof controllerInstance.getMiddleware === 'function') ? controllerInstance.getMiddleware.call(controllerInstance, context) : [];
+      if (route && Nife.instanceOf(route.middleware, 'array') && Nife.isNotEmpty(route.middleware))
+        middleware = route.middleware.concat((middleware) ? middleware : []);
 
-    if (Nife.isNotEmpty(middleware))
-      await this.executeMiddleware(middleware, request, response);
+      if (Nife.isNotEmpty(middleware))
+        await this.executeMiddleware(middleware, request, response);
 
-    return await controllerInstance.handleIncomingRequest.apply(controllerInstance, [ request, response, context ]);
+      return await controllerInstance.handleIncomingRequest.apply(controllerInstance, [ request, response, context ]);
+    };
+
+    let application   = this.getApplication();
+    let dbConnection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : undefined;
+
+    if (dbConnection && typeof dbConnection.createContext === 'function')
+      return await dbConnection.createContext(executeRequest, dbConnection, dbConnection);
+    else
+      return await executeRequest();
   }
 
   async baseRouter(request, response, next) {
@@ -361,10 +371,19 @@ class HTTPServer {
 
       let controllerResult = await this.sendRequestToController(request, response, context);
 
-      if (!(response.finished || response.statusMessage))
-        await controllerInstance.handleOutgoingResponse(controllerResult, request, response, context);
-      else if (!response.finished)
+      if (!(response.finished || response.statusMessage)) {
+        const handleOutgoing = async () => {
+          return await controllerInstance.handleOutgoingResponse(controllerResult, request, response, context);
+        };
+
+        let dbConnection = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : undefined;
+        if (dbConnection && typeof dbConnection.createContext === 'function')
+          await dbConnection.createContext(handleOutgoing, dbConnection, dbConnection);
+        else
+          await handleOutgoing();
+      } else if (!response.finished) {
         response.end();
+      }
 
       let statusCode  = response.statusCode || 200;
       let requestTime = Nife.now() - startTime;

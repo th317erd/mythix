@@ -76,7 +76,7 @@ class DatabaseModule extends BaseModule {
 
     if (Nife.isEmpty(databaseConfig)) {
       this.getLogger().error(`Error: database connection for "${this.getConfigValue('environment')}" not defined`);
-      return;
+      return {};
     }
 
     databaseConfig.logging = (this.getLogger().isDebugLevel()) ? this.getLogger().log.bind(this.getLogger()) : false;

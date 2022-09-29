@@ -125,8 +125,12 @@ describe('generateClientAPIInterface', () => {
   let app;
 
   beforeAll(async () => {
-    app = await newTestApplication();
-    app.getRoutes = getRoutes.bind(app);
+    try {
+      app = await newTestApplication();
+      app.getRoutes = getRoutes.bind(app);
+    } catch (error) {
+      console.error('Error in beforeAll: ', error);
+    }
   });
 
   it('should be able to generate an interface using route definitions', () => {

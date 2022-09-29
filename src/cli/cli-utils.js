@@ -274,7 +274,18 @@ function defineCommand(_commandName, definer, _parent) {
 
       let commandOptions  = commandContext[commandName] || {};
       let commandInstance = new Klass(application, commandOptions);
-      let result          = await commandInstance.execute.call(commandInstance, commandOptions, commandContext);
+
+      const doExecuteCommand = async () => {
+        return await commandInstance.execute.call(commandInstance, commandOptions, commandContext);
+      };
+
+      let dbConnection = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : undefined;
+      let result;
+
+      if (dbConnection && typeof dbConnection.createContext === 'function')
+        result = await dbConnection.createContext(doExecuteCommand, dbConnection, dbConnection);
+      else
+        result = await doExecuteCommand();
 
       await application.stop(result || 0);
     } catch (error) {

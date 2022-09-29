@@ -1,114 +1,152 @@
 "'use strict';
 
 (function(globalScope, environmentType) {
-
+  
   var Utils = (function() {
     function instanceOf(obj) {
       function testType(obj, _val) {
         function isDeferredType(obj) {
-          if (obj instanceof Promise)
+          if (obj instanceof Promise || (obj.constructor && obj.constructor.name === 'Promise'))
             return true;
-
-          if (typeof obj.then === 'function')
+    
+          // Quack quack...
+          if (typeof obj.then === 'function' && typeof obj.catch === 'function')
             return true;
-
+    
           return false;
         }
-
+    
         var val     = _val,
             typeOf  = (typeof obj);
-
-        if (val === String)
+    
+        if (val === globalScope.String)
           val = 'string';
-        else if (val === Number)
+        else if (val === globalScope.Number)
           val = 'number';
-        else if (val === Boolean)
+        else if (val === globalScope.Boolean)
           val = 'boolean';
-        else if (val === Function)
+        else if (val === globalScope.Function)
           val = 'function';
-        else if (val === Array)
+        else if (val === globalScope.Array)
           val = 'array';
-        else if (val === Object)
+        else if (val === globalScope.Object)
           val = 'object';
-        else if (val === Promise)
+        else if (val === globalScope.Promise)
           val = 'promise';
-        else if (val === BigInt)
+        else if (val === globalScope.BigInt)
           val = 'bigint';
-
-        if (val === 'object' && (obj.constructor === Object.prototype.constructor || obj.constructor.name === 'Object'))
+        else if (val === globalScope.Map)
+          val = 'map';
+        else if (val === globalScope.WeakMap)
+          val = 'weakmap';
+        else if (val === globalScope.Set)
+          val = 'set';
+        else if (val === globalScope.Symbol)
+          val = 'symbol';
+        else if (val === globalScope.Buffer)
+          val = 'buffer';
+    
+        if (val === 'buffer' && globalScope.Buffer && globalScope.Buffer.isBuffer(obj))
           return true;
-
-        if ((val === 'promise' || val === 'deferred') && isDeferredType(obj))
+    
+        if (val === 'number' && (typeOf === 'number' || obj instanceof Number || (obj.constructor && obj.constructor.name === 'Number'))) {
+          if (!isFinite(obj))
+            return false;
+    
           return true;
-
+        }
+    
         if (val !== 'object' && val === typeOf)
           return true;
-
-        if (val === 'number' && (typeof obj === 'number' || (obj instanceof Number)) && !isFinite(obj))
+    
+        if (val === 'object') {
+          if ((obj.constructor === Object.prototype.constructor || (obj.constructor && obj.constructor.name === 'Object')))
+            return true;
+    
+          // Null prototype on object
+          if (typeOf === 'object' && !obj.constructor)
+            return true;
+    
           return false;
-
-        if (val === 'number' && obj instanceof Number)
+        }
+    
+        if (val === 'array' && (Array.isArray(obj) || obj instanceof Array || (obj.constructor && obj.constructor.name === 'Array')))
           return true;
-
-        if (val === 'string' && obj instanceof String)
+    
+        if ((val === 'promise' || val === 'deferred') && isDeferredType(obj))
           return true;
-
-        if (val === 'boolean' && obj instanceof Boolean)
+    
+        if (val === 'string' && (obj instanceof globalScope.String || (obj.constructor && obj.constructor.name === 'String')))
           return true;
-
+    
+        if (val === 'boolean' && (obj instanceof globalScope.Boolean || (obj.constructor && obj.constructor.name === 'Boolean')))
+          return true;
+    
+        if (val === 'map' && (obj instanceof globalScope.Map || (obj.constructor && obj.constructor.name === 'Map')))
+          return true;
+    
+        if (val === 'weakmap' && (obj instanceof globalScope.WeakMap || (obj.constructor && obj.constructor.name === 'WeakMap')))
+          return true;
+    
+        if (val === 'set' && (obj instanceof globalScope.Set || (obj.constructor && obj.constructor.name === 'Set')))
+          return true;
+    
         if (val === 'function' && typeOf === 'function')
           return true;
-
-        if (val === 'array' && obj instanceof Array)
-          return true;
-
+    
         if (typeof val === 'function' && obj instanceof val)
           return true;
-
+    
+        if (typeof val === 'string' && obj.constructor && obj.constructor.name === val)
+          return true;
+    
         return false;
       }
-
+    
       if (obj == null)
         return false;
-
+    
       for (var i = 1, len = arguments.length; i < len; i++) {
         if (testType(obj, arguments[i]) === true)
           return true;
       }
-
+    
       return false;
     }
 
     function sizeOf(obj) {
       if (obj == null)
         return 0;
-
+    
       if ((typeof obj.length === 'number' || obj.length instanceof Number) && isFinite(obj.length))
         return obj.length;
-
-      if (obj.constructor === Object.prototype.constructor || obj.constructor.name === 'Object')
-        return Object.keys(obj).length + Object.getOwnPropertySymbols(obj).length;
-
+    
+      if (obj.constructor === Object.prototype.constructor || (obj.constructor && obj.constructor.name === 'Object'))
+        return (Object.keys(obj).length + Object.getOwnPropertySymbols(obj).length);
+    
+      if (typeof obj.size === 'number')
+        return obj.size;
+    
       return 0;
     }
 
-    function isEmpty() {
-      for (var i = 0, len = arguments.length; i < len; i++) {
-        var value = arguments[i];
-        if (value == null)
-          return true;
-
-        if (value === Infinity)
-          continue;
-
-        if (instanceOf(value, 'string'))
-          return !value.match(/\S/);
-        else if (instanceOf(value, 'number') && isFinite(value))
-          continue;
-        else if (!instanceOf(value, 'boolean', 'bigint', 'function') && sizeOf(value) == 0)
-          return true;
-      }
-
+    function isEmpty(value) {
+      if (value == null)
+        return true;
+    
+      if (Object.is(value, Infinity))
+        return false;
+    
+      if (Object.is(value, NaN))
+        return true;
+    
+      if (instanceOf(value, 'string'))
+        return !(/\S/).test(value);
+      else if (instanceOf(value, 'number') && isFinite(value))
+        return false;
+      else if (!instanceOf(value, 'boolean', 'bigint', 'function') && sizeOf(value) == 0)
+        return true;
+    
       return false;
     }
 
@@ -116,14 +154,14 @@
       function fromObject(path, data) {
         let parts = [];
         let keys  = Object.keys(data);
-
+    
         for (let i = 0, il = keys.length; i < il; i++) {
           let key = keys[i];
           let value = data[key];
-
+    
           if (value && typeof value === 'object' && typeof value.valueOf === 'function')
             value = value.valueOf();
-
+    
           if (Array.isArray(value))
             parts = parts.concat(fromArray(`${path}[${key}]`, value));
           else if (value instanceof Object)
@@ -131,18 +169,18 @@
           else
             parts.push(`${encodeURIComponent(`${path}[${key}]`)}=${encodeURIComponent(value)}`);
         }
-
+    
         return parts.filter(Boolean);
       }
-
+    
       function fromArray(path, data) {
         let parts = [];
-
+    
         for (let i = 0, il = data.length; i < il; i++) {
           let value = data[i];
           if (value && typeof value === 'object' && typeof value.valueOf === 'function')
             value = value.valueOf();
-
+    
           if (Array.isArray(value))
             parts = parts.concat(fromArray(`${path}[]`, value));
           else if (value instanceof Object)
@@ -150,34 +188,34 @@
           else
             parts.push(`${encodeURIComponent(`${path}[]`)}=${encodeURIComponent(value)}`);
         }
-
+    
         return parts.filter(Boolean);
       }
-
+    
       if (!data || Utils.sizeOf(data) === 0)
         return '';
-
+    
       let initial = '?';
       let parts   = [];
       let keys    = Object.keys(data);
-
+    
       if (resolveInitial != null)
         initial = (typeof resolveInitial === 'function') ? resolveInitial.call(this) : resolveInitial;
-
+    
       for (let i = 0, il = keys.length; i < il; i++) {
         let name  = keys[i];
         let value = data[name];
-
+    
         if (Utils.isEmpty(value))
           continue;
-
+    
         if (value && typeof value === 'object' && typeof value.valueOf === 'function')
           value = value.valueOf();
-
+    
         name = (typeof nameFormatter === 'function') ? nameFormatter.call(this, name, value) : name;
         if (!name)
           continue;
-
+    
         if (Array.isArray(value))
           parts = parts.concat(fromArray(name, value));
         else if (value instanceof Object)
@@ -185,10 +223,10 @@
         else
           parts.push(encodeURIComponent(name) + '=' + encodeURIComponent(value));
       }
-
+    
       if (parts.length === 0)
         return '';
-
+    
       return initial + parts.join('&');
     }
 
@@ -200,6 +238,22 @@
         var key   = keys[i];
         var value = obj[key];
         newObj[key.toLowerCase()] = value;
+      }
+
+      return newObj;
+    }
+
+    function cleanObjectProperties(obj) {
+      var keys    = Object.keys(obj || {});
+      var newObj  = {};
+
+      for (var i = 0, il = keys.length; i < il; i++) {
+        var key   = keys[i];
+        var value = obj[key];
+        if (value == null || value == '')
+          continue;
+
+        newObj[key] = value;
       }
 
       return newObj;
@@ -233,64 +287,128 @@
       isEmpty,
       dataToQueryString,
       keysToLowerCase,
+      cleanObjectProperties,
       injectURLParams,
     };
   })();
 
 
   function generateAPIInterface(globalScope, environmentType) {
+      var helpStyles = {
+        'error': 'font-weight: 800; color: red;',
+        'normal': 'font-weight: 200;',
+        'bold': 'font-weight: 800;',
+        'boldYellow': 'font-weight: 800; color: yellow;',
+      };
+  
+      const bold = (value) => {
+        return '[1m' + value + '[0m';
+      };
+  
+      const orange = (value) => {
+        return '[33m' + value + '[0m';
+      };
+  
+      
+  
+      function assignHelp(func, methodName, help) {
+        Object.defineProperty(func, 'help', {
+          enumerable:   false,
+          configurable: false,
+          get: () => {
+            if (!help || !help.description) {
+              console.log('%cNo help found for route \"' + methodName + '\"', helpStyles.error);
+              return;
+            }
+  
+            console.info('%cHelp for %c' + methodName + '%c route:', helpStyles.bold, helpStyles.boldYellow, helpStyles.bold);
+            console.info('  %cDescription:%c ' + help.description, helpStyles.bold, helpStyles.normal);
+  
+            if (!Utils.isEmpty(help.data))
+              printTable([ 'property', 'type', 'description', 'required' ], help.data, bold('data: ') + orange('{ data: { ... } }'), '  ');
+  
+            if (!Utils.isEmpty(help.params))
+              printTable([ 'property', 'type', 'description', 'required' ], help.params, bold('parameters: ') + orange('{ params: { ... } }'), '  ');
+  
+            if (!Utils.isEmpty(help.extra)) {
+              for (var i = 0, il = help.extra.length; i < il; i++) {
+                var item = help.extra[i];
+  
+                if (item.type === 'table')
+                  printTable(item.columns, item.rows, item.title, '  ');
+                else if (item.title)
+                  console.log([ '  %c' + item.title + ':%c ', item.description ].join(''), helpStyles.bold, helpStyles.normal);
+              }
+            }
+  
+            if (help.example)
+              console.info('  %cExample:%c ' + orange(help.example), helpStyles.bold, helpStyles.normal);
+  
+            if (!Utils.isEmpty(help.notes)) {
+              for (var i = 0, il = help.notes.length; i < il; i++) {
+                var note = help.notes[i];
+                console.log([ '  %cNote ', i + 1, ':%c ', note ].join(''), helpStyles.bold, helpStyles.normal);
+              }
+            }
+          },
+          set: () => {},
+        });
+  
+        return func;
+      }
+  
       function getDefaultHeader(headerName) {
         return apiInterface.defaultHeaders[headerName];
       }
-
+  
       function getDefaultHeaders() {
         return apiInterface.defaultHeaders;
       }
-
+  
       function setDefaultHeader(headerName, value) {
         if (value == null) {
           delete apiInterface.defaultHeaders[headerName];
           return;
         }
-
+  
         apiInterface.defaultHeaders[headerName] = value;
       }
-
+  
       function setDefaultHeaders(headers) {
         var headerNames = Object.keys(headers);
         for (var i = 0, il = headerNames.length; i < il; i++) {
           var headerName  = headerNames[i];
           var value       = headers[headerName];
-
+  
           if (value == null) {
             delete apiInterface.defaultHeaders[headerName];
             continue;
           }
-
+  
           apiInterface.defaultHeaders[headerName] = value;
         }
       }
-
-
-
+  
+      
+  
       function browserRequestHandler(routeName, requestOptions) {
         return new Promise((function(resolve, reject) {
           if (!requestOptions || Utils.isEmpty(requestOptions.url)) {
             reject([ 'API::', routeName, ': \"url\" is required.' ].join(''));
             return;
           }
-
+      
           var method      = (requestOptions.method || 'GET').toUpperCase();
           var url         = requestOptions.url;
           var data        = requestOptions.data;
           var extraConfig = {};
-          var headers     = Object.assign({ 'content-type': 'application/json; charset=UTF-8' }, Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
-
+          var headers     = Object.assign(Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
+      
           if (data) {
             if (!method.match(/^(GET|HEAD)$/i)) {
               if ((headers['content-type'] || '').match(/application\/json/i))
                 data = JSON.stringify(data);
-
+      
               extraConfig = {
                 body: data,
               };
@@ -300,33 +418,39 @@
                 url = url + queryString;
             }
           }
-
+      
           var options = Object.assign(
             { method },
             requestOptions,
             extraConfig,
-            { headers:  Object.assign({}, headers, Utils.keysToLowerCase(extraConfig.headers || {})) },
+            {
+              headers: Utils.cleanObjectProperties(Object.assign(
+                {},
+                headers,
+                Utils.keysToLowerCase(extraConfig.headers || {}),
+              )),
+            },
           );
-
+      
           delete options.data;
-
-          globalScope.fetch(url, options).then(
+      
+          globalScope.fetch(url, Utils.cleanObjectProperties(options)).then(
             function(response) {
               if (typeof requestOptions.responseHandler === 'function')
                 return requestOptions.responseHandler(response);
-
+      
               if (!response.ok) {
                 var error = new Error(response.statusText);
                 error.response = response;
-
+      
                 reject(error);
                 return;
               }
-
+      
               var contentType = response.headers.get('Content-Type');
               if (contentType && contentType.match(/application\/json/i)) {
                 var data = response.json();
-
+      
                 Object.defineProperties(data, {
                   '__response': {
                     writable:     true,
@@ -347,7 +471,7 @@
                     value:        response.statusText,
                   },
                 });
-
+      
                 resolve(data);
               } else if (contentType && contentType.match(/text\/(plain|html)/i)) {
                 resolve(response.text());
@@ -361,13 +485,13 @@
           );
         }).bind(this));
       }
-
+  
       function makeRequest(routeName, options) {
-
+        
         return browserRequestHandler.call(this, routeName, options);
-
+        
       }
-
+  
       var apiInterface = Object.create({
         defaultHeaders: {},
         makeRequest,
@@ -376,42 +500,42 @@
         setDefaultHeader,
         setDefaultHeaders,
       });
-
+  
       var defaultRouteOptions = {};
-
-      apiInterface['createOrganization'] = (function createOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/', method: 'PUT' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('createOrganization', options); delete options.params; return makeRequest.call(this, 'createOrganization', options); }).bind(apiInterface);
-
-      apiInterface['getOrganization'] = (function getOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getOrganization', options); delete options.params; return makeRequest.call(this, 'getOrganization', options); }).bind(apiInterface);
-
-      apiInterface['getOrganizations'] = (function getOrganizations(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getOrganizations', options); delete options.params; return makeRequest.call(this, 'getOrganizations', options); }).bind(apiInterface);
-
-      apiInterface['getUser'] = (function getUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/<<userID>>', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getUser', options); delete options.params; return makeRequest.call(this, 'getUser', options); }).bind(apiInterface);
-
-      apiInterface['getUsers'] = (function getUsers(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getUsers', options); delete options.params; return makeRequest.call(this, 'getUsers', options); }).bind(apiInterface);
-
-      apiInterface['inviteUserToOrganization'] = (function inviteUserToOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>/inviteUser', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('inviteUserToOrganization', options); delete options.params; return makeRequest.call(this, 'inviteUserToOrganization', options); }).bind(apiInterface);
-
-      apiInterface['login'] = (function login(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/authenticate', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('login', options); delete options.params; return makeRequest.call(this, 'login', options); }).bind(apiInterface);
-
-      apiInterface['registerUser'] = (function registerUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/registerUser', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('registerUser', options); delete options.params; return makeRequest.call(this, 'registerUser', options); }).bind(apiInterface);
-
-      apiInterface['searchOrganizations'] = (function searchOrganizations(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/search', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('searchOrganizations', options); delete options.params; return makeRequest.call(this, 'searchOrganizations', options); }).bind(apiInterface);
-
-      apiInterface['searchUsers'] = (function searchUsers(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/search', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('searchUsers', options); delete options.params; return makeRequest.call(this, 'searchUsers', options); }).bind(apiInterface);
-
-      apiInterface['sendMagicLink'] = (function sendMagicLink(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/sendMagicLink', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('sendMagicLink', options); delete options.params; return makeRequest.call(this, 'sendMagicLink', options); }).bind(apiInterface);
-
-      apiInterface['updateOrganization'] = (function updateOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('updateOrganization', options); delete options.params; return makeRequest.call(this, 'updateOrganization', options); }).bind(apiInterface);
-
-      apiInterface['updateUser'] = (function updateUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/<<userID>>', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('updateUser', options); delete options.params; return makeRequest.call(this, 'updateUser', options); }).bind(apiInterface);
-
+  
+      apiInterface['createOrganization'] = assignHelp((function createOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/', method: 'PUT' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('createOrganization', options); delete options.params; return makeRequest.call(this, 'createOrganization', options); }).bind(apiInterface), 'createOrganization', {});
+  
+      apiInterface['getOrganization'] = assignHelp((function getOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getOrganization', options); delete options.params; return makeRequest.call(this, 'getOrganization', options); }).bind(apiInterface), 'getOrganization', {});
+  
+      apiInterface['getOrganizations'] = assignHelp((function getOrganizations(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getOrganizations', options); delete options.params; return makeRequest.call(this, 'getOrganizations', options); }).bind(apiInterface), 'getOrganizations', {});
+  
+      apiInterface['getUser'] = assignHelp((function getUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/<<userID>>', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getUser', options); delete options.params; return makeRequest.call(this, 'getUser', options); }).bind(apiInterface), 'getUser', {});
+  
+      apiInterface['getUsers'] = assignHelp((function getUsers(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/', method: 'GET' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('getUsers', options); delete options.params; return makeRequest.call(this, 'getUsers', options); }).bind(apiInterface), 'getUsers', {});
+  
+      apiInterface['inviteUserToOrganization'] = assignHelp((function inviteUserToOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>/inviteUser', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('inviteUserToOrganization', options); delete options.params; return makeRequest.call(this, 'inviteUserToOrganization', options); }).bind(apiInterface), 'inviteUserToOrganization', {});
+  
+      apiInterface['login'] = assignHelp((function login(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/authenticate', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('login', options); delete options.params; return makeRequest.call(this, 'login', options); }).bind(apiInterface), 'login', {});
+  
+      apiInterface['registerUser'] = assignHelp((function registerUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/registerUser', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('registerUser', options); delete options.params; return makeRequest.call(this, 'registerUser', options); }).bind(apiInterface), 'registerUser', {});
+  
+      apiInterface['searchOrganizations'] = assignHelp((function searchOrganizations(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/search', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('searchOrganizations', options); delete options.params; return makeRequest.call(this, 'searchOrganizations', options); }).bind(apiInterface), 'searchOrganizations', {});
+  
+      apiInterface['searchUsers'] = assignHelp((function searchUsers(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/search', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('searchUsers', options); delete options.params; return makeRequest.call(this, 'searchUsers', options); }).bind(apiInterface), 'searchUsers', {});
+  
+      apiInterface['sendMagicLink'] = assignHelp((function sendMagicLink(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/auth/sendMagicLink', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('sendMagicLink', options); delete options.params; return makeRequest.call(this, 'sendMagicLink', options); }).bind(apiInterface), 'sendMagicLink', {});
+  
+      apiInterface['updateOrganization'] = assignHelp((function updateOrganization(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/organization/<<organizationID>>', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('updateOrganization', options); delete options.params; return makeRequest.call(this, 'updateOrganization', options); }).bind(apiInterface), 'updateOrganization', {});
+  
+      apiInterface['updateUser'] = assignHelp((function updateUser(_options) { var clientOptions = {\"credentials\":\"same-origin\",\"headers\":{\"Content-Type\":\"application/json\"}}; var options = Object.assign({ url: '/api/v1/user/<<userID>>', method: 'POST' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('updateUser', options); delete options.params; return makeRequest.call(this, 'updateUser', options); }).bind(apiInterface), 'updateUser', {});
+  
       return apiInterface;
     }
 
 
   var APIInterface = generateAPIInterface(globalScope, environmentType);
 
-
+  
 
   return APIInterface;
 }).call(this, (typeof window === 'undefined') ? global : window, (typeof window !== 'undefined') ? 'browser' : 'node');

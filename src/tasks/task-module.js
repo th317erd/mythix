@@ -126,7 +126,7 @@ class TaskModule extends BaseModule {
         promise.reject(error);
       };
 
-      const runTask = () => {
+      const _runTask = () => {
         let result = taskInstance.execute(lastTime, currentTime, diff);
 
         if (Nife.instanceOf(result, 'promise')) {
@@ -137,6 +137,16 @@ class TaskModule extends BaseModule {
         } else {
           promise.resolve(result);
         }
+      };
+
+      const runTask = async () => {
+        let application   = this.getApplication();
+        let dbConnection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : undefined;
+
+        if (dbConnection && typeof dbConnection.createContext === 'function')
+          await dbConnection.createContext(_runTask, dbConnection, dbConnection);
+        else
+          await _runTask();
       };
 
       let taskName      = TaskKlass.taskName;

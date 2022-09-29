@@ -64,6 +64,18 @@ function createTestApplication(ApplicationClass) {
       return defaultModules;
     }
 
+    createDatabaseConnection() {
+      const NOOP = () => {};
+
+      return {
+        isStarted:      () => true,
+        start:          NOOP,
+        stop:           NOOP,
+        registerModels: NOOP,
+        getModels:      () => ({}),
+      };
+    }
+
     constructor(_opts) {
       let opts = Nife.extend(true, {
         environment:  'test',
