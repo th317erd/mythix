@@ -48,11 +48,12 @@ class Model extends _Model {
     return null;
   }
 
-  getConnection(connection) {
+  static _getConnection(_connection) {
+    let connection = _Model._getConnection(_connection);
     if (connection)
       return connection;
 
-    return this.getDBConnection();
+    return this.getApplication().getDBConnection();
   }
 }
 

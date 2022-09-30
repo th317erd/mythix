@@ -1,9 +1,9 @@
 'use strict';
 
-const { Types, Utils } = require('mythix-orm');
+const { Types } = require('mythix-orm');
 const { Model: ModelBase } = require('./model');
 
-function _setupModel(modelName, _Model, { application, connection: applicationConnection }) {
+function _setupModel(modelName, _Model, { application }) {
   let Model       = _Model;
   let tableName   = Model.getTableName();
   let tablePrefix = application.getDBTablePrefix();
@@ -14,21 +14,6 @@ function _setupModel(modelName, _Model, { application, connection: applicationCo
   Model.getTableName  = () => tableName;
   Model.getModelName  = () => modelName;
   Model.getApplication = () => application;
-  Model.getLogger = () => application.getLogger();
-  Model._getConnection = (_connection) => {
-    if (_connection)
-      return _connection;
-
-    let { connection } = Model.getModelContext();
-    if (connection)
-      return connection;
-
-    connection = Utils.getContextValue('connection');
-    if (connection)
-      return connection;
-
-    return applicationConnection;
-  };
 
   return { [modelName]: Model };
 }

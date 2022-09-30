@@ -96,7 +96,7 @@ class ModelModule extends BaseModule {
       }
     }
 
-    models = connection.registerModels(models);
+    models = connection.registerModels(models, { forceConnectionBinding: true });
 
     return models;
   }
