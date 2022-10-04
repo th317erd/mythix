@@ -253,7 +253,7 @@ function defineCommand(_commandName, definer, _parent) {
         applicationConfig = Nife.extend(true, { cli: true, httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false }, applicationConfig);
 
       if (!applicationConfig)
-        applicationConfig = { cli: true, ttpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false };
+        applicationConfig = { cli: true, httpServer: false, autoReload: false, logger: { level: Logger.LEVEL_WARN }, runTasks: false };
 
       let doStartApplication = (applicationConfig.autoStart !== false);
 
