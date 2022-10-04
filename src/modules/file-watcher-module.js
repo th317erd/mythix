@@ -9,7 +9,7 @@ class FileWatcherModule extends BaseModule {
     return 'FileWatcherModule';
   }
 
-  static shouldUse(options) {
+  static shouldUse(application, options) {
     if (options.autoReload === false)
       return false;
 

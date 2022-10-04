@@ -23,7 +23,7 @@ class TaskModule extends BaseModule {
 
   static fileWatcherQueueName = 'tasks';
 
-  static shouldUse(options) {
+  static shouldUse(application, options) {
     if (options.runTasks === false)
       return false;
 

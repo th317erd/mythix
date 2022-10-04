@@ -5,7 +5,7 @@ const { BaseModule }  = require('../modules/base-module');
 const { HTTPServer }  = require('./http-server');
 
 class HTTPServerModule extends BaseModule {
-  static shouldUse(options) {
+  static shouldUse(application, options) {
     if (options.httpServer === false)
       return false;
 

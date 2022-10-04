@@ -177,7 +177,7 @@ class Application extends EventEmitter {
 
     for (let i = 0, il = modules.length; i < il; i++) {
       let ModuleClass = modules[i];
-      if (typeof ModuleClass.shouldUse === 'function' && ModuleClass.shouldUse.call(this, options) === false)
+      if (typeof ModuleClass.shouldUse === 'function' && ModuleClass.shouldUse.call(ModuleClass, this, options) === false)
         continue;
 
       let moduleInstance = new ModuleClass(this);

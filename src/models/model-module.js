@@ -16,7 +16,7 @@ class ModelModule extends BaseModule {
     return 'ModelModule';
   }
 
-  static shouldUse(options) {
+  static shouldUse(application, options) {
     if (options.database === false)
       return false;
 

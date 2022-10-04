@@ -11,7 +11,7 @@ const {
 class ControllerModule extends BaseModule {
   static fileWatcherQueueName = 'controllers';
 
-  static shouldUse(options) {
+  static shouldUse(application, options) {
     if (options.httpServer === false)
       return false;
 

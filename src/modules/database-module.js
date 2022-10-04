@@ -9,7 +9,7 @@ class DatabaseModule extends BaseModule {
     return 'DatabaseModule';
   }
 
-  static shouldUse(options) {
+  static shouldUse(application, options) {
     if (options.database === false)
       return false;
 

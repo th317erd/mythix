@@ -11,7 +11,7 @@ export declare class BaseModule {
   public declare static fileWatcherQueueName: string;
 
   public static getModuleName(): string;
-  public static shouldUse(options?: GenericObject): boolean;
+  public static shouldUse(application: Application, options: GenericObject): boolean;
 
   public fileWatcherGetMonitorPaths(options?: GenericObject): Array<string>;
   public fileWatcherHandler(options?: GenericObject): Promise<void>;
