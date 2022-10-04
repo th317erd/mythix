@@ -8,6 +8,7 @@ import { Modules, ModuleClasses, BaseModuleClass } from './modules/base-module';
 export declare type ApplicationClass = typeof Application;
 
 export declare interface ApplicationOptions {
+  cli: boolean;
   environment: string;
   appName: string;
   rootPath: string;
@@ -29,7 +30,7 @@ export declare interface ApplicationOptions {
   database: boolean | GenericObject;
   httpServer: boolean | GenericObject;
   tempPath: string;
-  routeParserTypes: { [ key: string ]: (value: string, param: GenericObject, index?: number) => any };
+  routeParserTypes: { [key: string]: (value: string, param: GenericObject, index?: number) => any };
 }
 
 export declare class Application {
@@ -54,7 +55,7 @@ export declare class Application {
   public setConfig(options: GenericObject): Application;
   public getApplicationName(): string;
   public getRoutes(): GenericObject;
-  public getCustomRouteParserTypes(): { [ key: string ]: (value: string, param: GenericObject, index?: number) => any };
+  public getCustomRouteParserTypes(): { [key: string]: (value: string, param: GenericObject, index?: number) => any };
   public createLogger(loggerOptions: LoggerOptions, LoggerClass: LoggerClass): Logger;
   public getLogger(): Logger;
   public start(): Promise<void>;

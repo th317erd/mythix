@@ -81,7 +81,6 @@ class Application extends EventEmitter {
       templatesPath:            Path.resolve(ROOT_PATH, 'templates'),
       commandsPath:             Path.resolve(ROOT_PATH, 'commands'),
       tasksPath:                Path.resolve(ROOT_PATH, 'tasks'),
-      modules:                  this.constructor.getDefaultModules(),
       autoReload:               ((_opts && _opts.environment) || process.env.NODE_ENV || 'development') === 'development',
       exitOnShutdown:           null,
       runTasks:                 true,
@@ -149,6 +148,8 @@ class Application extends EventEmitter {
 
     if (Nife.isEmpty(opts.tempPath))
       opts.tempPath = Path.resolve(OS.tmpdir(), this.getApplicationName().replace(/[^\w-]/g, ''), ('' + process.pid));
+
+    opts.modules = this.constructor.getDefaultModules(this, opts);
   }
 
   getApplicationName() {
