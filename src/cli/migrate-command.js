@@ -59,16 +59,17 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       let revision = ('' + _revision);
 
       let index = migrationFiles.findIndex((fullFileName) => {
-        let fileName = Path.basename(fullFileName);
+        let fileName        = Path.basename(fullFileName);
+        let migrationFileTS = fileName.substring(0, TIMESTAMP_LENGTH);
 
-        if (fileName.substring(0, TIMESTAMP_LENGTH) === revision)
+        if (BigInt(revision) >= BigInt(migrationFileTS))
           return true;
 
         return false;
       });
 
       if (index < 0)
-        throw new Error(`Error, migration revision ${revision} not found. Aborting...`);
+        return migrationFiles.slice();
 
       return migrationFiles.slice((isRollback) ? index : index + 1);
     }
