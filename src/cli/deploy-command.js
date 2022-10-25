@@ -708,6 +708,15 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       if (typeof target.finalizeDeploy === 'function')
         return await target.finalizeDeploy.call(this, target, deployConfig);
 
+      // Finally, upon success, swap the "current" symlink to
+      // point to the new deploy
+      let deployLocation      = this.joinUnixPath(decodeURIComponent(target.pathname), '' + deployConfig.version);
+      let currentLinkLocation = this.joinUnixPath(decodeURIComponent(target.pathname), 'current');
+      await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'rm', args: [ '-f', `"${currentLinkLocation}"` ] },
+        { command: 'ln', args: [ '-s', `"${deployLocation}"`, `"${currentLinkLocation}"` ] },
+      ]);
+
       if (target.index === 0) {
         let targetLocation = `"${decodeURIComponent(target.pathname)}/current"`;
 
@@ -719,15 +728,6 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           { sudo: false, command: 'sudo', args: [ '-u', serviceUser, '-g', serviceGroup, `NODE_ENV=${deployConfig.target} mythix-cli migrate` ] },
         ]);
       }
-
-      // Finally, upon success, swap the "current" symlink to
-      // point to the new deploy
-      let deployLocation      = this.joinUnixPath(decodeURIComponent(target.pathname), '' + deployConfig.version);
-      let currentLinkLocation = this.joinUnixPath(decodeURIComponent(target.pathname), 'current');
-      await this.executeRemoteCommands(target, deployConfig, [
-        { command: 'rm', args: [ '-f', `"${currentLinkLocation}"` ] },
-        { command: 'ln', args: [ '-s', `"${deployLocation}"`, `"${currentLinkLocation}"` ] },
-      ]);
 
       // Cleanup old deploy versions
       await this.cleanupOldDeployVersions(target, deployConfig);
