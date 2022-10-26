@@ -112,6 +112,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
 
         let {
           relativeFileName,
+          stats,
         } = context;
 
         let shouldIncludeFile = true;
@@ -121,7 +122,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         if (useGitIgnore && matchesAnyPattern(useGitIgnore))
           shouldIncludeFile = false;
 
-        if (Nife.isNotEmpty(include))
+        if (Nife.isNotEmpty(include) && !stats.isDirectory())
           shouldIncludeFile = matchesAnyPattern(include);
 
         if (Nife.isNotEmpty(exclude) && matchesAnyPattern(exclude))
@@ -301,6 +302,14 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       FileSystem.copyFileSync(sourceFilePath, targetFilePath);
     }
 
+    formatOutputPath(context, deployConfig) {
+      let { formatOutputPath } = deployConfig;
+      if (typeof formatOutputPath === 'function')
+        return formatOutputPath.call(this, context, deployConfig);
+
+      return context.targetPath;
+    }
+
     async copyProjectFilesToDeployFolder(deployConfig) {
       let {
         tempLocation,
@@ -320,7 +329,13 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       for (let i = 0, il = filesToDeploy.length; i < il; i++) {
         let sourcePath        = filesToDeploy[i];
         let relativeFilePath  = sourcePath.substring(projectLocation.length).replace(/^[/\\]+/, '');
-        let targetPath        = Path.join(deployFolderLocation, relativeFilePath);
+        let targetPath        = this.formatOutputPath({
+          targetPath: Path.join(deployFolderLocation, relativeFilePath),
+          outputPath: projectLocation,
+          deployPath: deployFolderLocation,
+          relativeFilePath,
+          sourcePath,
+        }, deployConfig);
 
         await this.copyFile(dryRun, sourcePath, targetPath);
       }
@@ -339,19 +354,19 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
 
       let deployLocation = Path.join(tempLocation, ('' + version));
 
-      if (!installModulesCommand) {
+      if (installModulesCommand == null) {
         let yarnLockLocation = Path.join(deployLocation, 'yarn.lock');
         if (FileSystem.existsSync(yarnLockLocation))
           installModulesCommand = { command: 'bash', args: [ '--login', '-c', '"yarn --prod"' ] };
         else
           installModulesCommand = { command: 'bash', args: [ '--login', '-c', '"npm i --omit=dev"' ] };
-      } else if (Nife.isEmpty(typeof installModulesCommand !== 'function' && Nife.isEmpty(installModulesCommand.command))) {
+      } else if (installModulesCommand !== false && Nife.isEmpty(typeof installModulesCommand !== 'function' && Nife.isEmpty(installModulesCommand.command))) {
         throw new Error('You specified a "installModulesCommand" in your deploy config, but no "command" property found... you need to specify "installModulesCommand" as an object "{ installModulesCommand: { command: "npm", args: [ "i" ] } }", or as a function.');
       }
 
       if (typeof installModulesCommand === 'function') {
         await installModulesCommand(deployConfig);
-      } else {
+      } else if (installModulesCommand) {
         await this.executeRemoteCommands(target, deployConfig, [
           { sudo: false, command: 'cd', args: [ `"${remoteLocation}"` ]},
           installModulesCommand,
@@ -557,9 +572,15 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       if (typeof target.preDeploy === 'function')
         return await target.preDeploy.call(this, target, deployConfig);
 
-      await this.executeRemoteCommands(target, deployConfig, [
-        { command: 'mkdir', args: [ '-p', this.joinUnixPath(decodeURIComponent(target.pathname), 'shared') ] },
-      ]);
+      let {
+        relativeConfigPath,
+      } = deployConfig;
+
+      if (relativeConfigPath) {
+        await this.executeRemoteCommands(target, deployConfig, [
+          { command: 'mkdir', args: [ '-p', this.joinUnixPath(decodeURIComponent(target.pathname), 'shared') ] },
+        ]);
+      }
     }
 
     async allRemotesDeploy(deployConfig) {
@@ -724,7 +745,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         { command: 'ln', args: [ '-s', `"${deployLocation}"`, `"${currentLinkLocation}"` ] },
       ]);
 
-      if (target.index === 0) {
+      if (target.index === 0 && deployConfig.migrations !== false) {
         let targetLocation = `"${decodeURIComponent(target.pathname)}/current"`;
 
         let serviceUser   = target.serviceUser || target.uri.username;
@@ -739,11 +760,11 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       // Cleanup old deploy versions
       await this.cleanupOldDeployVersions(target, deployConfig);
 
-      if (Nife.isNotEmpty(target.restartService)) {
+      if (target.restartService !== false && Nife.isNotEmpty(target.restartService)) {
         await this.executeRemoteCommands(target, deployConfig, [
           target.restartService,
         ]);
-      } else {
+      } else if (target.restartService !== false) {
         console.log(`    !!!NOTICE!!! "restartService" command is not defined on your deploy "targets[${target.index}]". Your service will not be automatically restarted. Please make sure to manually restart your application service on this remote target.`);
       }
     }
