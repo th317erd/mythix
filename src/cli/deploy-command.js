@@ -499,6 +499,9 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       }
 
       let commandString = commands.map((command) => {
+        if (!command)
+          return;
+
         if (Nife.isEmpty(command.args))
           return `${this.sudo(deployConfig)}${command.command}`;
 
@@ -510,7 +513,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         };
 
         return `${this.sudo(deployConfig, command.sudo)}${command.command} ${command.args.map(escapeArgument).join(' ')}`;
-      }).join(' && ');
+      }).filter(Boolean).join(' && ');
 
       if (options && Nife.isNotEmpty(options.sshArgs))
         args = args.concat(options.sshArgs);
@@ -576,11 +579,10 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         relativeConfigPath,
       } = deployConfig;
 
-      if (relativeConfigPath) {
-        await this.executeRemoteCommands(target, deployConfig, [
-          { command: 'mkdir', args: [ '-p', this.joinUnixPath(decodeURIComponent(target.pathname), 'shared') ] },
-        ]);
-      }
+      await this.executeRemoteCommands(target, deployConfig, [
+        { command: 'mkdir', args: [ '-p', this.joinUnixPath(decodeURIComponent(target.pathname)) ] },
+        (relativeConfigPath) && { command: 'mkdir', args: [ '-p', this.joinUnixPath(decodeURIComponent(target.pathname), 'shared') ] },
+      ]);
     }
 
     async allRemotesDeploy(deployConfig) {
