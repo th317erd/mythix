@@ -324,6 +324,9 @@ function loadCommand(name) {
 
 function getCommandFiles(commandsPath, filterFunc) {
   try {
+    if (!commandsPath)
+      return [];
+
     return walkDir(commandsPath, {
       filter: (fullFileName, fileName, stats) => {
         if (typeof filterFunc === 'function')
@@ -390,7 +393,7 @@ function resolveConfig(config) {
 
 function loadMythixConfig(_mythixConfigPath, _appRootPath) {
   let mythixConfigPath = _mythixConfigPath;
-  let configPath        = mythixConfigPath;
+  let configPath       = mythixConfigPath;
 
   try {
     let stats = FileSystem.statSync(mythixConfigPath);

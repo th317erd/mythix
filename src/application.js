@@ -235,14 +235,18 @@ class Application extends EventEmitter {
   }
 
   loadConfig(configPath) {
-    try {
-      let appOptions = this.getOptions();
+    let appOptions  = this.getOptions();
+    let environment = (appOptions.environment || process.NODE_ENV || 'development');
 
+    if (!configPath)
+      return wrapConfig(Object.assign({}, { environment }));
+
+    try {
       let config = require(configPath);
       if (config.__esModule)
         config = config['default'];
 
-      return wrapConfig(Object.assign({}, config || {}, { environment: (appOptions.environment || config.environment || 'development')}));
+      return wrapConfig(Object.assign({}, config || {}, { environment }));
     } catch (error) {
       this.getLogger().error(`Error while trying to load application configuration ${configPath}: `, error);
       throw error;

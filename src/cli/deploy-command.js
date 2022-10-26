@@ -288,6 +288,10 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       }
     }
 
+    async postCloneProject() {
+
+    }
+
     async copyFile(dryRun, sourceFilePath, targetFilePath) {
       let targetDir = Path.dirname(targetFilePath);
       if (!FileSystem.existsSync(targetDir))
@@ -361,6 +365,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
 
     async archiveProject(deployConfig) {
       let {
+        dryRun,
         tempLocation,
         version,
       } = deployConfig;
@@ -368,7 +373,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       let archiveLocation = deployConfig.archiveLocation = Path.join(tempLocation, `${version}.tar.gz`);
 
       await this.spawnCommand(
-        false,
+        dryRun,
         'tar',
         [
           '-czf',
@@ -653,26 +658,28 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         relativeConfigPath,
       } = deployConfig;
 
-      let deployLocation    = this.joinUnixPath(decodeURIComponent(target.pathname), '' + deployConfig.version);
-      let targetConfigPath  = this.joinUnixPath(decodeURIComponent(target.pathname), 'shared', 'config');
-      let sourceConfigPath  = this.joinUnixPath(deployLocation, relativeConfigPath);
-      let nodeModulesLink   = this.joinUnixPath(targetConfigPath, 'node_modules');
+      if (relativeConfigPath) {
+        let deployLocation    = this.joinUnixPath(decodeURIComponent(target.pathname), '' + deployConfig.version);
+        let targetConfigPath  = this.joinUnixPath(decodeURIComponent(target.pathname), 'shared', 'config');
+        let sourceConfigPath  = this.joinUnixPath(deployLocation, relativeConfigPath);
+        let nodeModulesLink   = this.joinUnixPath(targetConfigPath, 'node_modules');
 
-      // Ensure shared/config exists
-      await this.executeRemoteCommands(target, deployConfig, [
-        { command: 'test', args: [ '!', '-d', `"${targetConfigPath}"`, '&&', `${this.sudo(deployConfig)}cp -a "${sourceConfigPath}" "${targetConfigPath}"`, '|| true' ] },
-      ]);
+        // Ensure shared/config exists
+        await this.executeRemoteCommands(target, deployConfig, [
+          { command: 'test', args: [ '!', '-d', `"${targetConfigPath}"`, '&&', `${this.sudo(deployConfig)}cp -a "${sourceConfigPath}" "${targetConfigPath}"`, '|| true' ] },
+        ]);
 
-      // Ensure shared/config/node_modules symlink exists
-      await this.executeRemoteCommands(target, deployConfig, [
-        { command: 'test', args: [ '!', '-e', `"${nodeModulesLink}"`, '&&', `{ cd "${targetConfigPath}"; ${this.sudo(deployConfig)}ln -s "../../current/node_modules" "node_modules"; }`, '|| true' ] },
-      ]);
+        // Ensure shared/config/node_modules symlink exists
+        await this.executeRemoteCommands(target, deployConfig, [
+          { command: 'test', args: [ '!', '-e', `"${nodeModulesLink}"`, '&&', `{ cd "${targetConfigPath}"; ${this.sudo(deployConfig)}ln -s "../../current/node_modules" "node_modules"; }`, '|| true' ] },
+        ]);
 
-      // Remove app/config and symlink to ../shared/app/config
-      await this.executeRemoteCommands(target, deployConfig, [
-        { command: 'rm', args: [ '-fr', `"${sourceConfigPath}"` ] },
-        { command: 'ln', args: [ '-s', `"${targetConfigPath}"`, `"${sourceConfigPath}"` ] },
-      ]);
+        // Remove app/config and symlink to ../shared/app/config
+        await this.executeRemoteCommands(target, deployConfig, [
+          { command: 'rm', args: [ '-fr', `"${sourceConfigPath}"` ] },
+          { command: 'ln', args: [ '-s', `"${targetConfigPath}"`, `"${sourceConfigPath}"` ] },
+        ]);
+      }
 
       await this.installModulesForApp(target, deployConfig);
     }
@@ -692,7 +699,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         { command: 'ls', args: [ '-1', `"${deployLocation}"`, '|', 'grep', '-P', '"\\d+"' ] },
       ]);
 
-      let versions          = result.stdout.split(/\n+/g).map((part) => part.trim()).filter(Boolean).sort();
+      let versions          = (result.stdout || '').split(/\n+/g).map((part) => part.trim()).filter(Boolean).sort();
       let versionsToRemove  = versions.slice(0, -LATEST_DEPLOY_VERSIONS_TO_KEEP);
 
       if (Nife.isNotEmpty(versionsToRemove)) {
@@ -809,7 +816,8 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         if (!deployConfig.rootPath)
           deployConfig.rootPath = Path.dirname(configPath);
 
-        deployConfig.relativeConfigPath = appOptions.configPath.substring(deployConfig.rootPath.length).replace(/^[/\\.]+/, '').replace(/[/\\]+$/, '');
+        if (appOptions.configPath)
+          deployConfig.relativeConfigPath = appOptions.configPath.substring(deployConfig.rootPath.length).replace(/^[/\\.]+/, '').replace(/[/\\]+$/, '');
 
         let git = deployConfig.git || {};
         if (git.useGitIgnore) {
@@ -894,7 +902,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
 
       console.log(`-------- Deploy ${deployConfig.version} --------`);
       console.log(`  Application name: ${appName}`);
-      console.log(`  Application config location: ./${deployConfig.relativeConfigPath}`);
+      console.log(`  Application config location: ${(deployConfig.relativeConfigPath) ? `./${deployConfig.relativeConfigPath}` : '<none>'}`);
       console.log(`  Temporary file location: ${deployConfig.tempLocation}`);
       console.log(`  Project file location: ${deployConfig.rootPath}`);
       console.log('');
@@ -916,8 +924,8 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       console.log('  Command log:');
 
       try {
-        this.mkdirSync(dryRun, tempLocation);
-        this.mkdirSync(dryRun, Path.join(tempLocation, deployConfig.version));
+        this.mkdirSync(false, tempLocation);
+        this.mkdirSync(false, Path.join(tempLocation, deployConfig.version));
 
         if (Nife.isNotEmpty(branch) && Nife.isEmpty(repository)) {
           repository = await this.getRepositoryURL(remoteName);
@@ -926,6 +934,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         }
 
         await this.cloneProject(deployConfig);
+        await this.postCloneProject(deployConfig);
         await this.copyProjectFilesToDeployFolder(deployConfig);
         await this.prepProjectPreDeploy(deployConfig);
         await this.archiveProject(deployConfig);
