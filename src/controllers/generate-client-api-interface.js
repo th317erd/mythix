@@ -108,6 +108,14 @@ function nodeRequestHandler(routeName, requestOptions) {
       response.on('end', function() {
         response.rawBody = response.body = responseData;
 
+        if (response.statusCode > 399) {
+          var error = new Error(response.statusText);
+          error.response = response;
+
+          reject(error);
+          return;
+        }
+
         try {
           var contentType = response.headers['content-type'];
 
@@ -190,7 +198,7 @@ function browserRequestHandler(routeName, requestOptions) {
         if (typeof requestOptions.responseHandler === 'function')
           return requestOptions.responseHandler(response);
 
-        if (!response.ok) {
+        if (!response.ok || response.statusCode > 399) {
           var error = new Error(response.statusText);
           error.response = response;
 
