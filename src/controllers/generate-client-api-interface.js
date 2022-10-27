@@ -113,37 +113,12 @@ function nodeRequestHandler(routeName, requestOptions) {
 
           if (contentType && contentType.match(/application\/json/i)) {
             var data = JSON.parse(responseData.toString('utf8'));
-
-            Object.defineProperties(data, {
-              '__response': {
-                writable:     true,
-                enumerable:   false,
-                configurable: true,
-                value:        response,
-              },
-              '__statusCode': {
-                writable:     true,
-                enumerable:   false,
-                configurable: true,
-                value:        response.status,
-              },
-              '__statusText': {
-                writable:     true,
-                enumerable:   false,
-                configurable: true,
-                value:        response.statusText,
-              },
-            });
-
             response.body = data;
-
-            resolve(data);
           } else if (contentType && contentType.match(/text\/(plain|html)/)) {
             response.body = responseData.toString('utf8');
-            resolve(response.body);
-          } else {
-            resolve(response);
           }
+
+          resolve(response);
         } catch (error) {
           return reject(error);
         }
@@ -226,34 +201,12 @@ function browserRequestHandler(routeName, requestOptions) {
         var contentType = response.headers.get('Content-Type');
         if (contentType && contentType.match(/application\/json/i)) {
           var data = response.json();
-
-          Object.defineProperties(data, {
-            '__response': {
-              writable:     true,
-              enumerable:   false,
-              configurable: true,
-              value:        response,
-            },
-            '__statusCode': {
-              writable:     true,
-              enumerable:   false,
-              configurable: true,
-              value:        response.status,
-            },
-            '__statusText': {
-              writable:     true,
-              enumerable:   false,
-              configurable: true,
-              value:        response.statusText,
-            },
-          });
-
-          resolve(data);
+          response.body = data;
         } else if (contentType && contentType.match(/text\/(plain|html)/i)) {
-          resolve(response.text());
-        } else {
-          resolve(response);
+          response.body = response.text();
         }
+
+        resolve(response);
       },
       function(error) {
         reject(error);

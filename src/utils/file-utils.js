@@ -27,7 +27,7 @@ function walkDir(rootPath, _options, _callback, _allFiles, _depth) {
 
     if (typeof filterFunc === 'function' && !filterFunc(fullFileName, fileName, stats, rootPath, depth))
       continue;
-    else if (filterFunc instanceof RegExp && !filterFunc.match(fullFileName))
+    else if (filterFunc instanceof RegExp && !fullFileName.match(filterFunc))
       continue;
 
 
