@@ -49,7 +49,7 @@ class Model extends _Model {
   }
 
   static _getConnection(_connection) {
-    let connection = _Model._getConnection(_connection);
+    let connection = _Model._getConnection.call(this, _connection);
     if (connection)
       return connection;
 
