@@ -195,7 +195,7 @@ function browserRequestHandler(routeName, requestOptions) {
     delete options.data;
 
     globalScope.fetch(url, Utils.cleanObjectProperties(options)).then(
-      function(response) {
+      async function(response) {
         if (typeof requestOptions.responseHandler === 'function')
           return requestOptions.responseHandler(response);
 
@@ -211,9 +211,9 @@ function browserRequestHandler(routeName, requestOptions) {
         let data;
 
         if (contentType && contentType.match(/application\/json/i))
-          data = response.json();
+          data = await response.json();
         else if (contentType && contentType.match(/text\/(plain|html)/i))
-          data = response.text();
+          data = await response.text();
         else
           data = response.body;
 
