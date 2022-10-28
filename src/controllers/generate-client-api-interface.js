@@ -106,7 +106,7 @@ function nodeRequestHandler(routeName, requestOptions) {
       });
 
       response.on('end', function() {
-        response.rawBody = response.body = responseData;
+        response.rawBody = responseData;
 
         if (response.statusCode > 399) {
           var error = new Error(response.statusText);
@@ -118,15 +118,16 @@ function nodeRequestHandler(routeName, requestOptions) {
 
         try {
           var contentType = response.headers['content-type'];
+          var data;
 
-          if (contentType && contentType.match(/application\/json/i)) {
-            var data = JSON.parse(responseData.toString('utf8'));
-            response.body = data;
-          } else if (contentType && contentType.match(/text\/(plain|html)/)) {
-            response.body = responseData.toString('utf8');
-          }
+          if (contentType && contentType.match(/application\/json/i))
+            data = JSON.parse(responseData.toString('utf8'));
+          else if (contentType && contentType.match(/text\/(plain|html)/))
+            data = responseData.toString('utf8');
+          else
+            data = response.body;
 
-          resolve(response);
+          resolve({ response, body: data });
         } catch (error) {
           return reject(error);
         }
@@ -207,14 +208,16 @@ function browserRequestHandler(routeName, requestOptions) {
         }
 
         var contentType = response.headers.get('Content-Type');
-        if (contentType && contentType.match(/application\/json/i)) {
-          var data = response.json();
-          response.body = data;
-        } else if (contentType && contentType.match(/text\/(plain|html)/i)) {
-          response.body = response.text();
-        }
+        let data;
 
-        resolve(response);
+        if (contentType && contentType.match(/application\/json/i))
+          data = response.json();
+        else if (contentType && contentType.match(/text\/(plain|html)/i))
+          data = response.text();
+        else
+          data = response.body;
+
+        resolve({ response, body: data });
       },
       function(error) {
         reject(error);
