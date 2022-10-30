@@ -25,8 +25,8 @@ const {
 const REQUEST_ID_POSTFIX_LENGTH = 4;
 const REQUEST_TIME_RESOLUTION   = 3;
 
-const DEFAULT_FILE_UPLOAD_BUFFER_SIZE = 2 * 1024 * 1024; // 2mb
-const DEFAULT_FILE_UPLOAD_SIZE_LIMIT  = 2 * 1024 * 1024; // 10mb
+const DEFAULT_FILE_UPLOAD_BUFFER_SIZE = 2 * (1024 * 1024); // 2mb
+const DEFAULT_FILE_UPLOAD_SIZE_LIMIT  = 10 * (1024 * 1024); // 10mb
 
 class HTTPServer {
   constructor(application, _opts) {
