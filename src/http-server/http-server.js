@@ -447,7 +447,10 @@ class HTTPServer {
     // eslint-disable-next-line new-cap
     let app = Express();
 
-    app.use(Express.raw({ type: 'application/json' }));
+    app.use(Express.raw({
+      type:   'application/json',
+      limit:  Nife.get(options, 'uploads.limits.fileSize', DEFAULT_FILE_UPLOAD_SIZE_LIMIT),
+    }));
 
     // Store _rawBody for request
     app.use((request, response, next) => {
