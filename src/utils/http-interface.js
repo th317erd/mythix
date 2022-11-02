@@ -3,8 +3,9 @@
 /* global Buffer */
 
 const Nife                      = require('nife');
-const http                      = require('http');
-const { URL, URLSearchParams }  = require('url');
+const http                      = require('node:http');
+const https                     = require('node:https');
+const { URL, URLSearchParams }  = require('node:url');
 const { dataToQueryString }     = require('./http-utils');
 
 class HTTPInterface {
@@ -134,7 +135,8 @@ class HTTPInterface {
 
       delete options.data;
 
-      let thisRequest = http.request(options, (response) => {
+      const httpScope = (url.protocol === 'https:') ? https : http;
+      let thisRequest = httpScope.request(options, (response) => {
         let responseData = Buffer.alloc(0);
 
         response.on('data', (chunk) => {
