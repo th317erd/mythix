@@ -190,7 +190,7 @@ class HTTPInterface {
 
     let finalOptions = Nife.extend({}, options || {}, { url });
 
-    if (this.defaultURL && finalOptions.url.charAt(0) === '/')
+    if (this.defaultURL && !(/^https?:\/\//i).test(finalOptions.url))
       finalOptions.url = this.defaultURL + finalOptions.url;
 
     if (method)
