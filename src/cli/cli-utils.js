@@ -464,6 +464,11 @@ function spawnCommand(args, options, _config) {
       );
 
       childProcess.on('error', (error) => {
+        if (options && options.ignoreExitCode) {
+          resolve(0);
+          return;
+        }
+
         reject(error);
       });
 

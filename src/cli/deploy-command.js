@@ -74,7 +74,9 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
     mkdirSync(dryRun, path) {
       if (!dryRun) {
         console.log(`    (running)$ mkdir -p ${path}`);
-        FileSystem.mkdirSync(path, { recursive: true });
+        try {
+          FileSystem.mkdirSync(path, { recursive: true });
+        } catch (error) {}
       } else {
         console.log(`    (would run)$ mkdir -p ${path}`);
       }
@@ -530,6 +532,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           (Nife.isNotEmpty(username)) ? `'${username}@${hostname}'` : `'${hostname}'`,
           `'${commandString}'`,
         ]),
+        options,
       );
     }
 
@@ -582,7 +585,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       await this.executeRemoteCommands(target, deployConfig, [
         { command: 'mkdir', args: [ '-p', this.joinUnixPath(decodeURIComponent(target.pathname)) ] },
         (relativeConfigPath) && { command: 'mkdir', args: [ '-p', this.joinUnixPath(decodeURIComponent(target.pathname), 'shared') ] },
-      ]);
+      ], { ignoreExitCode: true });
     }
 
     async allRemotesDeploy(deployConfig) {
