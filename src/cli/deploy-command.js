@@ -26,10 +26,14 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
           '@title':       'Deploy your application to the specified target',
           '--dry-run':    'Show what would be deployed without actually deploying',
           '--no-cleanup': 'File prep in the temporary file location will not be cleaned up after processing',
+          '--direct':     'Skip source control, and deploy the project as-is',
+          '--branch':     'Specify branch to deploy (overrides configuration for specified environment)',
         },
         runner: ({ $, Types }) => {
           $('--dry-run', Types.BOOLEAN());
           $('--no-cleanup', Types.BOOLEAN());
+          $('--direct', Types.BOOLEAN());
+          $('--branch', Types.STRING());
 
           return $(
             /[\w-]+/,
@@ -229,6 +233,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
     async cloneProject(deployConfig) {
       let {
         git,
+        directDeploy,
         tempLocation,
         rootPath,
       } = deployConfig;
@@ -242,7 +247,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
 
       let targetPath = Path.join(tempLocation, 'project');
 
-      if (!repository) {
+      if (directDeploy || !repository) {
         let copyCommand;
 
         if (process.platform === 'win32') {
@@ -833,6 +838,8 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
             throw new Error(`Bad "uri" specified for "targets[${index}]": "${rawURI}". No "pathname" found.`);
         });
 
+        deployConfig.directDeploy = args.direct;
+        deployConfig.branchOverride = (Nife.isNotEmpty(args.branch)) ? args.branch : undefined;
         deployConfig.dryRun = args.dryRun;
         deployConfig.version = this.getRevisionNumber();
 
@@ -845,7 +852,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         if (appOptions.configPath)
           deployConfig.relativeConfigPath = appOptions.configPath.substring(deployConfig.rootPath.length).replace(/^[/\\.]+/, '').replace(/[/\\]+$/, '');
 
-        let git = deployConfig.git || {};
+        let { git } = deployConfig;
         if (git.useGitIgnore) {
           let gitIgnorePath = Path.resolve(deployConfig.rootPath, '.gitignore');
           try {
@@ -898,7 +905,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       try {
         deployConfig = await this.loadDeployConfig(args);
       } catch (error) {
-        console.error(error.message);
+        console.error(error);
         return 1;
       }
 
@@ -940,9 +947,21 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         console.log(`    -> ${target.uri}`);
       }
 
-      if (Nife.isEmpty(branch)) {
+      if (!deployConfig.directDeploy && Nife.isEmpty(branch)) {
         console.log('');
         console.log('  !!!WARNING!!! "branch" is not set in your deploy configuration. The current file structure will be deployed "as-is". It is highly recommended that you set a "branch" in your deploy configuration.');
+      } else if (deployConfig.directDeploy) {
+        console.log('');
+        console.log('  !!!NOTICE!!! "--direct" argument was specified. Deploying project as-is, bypassing source-control.');
+      }
+
+      if (!deployConfig.directDeploy && !Nife.isEmpty(branch) && deployConfig.branchOverride) {
+        console.log('');
+        console.log(`  !!!NOTICE!!! "--branch" argument was specified. Overriding config branch "${branch}" and using branch "${deployConfig.branchOverride}" instead.`);
+
+        branch = deployConfig.branchOverride;
+        if (git)
+          git.branch = deployConfig.branchOverride;
       }
 
       console.log('');
@@ -953,7 +972,7 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
         this.mkdirSync(false, tempLocation);
         this.mkdirSync(false, Path.join(tempLocation, deployConfig.version));
 
-        if (Nife.isNotEmpty(branch) && Nife.isEmpty(repository)) {
+        if (!deployConfig.directDeploy && (Nife.isNotEmpty(branch) && Nife.isEmpty(repository))) {
           repository = await this.getRepositoryURL(remoteName);
           if (git)
             git.repository = repository;
