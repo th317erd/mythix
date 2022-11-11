@@ -78,6 +78,17 @@ class CommandBase {
         });
 
         childProcess.on('error', (error) => {
+          if (options && options.ignoreExitCode) {
+            resolve({
+              stdout: Buffer.concat(output).toString('utf8'),
+              stderr: Buffer.concat(errors).toString('utf8'),
+              code:   0,
+              error,
+            });
+
+            return;
+          }
+
           reject({
             stdout: Buffer.concat(output).toString('utf8'),
             stderr: Buffer.concat(errors).toString('utf8'),

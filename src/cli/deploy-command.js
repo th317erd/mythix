@@ -68,6 +68,10 @@ module.exports = defineCommand('deploy', ({ Parent }) => {
       try {
         return await super.spawnCommand(command, args, options);
       } catch (error) {
+        console.error('Error with command: ', { dryRun, command, args, options }, error);
+        if (error.stderr)
+          console.error(error.stderr);
+
         if (error instanceof Error)
           throw error;
 

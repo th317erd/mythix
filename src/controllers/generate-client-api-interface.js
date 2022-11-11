@@ -163,15 +163,22 @@ function browserRequestHandler(routeName, requestOptions) {
     var data        = requestOptions.data;
     var extraConfig = {};
     var headers     = Object.assign(Utils.keysToLowerCase(this.defaultHeaders || {}), Utils.keysToLowerCase(requestOptions.headers || {}));
+    var isFormData  = (data && (data instanceof FormData || data.constructor.name === 'FormData'));
 
     if (data) {
       if (!method.match(/^(GET|HEAD)$/i)) {
-        if ((headers['content-type'] || '').match(/application\/json/i))
-          data = JSON.stringify(data);
+        if (isFormData) {
+          extraConfig = {
+            body: data,
+          };
+        } else {
+          if ((headers['content-type'] || '').match(/application\/json/i))
+            data = JSON.stringify(data);
 
-        extraConfig = {
-          body: data,
-        };
+          extraConfig = {
+            body: data,
+          };
+        }
       } else {
         var queryString = Utils.dataToQueryString(data);
         if (queryString)
@@ -193,6 +200,8 @@ function browserRequestHandler(routeName, requestOptions) {
     );
 
     delete options.data;
+    if (isFormData && options.headers)
+      delete options.headers['content-type'];
 
     globalScope.fetch(url, Utils.cleanObjectProperties(options)).then(
       async function(response) {
