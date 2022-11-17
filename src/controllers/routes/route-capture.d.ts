@@ -15,7 +15,7 @@ export declare interface RouteCaptureHelperContext {
   params: GenericObject;
 }
 
-export declare type RouteCaptureHelper = (context: RouteCaptureHelperContext) => any;
+export declare type RouteCaptureHelper = ((context: RouteCaptureHelperContext) => any) | RegExp;
 
 export declare class RouteCapture {
   declare _parentScope: RouteScopeBase;

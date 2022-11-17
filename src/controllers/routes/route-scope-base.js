@@ -92,7 +92,7 @@ class RouteScopeBase {
   findFirstMatchingRoute(request) {
     let method      = request.method.toUpperCase();
     let contentType = Nife.get(request, 'headers.content-type');
-    let path        = request.path;
+    let path        = decodeURIComponent(request.path);
 
     if (contentType) {
       contentType = contentType.split(';')[0];
@@ -168,7 +168,7 @@ class RouteScopeBase {
       let params = matchesPathParts(pathParts);
       if (params) {
         // Does the contentType match?
-        if (!contentTypeMatches(endpoint.contentType)) {
+        if ((method !== 'GET' && method !== 'HEAD') && !contentTypeMatches(endpoint.contentType)) {
           possibleMatch = endpoint;
           return;
         }
