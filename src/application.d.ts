@@ -1,5 +1,6 @@
 import { ConnectionBase, ModelClass, Models } from 'mythix-orm';
 import { ControllerClass } from './controllers/controller-base';
+import { RouteScope } from './controllers/routes/route-scope';
 import { HTTPServer } from './http-server/http-server';
 import { GenericObject } from './interfaces/common';
 import { Logger, LoggerClass, LoggerOptions } from './logger';
@@ -54,7 +55,8 @@ export declare class Application {
   public getConfig(): GenericObject;
   public setConfig(options: GenericObject): Application;
   public getApplicationName(): string;
-  public getRoutes(): GenericObject;
+  public _getRoutes(): RouteScope;
+  public getRoutes(context: RouteScope): void;
   public getCustomRouteParserTypes(): { [key: string]: (value: string, param: GenericObject, index?: number) => any };
   public createLogger(loggerOptions: LoggerOptions, LoggerClass: LoggerClass): Logger;
   public getLogger(): Logger;

@@ -11,7 +11,7 @@ class RouteScopeBase {
         writable:     false,
         enumerable:   false,
         configurable: false,
-        value:        parentScope,
+        value:        parentScope || null,
       },
       '_pathParts': {
         writable:     false,
@@ -20,12 +20,6 @@ class RouteScopeBase {
         value:        pathParts || [],
       },
       '_routes': {
-        writable:     true,
-        enumerable:   false,
-        configurable: true,
-        value:        new Map(),
-      },
-      '_endpoints': {
         writable:     true,
         enumerable:   false,
         configurable: true,

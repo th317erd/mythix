@@ -9,7 +9,7 @@ class RouteEndpoint {
         writable:     false,
         enumerable:   false,
         configurable: false,
-        value:        parentScope,
+        value:        parentScope || null,
       },
       'isDynamic': {
         writable:     true,

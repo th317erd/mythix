@@ -3,6 +3,8 @@ import { Application } from '../application';
 import { Application as ExpressApplication, Request, Response } from 'express';
 import { Logger } from '../logger';
 import { ControllerClass, ControllerContext } from '../controllers/controller-base';
+import { RouteScope } from '../controllers/routes/route-scope';
+import { RouteEndpoint } from '../controllers/routes/route-endpoint';
 
 export declare class HTTPServer {
   declare public application: Application;
@@ -19,7 +21,7 @@ export declare class HTTPServer {
   public setRoutes(routes): void;
   public executeMiddleware(middleware: Array<Function>, request: Request, response: Response): Promise<void>;
   public baseMiddleware(request: Request, response: Response, rootNext: Function): void;
-  public findFirstMatchingRoute(request: Request, routes: Array<GenericObject>): GenericObject;
+  public findFirstMatchingRoute(request: Request, routes: RouteScope): { endpoint?: RouteEndpoint, params?: GenericObject };
   public getRouteController(controller: string | Function, route, params, request): { controller: ControllerClass | undefined } | undefined;
   public createRequestLogger(application: Application, request: Request): Logger;
   public validateQueryParam(route: GenericObject, query: GenericObject, paramName: string, queryValue: any, queryParams: GenericObject): boolean;

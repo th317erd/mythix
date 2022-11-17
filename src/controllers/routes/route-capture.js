@@ -22,7 +22,7 @@ class RouteCapture {
         writable:     false,
         enumerable:   false,
         configurable: false,
-        value:        parentScope,
+        value:        parentScope || null,
       },
       '_paramName': {
         writable:     false,
@@ -34,7 +34,7 @@ class RouteCapture {
         writable:     false,
         enumerable:   false,
         configurable: false,
-        value:        helper,
+        value:        helper || null,
       },
       '_options': {
         writable:     false,
