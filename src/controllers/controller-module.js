@@ -2,7 +2,6 @@
 
 const Nife            = require('nife');
 const { BaseModule }  = require('../modules/base-module');
-const { buildRoutes } = require('./controller-utils');
 const {
   fileNameWithoutExtension,
   walkDir,
@@ -108,22 +107,14 @@ class ControllerModule extends BaseModule {
     };
   }
 
-  buildRoutes(httpServer, routes) {
-    let application       = this.getApplication();
-    let customParserTypes = application.getCustomRouteParserTypes(httpServer, routes);
-
-    return buildRoutes(routes, customParserTypes);
-  }
-
   async start(options) {
-    let application       = this.getApplication();
-    let httpServer        = (typeof application.getHTTPServer === 'function') ? application.getHTTPServer() : null;
-    let controllers       = await this.loadControllers(options.controllersPath);
+    let application = this.getApplication();
+    let httpServer  = (typeof application.getHTTPServer === 'function') ? application.getHTTPServer() : null;
+    let controllers = await this.loadControllers(options.controllersPath);
 
     this.controllers = controllers;
 
-    let routes = await this.buildRoutes(httpServer, application.getRoutes());
-    httpServer.setRoutes(routes);
+    httpServer.setRoutes(application._getRoutes());
   }
 
   async stop() {

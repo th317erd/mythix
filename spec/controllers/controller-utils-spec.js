@@ -100,46 +100,4 @@ describe('controller-utils', function() {
       expect(matchFunc('values/derp')).toEqual({ str: 'MAGIC:derp!!!' });
     });
   });
-
-  describe('buildRoutes', function() {
-    it('should be able to compile routes', function() {
-      // let allRoutes = ControllerUtils.buildRoutes({
-      //   'api': {
-      //     'v1': {
-      //       'test': {
-      //         methods:    [ 'GET', 'POST' ],
-      //         accept:     'application/json',
-      //         controller: 'Something.test',
-      //         children:   [
-      //           {
-      //             priority:   10,
-      //             methods:    'GET',
-      //             controller: 'Something.children.get',
-      //           },
-      //           {
-      //             priority:   11,
-      //             methods:    'POST',
-      //             controller: 'Something.children.post',
-      //           },
-      //           {
-      //             'do-something/<id:int>': {
-      //               priority:   10,
-      //               methods:    'GET',
-      //               controller: 'Something.children.get.doSomething',
-      //             },
-      //           },
-      //         ],
-      //       },
-      //       'test2': {
-      //         priority:   0,
-      //         methods:    [ 'POST', '*' ],
-      //         controller: 'Something.test2',
-      //       },
-      //     },
-      //   },
-      // });
-
-      // console.log('ALL ROUTES: ', allRoutes);
-    });
-  });
 });

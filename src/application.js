@@ -15,6 +15,7 @@ const { ControllerModule }  = require('./controllers/controller-module');
 const { TaskModule }        = require('./tasks/task-module');
 const { FileWatcherModule } = require('./modules/file-watcher-module');
 const { wrapConfig }        = require('./utils');
+const ControllerRoutes      = require('./controllers/routes');
 
 // Trace what is requesting the application exit
 
@@ -270,6 +271,12 @@ class Application extends EventEmitter {
   setConfig(opts) {
     Nife.extend(true, this.config.CONFIG, opts);
     return this;
+  }
+
+  _getRoutes() {
+    let routeScope = new ControllerRoutes.RouteScope();
+    this.getRoutes(routeScope);
+    return routeScope;
   }
 
   getRoutes() {

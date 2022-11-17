@@ -5,22 +5,15 @@ const { ControllerModule }            = require('./controller-module');
 const { generateClientAPIInterface }  = require('./generate-client-api-interface');
 
 const {
-  buildPatternMatcher,
-  buildMethodMatcher,
-  buildContentTypeMatcher,
-  buildPathMatcher,
-  buildRoutes,
   defineController,
 } = require('./controller-utils');
+
+const Routes = require('./routes');
 
 module.exports = {
   ControllerBase,
   ControllerModule,
-  buildPatternMatcher,
-  buildMethodMatcher,
-  buildContentTypeMatcher,
-  buildPathMatcher,
-  buildRoutes,
+  Routes,
   defineController,
   generateClientAPIInterface,
 };

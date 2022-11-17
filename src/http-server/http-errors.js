@@ -42,11 +42,11 @@ class HTTPBadContentTypeError extends HTTPBaseError {
     if (!route)
       return this.message;
 
-    let accept = route.accept;
-    if (!(accept instanceof Array))
-      accept = [ accept ];
+    let contentType = route.contentType;
+    if (!(contentType instanceof Array))
+      contentType = [ contentType ];
 
-    accept = accept
+    contentType = contentType
       .filter((part) => {
         if (!(typeof part === 'string' || part instanceof String) && !(part instanceof RegExp))
           return false;
@@ -54,13 +54,13 @@ class HTTPBadContentTypeError extends HTTPBaseError {
         return true;
       })
       .map((part) => {
-        return `'${part}'`;
+        return (part instanceof RegExp) ? `RegExp[${part.toString()}]` : `'${part}'`;
       });
 
     if (this.message)
-      return `${this.message}: Accepted Content-Types are [ ${accept.join(', ')} ]`;
+      return `${this.message}: Accepted Content-Types are [ ${contentType.join(', ')} ]`;
     else
-      return `Accepted Content-Types are [ ${accept.join(', ')} ]`;
+      return `Accepted Content-Types are [ ${contentType.join(', ')} ]`;
   }
 }
 

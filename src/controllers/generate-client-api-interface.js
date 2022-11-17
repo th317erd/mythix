@@ -2,9 +2,8 @@
 
 /* global Buffer, Utils, globalScope */
 
-const Nife            = require('nife');
-const ControllerUtils = require('./controller-utils');
-const HTTPUtils       = require('../utils/http-utils');
+const Nife      = require('nife');
+const HTTPUtils = require('../utils/http-utils');
 
 function tabIn(str, amount) {
   var padding = ''.padStart((amount || 1) * 2, ' ');
@@ -18,11 +17,6 @@ function tabIn(str, amount) {
 
     return padding;
   });
-}
-
-function buildRoutes(httpServer, routes) {
-  var customParserTypes = this.getCustomRouteParserTypes(httpServer, routes);
-  return ControllerUtils.buildRoutes(routes, customParserTypes);
 }
 
 function nodeRequestHandler(routeName, requestOptions) {
@@ -307,45 +301,31 @@ function generateUtils() {
 `;
 }
 
-function generateRoutes(_routes, _options) {
-  var options         = _options || {};
-  var methods         = {};
-  var domain          = options.domain;
-  var routes          = _routes;
-
-  if (options.routeFilter) {
-    var routeFilter = options.routeFilter;
-
-    if (typeof routeFilter === 'function') {
-      routes = routes.filter(routeFilter);
-    } else if (routeFilter instanceof RegExp) {
-      routes = routes.filter((route) => {
-        return routeFilter.test(route.path);
-      });
-    } else if (Nife.instanceOf(routeFilter, 'string')) {
-      routes = routes.filter((route) => {
-        return (route.path.indexOf(routeFilter) >= 0);
-      });
-    }
-  }
+function generateRoutes(applicationRoutes, _options) {
+  let options     = _options || {};
+  let methods     = {};
+  let domain      = options.domain;
+  let routeFilter = options.routeFilter;
 
   if (Nife.isEmpty(domain))
     domain = '';
   else
     domain = ('' + domain).replace(/\/+$/, '');
 
-  for (var i = 0, il = routes.length; i < il; i++) {
-    var route       = routes[i];
-    var methodName  = route.name;
+  applicationRoutes.walkRoutes((context) => {
+    if (typeof routeFilter === 'function') {
+      if (!routeFilter(context))
+        return;
+    }
+
+    let { endpoint }  = context;
+    let methodName    = endpoint.name;
     if (Nife.isEmpty(methodName))
-      continue;
+      return;
 
-    var pathMatcher   = route.pathMatcher;
-    var clientOptions = route.clientOptions;
-    var sanitizedPath = pathMatcher.sanitizedPath;
-
+    let clientOptions = endpoint.clientOptions;
     if (clientOptions == null) {
-      var contentType = route.accept;
+      let contentType = endpoint.contentType;
       if (Nife.isEmpty(contentType))
         contentType = 'application/json';
       else if (Array.isArray(contentType))
@@ -370,15 +350,13 @@ function generateRoutes(_routes, _options) {
       return value;
     });
 
-    var defaultMethod = Nife.toArray(route.methods).filter(Boolean);
-    if (Nife.isEmpty(defaultMethod))
-      defaultMethod = 'GET';
-    else if (Array.isArray(defaultMethod))
-      defaultMethod = defaultMethod[0];
-
-    var url = `${domain}${sanitizedPath}`;
-    methods[methodName] = { method: `function ${methodName}(_options) { var clientOptions = ${clientOptions}; var options = Object.assign({ url: '${url}', method: '${defaultMethod}' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('${methodName}', options); delete options.params; return makeRequest.call(this, '${methodName}', options); }`, route };
-  }
+    let defaultMethod = endpoint.methods[0];
+    let url = `${domain}/${endpoint.path.replace(/^\/+/, '')}`;
+    methods[methodName] = {
+      method: `function ${methodName}(_options) { var clientOptions = ${clientOptions}; var options = Object.assign({ url: '${url}', method: '${defaultMethod}' }, defaultRouteOptions, clientOptions, Object.assign({}, _options || {}, { headers: Object.assign({}, defaultRouteOptions.headers || {}, clientOptions.headers || {}, ((_options || {}).headers) || {}) })); options.url = Utils.injectURLParams('${methodName}', options); delete options.params; return makeRequest.call(this, '${methodName}', options); }`,
+      endpoint,
+    };
+  });
 
   return methods;
 }
@@ -507,10 +485,10 @@ function generateAPIInterface(routes, _options) {
   var routeMethods      = generateRoutes(routes, options);
   var routeMethodNames  = Object.keys(routeMethods).sort();
   var injectMethodsStr  = routeMethodNames.map((methodName) => {
-    var info    = routeMethods[methodName];
-    var method  = info.method;
-    var route   = info.route;
-    var help    = route.help;
+    var info      = routeMethods[methodName];
+    var method    = info.method;
+    var endpoint  = info.endpoint;
+    var help      = endpoint.help;
 
     if (!help || options.mode !== 'development')
       help = '{}';
@@ -656,8 +634,7 @@ function generateAPIInterface(routes, _options) {
 
 function generateClientAPIInterface(application, _options) {
   var options     = _options || {};
-  var httpServer  = application.getHTTPServer() || null;
-  var routes      = buildRoutes.call(application, httpServer, application.getRoutes());
+  var routes      = application._getRoutes();
   var globalName  = (Object.prototype.hasOwnProperty.call(options, 'globalName')) ? options.globalName : '';
 
   if (Nife.isNotEmpty(globalName))

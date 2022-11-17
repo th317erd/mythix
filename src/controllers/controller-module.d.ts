@@ -7,5 +7,4 @@ export class ControllerModule extends BaseModule {
   public getControllerFilePaths(controllersPath: string): Array<string>;
   public loadControllers(controllersPath: string): ControllerClasses;
   public getController(name: string): { controller: ControllerClass, controllerMethod: string | undefined };
-  public buildRoutes(httpServer: HTTPServer, routes: Array<GenericObject>): Array<GenericObject>;
 }

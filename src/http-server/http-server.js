@@ -78,6 +78,12 @@ class HTTPServer {
         configurable: true,
         value:        opts.middleware,
       },
+      '_routeMatchCache': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        new WeakMap(),
+      },
     });
   }
 
@@ -114,7 +120,7 @@ class HTTPServer {
   }
 
   executeMiddleware(middleware, request, response) {
-    let { route, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
+    let { endpoint, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
 
     return new Promise((resolve, reject) => {
       if (Nife.isEmpty(middleware)) {
@@ -130,7 +136,7 @@ class HTTPServer {
       if (!logger)
         logger = request.mythixLogger = this.createRequestLogger(application, request);
 
-      request.route = route;
+      request.route = endpoint;
       request.params = params;
 
       let middlewareIndex = 0;
@@ -180,42 +186,23 @@ class HTTPServer {
     );
   }
 
-  findFirstMatchingRoute(request, _routes) {
-    const routeMatcher = (route, method, path, contentType) => {
-      let {
-        methodMatcher,
-        contentTypeMatcher,
-        pathMatcher,
-      } = route;
-
-      if (typeof methodMatcher === 'function' && !methodMatcher(method))
-        return;
-
-      let result = (typeof pathMatcher !== 'function') ? false : pathMatcher(path);
-      if (!result)
-        return;
-
-      if (typeof contentTypeMatcher === 'function' && !contentTypeMatcher(contentType))
-        throw new HTTPBadContentTypeError(route);
-
+  findFirstMatchingRoute(request, routes) {
+    // Routes are fetched for each middleware ran, so we
+    // cache the found route keyed by the request.
+    let result = this._routeMatchCache.get(request);
+    if (result)
       return result;
-    };
 
-    let routes      = _routes || [];
-    let method      = request.method;
-    let contentType = Nife.get(request, 'headers.content-type');
-    let path        = request.path;
+    result = routes.findFirstMatchingRoute(request);
+    if (!result || !result.endpoint)
+      throw new HTTPNotFoundError();
 
-    for (let i = 0, il = routes.length; i < il; i++) {
-      let route   = routes[i];
-      let result  = routeMatcher(route, method, path, contentType);
-      if (!result)
-        continue;
+    if (result.error === 'BadContentType')
+      throw new HTTPBadContentTypeError(result.endpoint);
 
-      return { route, params: result };
-    }
+    this._routeMatchCache.set(request, result);
 
-    throw new HTTPNotFoundError();
+    return result;
   }
 
   getRouteController(_controller, route, params, request) {
@@ -339,11 +326,11 @@ class HTTPServer {
       logger = this.createRequestLogger(application, request);
       logger.info('Starting request');
 
-      let { route, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
+      let { endpoint, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
 
       request.params = params || {};
 
-      let _controller = this.getRouteController(route.controller, route, params, request);
+      let _controller = this.getRouteController(endpoint.controller, endpoint, params, request);
       let {
         controller,
         controllerMethod,
@@ -352,7 +339,7 @@ class HTTPServer {
       let ControllerConstructor = controller;
 
       if (!controller)
-        throw new HTTPInternalServerError(route, `Controller not found for route ${route.url}`);
+        throw new HTTPInternalServerError(endpoint, `Controller not found for route ${endpoint.url}`);
 
       if (Nife.isEmpty(controllerMethod))
         controllerMethod = (request.method || 'get').toLowerCase();
@@ -362,7 +349,7 @@ class HTTPServer {
       let context = {
         params: request.params,
         query:  request.query,
-        route,
+        route:  endpoint,
         controller,
         controllerMethod,
         controllerInstance,
