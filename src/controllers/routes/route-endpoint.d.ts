@@ -3,6 +3,13 @@ import { RouteScopeBase } from './route-scope-base';
 
 export declare type EndpointMethods = 'GET' | 'PUT' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS' | '*';
 
+export declare interface EndpointCORsOptions {
+  allowOrigin: string;
+  allowMethods?: string | Array<string>;
+  allowHeaders?: string | Array<string>;
+  maxAge?: number;
+}
+
 export declare interface EndpointOptions {
   name?: string;
   methods?: Array<EndpointMethods> | EndpointMethods;
@@ -12,6 +19,7 @@ export declare interface EndpointOptions {
   help?: GenericObject;
   queryParams?: GenericObject;
   middleware?: Array<Function>;
+  cors?: boolean | EndpointCORsOptions;
   [key: string | symbol]: any;
 }
 

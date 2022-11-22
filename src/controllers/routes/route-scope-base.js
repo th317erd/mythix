@@ -5,7 +5,7 @@ const { RouteCapture }  = require('./route-capture');
 const { RouteEndpoint } = require('./route-endpoint');
 
 class RouteScopeBase {
-  constructor(parentScope, pathParts) {
+  constructor(parentScope, pathParts, options) {
     Object.defineProperties(this, {
       '_parentScope': {
         writable:     false,
@@ -18,6 +18,12 @@ class RouteScopeBase {
         enumerable:   false,
         configurable: false,
         value:        pathParts || [],
+      },
+      '_options': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        Nife.extend(true, {}, ((parentScope && parentScope.getOptions()) || {}), (options || {})),
       },
       '_routes': {
         writable:     true,
@@ -44,6 +50,15 @@ class RouteScopeBase {
     return this._parentScope;
   };
 
+  getOptions = () => {
+    return this._options;
+  };
+
+  updateOptions = (newOptions) => {
+    let options = this.getOptions();
+    this._options = Nife.extend(true, {}, (newOptions || {}));
+  };
+
   addRoute(pathPart, route) {
     let set = this._routes.get(pathPart);
     if (!set) {
@@ -60,8 +75,10 @@ class RouteScopeBase {
       return;
 
     let firstRoute = Array.from(set.values()).find((route) => {
-      if (route instanceof RouteScopeBase)
-        return true;
+      if (route instanceof RouteScopeBase) {
+        if (route._pathParts && route._pathParts[route._pathParts.length - 1] === pathPart)
+          return true;
+      }
 
       return false;
     });

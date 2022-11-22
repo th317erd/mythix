@@ -1,6 +1,5 @@
 'use strict';
 
-const Nife              = require('nife');
 const { defineCommand } = require('./cli-utils');
 const { Logger }        = require('../logger');
 
@@ -26,9 +25,14 @@ module.exports = defineCommand('routes', ({ Parent }) => {
 
       routes.walkRoutes(({ endpoint }) => {
         let methods = endpoint.methods;
+        let flags   = [
+          (endpoint.isDynamic) ? 'dynamic' : '',
+          (endpoint.cors) ? 'COR' : '',
+        ].filter(Boolean).join(', ');
+
         for (let i = 0, il = methods.length; i < il; i++) {
           let method = methods[i];
-          console.log(`  ${method}${whitespace.substring(0, whitespace.length - method.length)}/${endpoint.path} -> [${endpoint.controller}]${(endpoint.isDynamic) ? ' (dynamic)' : ''}`);
+          console.log(`  ${method}${whitespace.substring(0, whitespace.length - method.length)}/${endpoint.path} -> [${endpoint.controller}]${(flags) ? ` (${flags})` : ''}`);
         }
       });
     }

@@ -317,8 +317,9 @@ class HTTPServer {
   }
 
   async baseRouter(request, response, next) {
-    let startTime   = Nife.now();
-    let application = this.getApplication();
+    let startTime     = Nife.now();
+    let application   = this.getApplication();
+    let requestMethod = ('' + request.method).toUpperCase();
     let controllerInstance;
     let logger;
 
@@ -327,6 +328,39 @@ class HTTPServer {
       logger.info('Starting request');
 
       let { endpoint, params } = (this.findFirstMatchingRoute(request, this.routes) || {});
+
+      // CORS
+      if (requestMethod === 'OPTIONS') {
+        let cors = endpoint.cors;
+        if (!cors) {
+          response.header('Content-Type', 'text/plain; charset=UTF-8');
+          response.status(403);
+          response.end();
+
+          let requestTime = Nife.now() - startTime;
+          logger.log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: 403 Forbidden`);
+
+          return;
+        }
+
+        response.header('Access-Control-Allow-Origin', cors.allowOrigin);
+        response.header('Access-Control-Allow-Methods', cors.allowMethods);
+        response.header('Access-Control-Allow-Headers', cors.allowHeaders);
+
+        if (cors.maxAge != null)
+          response.header('Access-Control-Max-Age', cors.maxAge);
+
+        response.header('Content-Type', 'text/plain; charset=UTF-8');
+        response.header('Content-Length', '0');
+
+        response.status(204);
+        response.end();
+
+        let requestTime = Nife.now() - startTime;
+        logger.log(`Completed request in ${requestTime.toFixed(REQUEST_TIME_RESOLUTION)}ms: 204 No Content`);
+
+        return;
+      }
 
       request.params = params || {};
 

@@ -4,6 +4,15 @@ const Nife = require('nife');
 
 class RouteEndpoint {
   constructor(parentScope, attributes) {
+    const mapMethods = (methods) => {
+      return Nife.arrayFlatten(Nife.toArray(methods || []).filter(Boolean).map((method) => {
+        if (method === '*')
+          return [ 'GET', 'PUT', 'POST', 'PATCH', 'DELETE', 'HEAD' ];
+
+        return ('' + method).toUpperCase();
+      }));
+    };
+
     Object.defineProperties(this, {
       '_parentScope': {
         writable:     false,
@@ -28,12 +37,8 @@ class RouteEndpoint {
       attributes,
     );
 
-    this.methods = Nife.arrayFlatten(Nife.toArray(this.methods || []).filter(Boolean).map((method) => {
-      if (method === '*')
-        return [ 'GET', 'PUT', 'POST', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS' ];
-
-      return ('' + method).toUpperCase();
-    }));
+    this.methods = mapMethods(this.methods);
+    this.methods = Nife.uniq(this.methods.concat('OPTIONS'));
 
     this.contentType = Nife.arrayFlatten(Nife.toArray(this.contentType || []).filter(Boolean).map((contentType) => {
       if (contentType === '*')
@@ -47,6 +52,38 @@ class RouteEndpoint {
 
     if (Nife.isEmpty(this.contentType))
       this.contentType = null;
+
+    let cors = this.cors;
+    if (cors) {
+      if (cors === true)
+        cors = this.cors = {};
+
+      if (cors.allowOrigin == null)
+        cors.allowOrigin = '*';
+
+      if (cors.allowMethods == null)
+        cors.allowMethods = this.methods;
+
+      if (cors.allowHeaders == null) {
+        cors.allowHeaders = [
+          'DNT',
+          'User-Agent',
+          'X-Requested-With',
+          'If-Modified-Since',
+          'Cache-Control',
+          'Content-Type',
+          'Range',
+        ];
+      }
+
+      if (cors.maxAge == null)
+        cors.maxAge = 86400;
+
+      cors.allowMethods = mapMethods(cors.allowMethods).join(',');
+
+      if (Array.isArray(cors.allowHeaders))
+        cors.allowHeaders = cors.allowHeaders.filter(Boolean).join(',');
+    }
   }
 
   getParentScope = () => {
