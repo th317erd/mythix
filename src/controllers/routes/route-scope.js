@@ -14,10 +14,12 @@ class RouteScope extends RouteScopeBase {
     if (pathPart instanceof RouteCapture)
       pathPart = pathPart.clone({ optional: false });
 
-    let routeScope = new RouteScope(this, this._pathParts.concat(pathPart));
-    routeScope.isDynamic = this.isDynamic || this.isDynamicPathPart(pathPart);
-
-    this.addRoute(pathPart, routeScope);
+    let routeScope = this.getPathRoute(pathPart);
+    if (!routeScope) {
+      routeScope = new RouteScope(this, this._pathParts.concat(pathPart));
+      routeScope.isDynamic = this.isDynamic || this.isDynamicPathPart(pathPart);
+      this.addRoute(pathPart, routeScope);
+    }
 
     callback(routeScope);
   };

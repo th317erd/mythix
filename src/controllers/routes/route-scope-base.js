@@ -44,14 +44,29 @@ class RouteScopeBase {
     return this._parentScope;
   };
 
-  addRoute(pathPart, scope) {
+  addRoute(pathPart, route) {
     let set = this._routes.get(pathPart);
     if (!set) {
       set = new Set();
       this._routes.set(pathPart, set);
     }
 
-    set.add(scope);
+    set.add(route);
+  }
+
+  getPathRoute(pathPart) {
+    let set = this._routes.get(pathPart);
+    if (!set)
+      return;
+
+    let firstRoute = Array.from(set.values()).find((route) => {
+      if (route instanceof RouteScopeBase)
+        return true;
+
+      return false;
+    });
+
+    return firstRoute;
   }
 
   isDynamicPathPart(pathPart) {

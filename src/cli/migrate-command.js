@@ -56,13 +56,13 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
     }
 
     getMigrationFilesFromRevision(migrationFiles, _revision, isRollback) {
-      let revision = ('' + _revision);
+      let revision = BigInt('' + _revision);
 
       let index = migrationFiles.findIndex((fullFileName) => {
         let fileName        = Path.basename(fullFileName);
         let migrationFileTS = fileName.substring(0, TIMESTAMP_LENGTH);
 
-        if (BigInt(revision) >= BigInt(migrationFileTS))
+        if (BigInt(migrationFileTS) >= revision)
           return true;
 
         return false;
@@ -103,10 +103,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       try {
         let MigrationModel = this.getApplication().getModel('Migration');
 
-        await MigrationModel.destroy({
-          where: MigrationModel.prepareWhereStatement({ id: ('' + migrationID) }),
-          limit: 1,
-        });
+        await MigrationModel.where.id.EQ(('' + migrationID)).LIMIT(1).destroy();
       } catch (error) {
         return;
       }
@@ -116,11 +113,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
       try {
         let MigrationModel = this.getApplication().getModel('Migration');
 
-        let lastMigrationModel = await MigrationModel.first(null, {
-          order: [ [ 'id', 'DESC' ] ],
-          limit: 1,
-        });
-
+        let lastMigrationModel = await MigrationModel.where.id.NEQ(null).ORDER.DESC('Migration:id').first();
         if (lastMigrationModel == null)
           return null;
 
