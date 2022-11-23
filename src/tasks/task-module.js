@@ -126,16 +126,12 @@ class TaskModule extends BaseModule {
         promise.reject(error);
       };
 
-      const _runTask = () => {
-        let result = taskInstance.execute(lastTime, currentTime, diff);
-
-        if (Nife.instanceOf(result, 'promise')) {
-          result.then(
-            successResult,
-            errorResult,
-          );
-        } else {
-          promise.resolve(result);
+      const _runTask = async () => {
+        try {
+          let result = await taskInstance.execute(lastTime, currentTime, diff);
+          successResult(result);
+        } catch (error) {
+          errorResult(error);
         }
       };
 

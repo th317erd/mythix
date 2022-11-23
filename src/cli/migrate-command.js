@@ -62,16 +62,16 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
         let fileName        = Path.basename(fullFileName);
         let migrationFileTS = fileName.substring(0, TIMESTAMP_LENGTH);
 
-        if (BigInt(migrationFileTS) >= revision)
+        if (BigInt(migrationFileTS) > revision)
           return true;
 
         return false;
       });
 
       if (index < 0)
-        return migrationFiles.slice();
+        return [];
 
-      return migrationFiles.slice((isRollback) ? index : index + 1);
+      return migrationFiles.slice((isRollback) ? index - 1 : index);
     }
 
     async executeMigration(application, dbConnection, migrationFileName, useTransaction, rollback) {
