@@ -160,9 +160,8 @@ class GenerateMigrationCommand extends CommandBase {
       let content   = await this[methodName](args);
       let finalPath = Path.join(args.outputPath, migrationName);
 
-      console.log(`Would write content:\n${content}`);
-
-      // FileSystem.writeFileSync(migrationWritePath, migrationSource, 'utf8');
+      //console.log(`Would write content:\n${content}`);
+      FileSystem.writeFileSync(finalPath, content, 'utf8');
 
       console.log(`New migration to revision ${args.version} has been written to file "${finalPath}"`);
     } catch (error) {
