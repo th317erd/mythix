@@ -13,6 +13,8 @@ class ValidationError extends Error {}
 function generateMigration(migrationID, upCode, downCode) {
   let template =
 `
+'use strict';
+
 const MIGRATION_ID = '${migrationID}';
 
 module.exports = {
