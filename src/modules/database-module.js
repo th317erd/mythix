@@ -42,7 +42,7 @@ class DatabaseModule extends BaseModule {
         configurable: true,
         value:        this.getTablePrefix.bind(this),
       },
-      'getDBConnection': {
+      'getConnection': {
         writable:     true,
         enumerable:   false,
         configurable: true,

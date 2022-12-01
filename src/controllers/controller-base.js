@@ -97,9 +97,14 @@ class ControllerBase {
     return application.getModels();
   }
 
-  getDBConnection() {
+  getConnection(connection) {
     let application = this.getApplication();
-    return application.getDBConnection();
+    return application.getConnection(connection);
+  }
+
+  // Deprecated
+  getDBConnection(connection) {
+    return this.getConnection(connection);
   }
 
   prepareToThrowError(ErrorClass, args) {

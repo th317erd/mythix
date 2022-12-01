@@ -48,9 +48,14 @@ class CommandBase {
     return app.getLogger();
   }
 
-  getDBConnection() {
+  getConnection(connection) {
     let application = this.getApplication();
-    return application.getDBConnection();
+    return application.getConnection(connection);
+  }
+
+  // Deprecated
+  getDBConnection(connection) {
+    return this.getConnection(connection);
   }
 
   spawnCommand(command, args, options) {
@@ -290,7 +295,7 @@ function defineCommand(_commandName, definer, _parent) {
         return await commandInstance.execute.call(commandInstance, commandOptions, commandContext);
       };
 
-      let dbConnection = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : undefined;
+      let dbConnection = (typeof application.getConnection === 'function') ? application.getConnection() : undefined;
       let result;
 
       if (dbConnection && typeof dbConnection.createContext === 'function')

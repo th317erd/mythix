@@ -75,7 +75,7 @@ class ModelModule extends BaseModule {
 
   loadModels(modelsPath) {
     let application = this.getApplication();
-    let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
+    let connection  = (typeof application.getConnection === 'function') ? application.getConnection() : null;
     let dbConfig    = (typeof application.getDBConfig === 'function') ? application.getDBConfig() : null;
     let modelFiles  = this.getModelFilePaths(modelsPath);
     let models      = {};
@@ -103,7 +103,7 @@ class ModelModule extends BaseModule {
 
   getModel(modelName) {
     let application = this.getApplication();
-    let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
+    let connection  = (typeof application.getConnection === 'function') ? application.getConnection() : null;
     if (!connection)
       return;
 
@@ -112,7 +112,7 @@ class ModelModule extends BaseModule {
 
   getModels() {
     let application = this.getApplication();
-    let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
+    let connection  = (typeof application.getConnection === 'function') ? application.getConnection() : null;
     if (!connection)
       return {};
 

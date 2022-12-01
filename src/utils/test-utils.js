@@ -115,8 +115,8 @@ function createTestApplication(ApplicationClass) {
     async start(...args) {
       let result = await super.start(...args);
 
-      if (typeof this.getDBConnection === 'function') {
-        let connection = this.getDBConnection();
+      if (typeof this.getConnection === 'function') {
+        let connection = this.getConnection();
         await this.createAllTables(connection);
       }
 
@@ -142,7 +142,7 @@ function createTestApplication(ApplicationClass) {
     }
 
     async truncateAllTables(exclude) {
-      let connection  = this.getDBConnection();
+      let connection  = this.getConnection();
       let models      = this.getModels();
       let modelNames  = Object.keys(models);
 
@@ -173,7 +173,7 @@ function createTestApplication(ApplicationClass) {
       try {
         let Klass = callback.call(this, OriginalModel);
 
-        let connection = this.getDBConnection();
+        let connection = this.getConnection();
         connection.registerModel(Klass);
 
         return await runner.call(this, Klass);

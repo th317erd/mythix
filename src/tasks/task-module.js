@@ -81,7 +81,7 @@ class TaskModule extends BaseModule {
   loadTasks(tasksPath) {
     let application = this.getApplication();
     let taskFiles   = this.getTaskFilePaths(tasksPath);
-    let connection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
+    let connection  = (typeof application.getConnection === 'function') ? application.getConnection() : null;
     let dbConfig    = (typeof application.getDBConfig === 'function') ? application.getDBConfig() : null;
     let tasks       = {};
     let args        = { application, connection, dbConfig };
@@ -137,7 +137,7 @@ class TaskModule extends BaseModule {
 
       const runTask = async () => {
         let application   = this.getApplication();
-        let dbConnection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : undefined;
+        let dbConnection  = (typeof application.getConnection === 'function') ? application.getConnection() : undefined;
 
         if (dbConnection && typeof dbConnection.createContext === 'function')
           await dbConnection.createContext(_runTask, dbConnection, dbConnection);

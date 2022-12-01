@@ -7,7 +7,7 @@ import { HTTPBaseError } from '../http-server/http-errors';
 
 export declare type ControllerClass = typeof ControllerBase;
 
-export declare type ControllerClasses = { [ key: string ]: ControllerClass };
+export declare type ControllerClasses = { [key: string]: ControllerClass };
 
 export declare interface ControllerContext {
   params: GenericObject;
@@ -37,7 +37,11 @@ export declare class ControllerBase {
   public getLogger(): Logger;
   public getModel(name?: string): ModelClass | undefined;
   public getModels(): Models;
-  public getDBConnection(): ConnectionBase;
+  public getConnection(connection?: ConnectionBase): ConnectionBase;
+
+  // Deprecated
+  public getDBConnection(connection?: ConnectionBase): ConnectionBase;
+
   public prepareToThrowError(ErrorClass: Function, args: Array<any>): HTTPBaseError;
   public throwNotFoundError(...args: Array<any>): void;
   public throwBadRequestError(...args: Array<any>): void;

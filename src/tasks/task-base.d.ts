@@ -3,7 +3,7 @@ import { Application } from '../application';
 import { Logger } from '../logger';
 import { ConnectionBase, ModelClass, Models } from 'mythix-orm';
 
-export declare type Tasks = { [ key: string ]: TaskBase };
+export declare type Tasks = { [key: string]: TaskBase };
 
 export declare type TaskClass = typeof TaskBase;
 
@@ -37,7 +37,11 @@ export declare class TaskBase {
   public getNumberOfWorkers(): number;
   public getModel(name: string): ModelClass;
   public getModels(): Models;
-  public getDBConnection(): ConnectionBase;
+  public getConnection(connection?: ConnectionBase): ConnectionBase;
+
+  // Deprecated
+  public getDBConnection(connection?: ConnectionBase): ConnectionBase;
+
   public getFrequency(taskIndex?: number): number;
   public getStartDelay(taskIndex?: number): number;
 }

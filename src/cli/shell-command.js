@@ -63,7 +63,7 @@ module.exports = defineCommand('shell', ({ Parent }) => {
         interactiveShell.setupHistory(Path.join(OS.homedir(), `.${appName}-${environment}-history`), () => {});
 
         interactiveShell.context.UUIDV4 = UUIDV4;
-        interactiveShell.context.connection = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : null;
+        interactiveShell.context.connection = (typeof application.getConnection === 'function') ? application.getConnection() : null;
         interactiveShell.context.application = application;
         interactiveShell.context.Nife = Nife;
 

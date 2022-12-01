@@ -13,5 +13,8 @@ export declare class Model extends _Model {
 
   public getApplication(): Application;
   public getLogger(): Logger;
-  public getDBConnection(connection): ConnectionBase;
+  public getConnection(connection?: ConnectionBase): ConnectionBase;
+
+  // Deprecated
+  public getDBConnection(connection?: ConnectionBase): ConnectionBase;
 }

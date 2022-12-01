@@ -66,7 +66,10 @@ export declare class Application {
   // From DatabaseModule
   public getDBConfig(): GenericObject;
   public getDBTablePrefix(): string | null;
-  public getDBConnection(): ConnectionBase;
+  public getConnection(connection?: ConnectionBase): ConnectionBase;
+
+  // Deprecated
+  public getDBConnection(connection?: ConnectionBase): ConnectionBase;
 
   // From FileWatcherModule
   public autoReload(enable?: boolean, shuttingDown?: boolean): Promise<void>;

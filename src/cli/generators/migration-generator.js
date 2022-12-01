@@ -17,11 +17,11 @@ const MIGRATION_ID = '${migrationID}';
 
 module.exports = {
   MIGRATION_ID,
-  up: async function(connection) {
-${upCode}
+  up: async function(connection, application) {
+${upCode || ''}
   },
-  down: async function(connection) {
-${downCode}
+  down: async function(connection, application) {
+${downCode || ''}
   },
 };
 `;
@@ -36,12 +36,13 @@ class GenerateMigrationCommand extends CommandBase {
         '@usage': 'mythix-cli generate migration {operation} {operation args} [options]',
         '@title': 'Generate a migration file',
         '@examples':  [
+          'mythix-cli generate migration add blank --name "my migration"',
           'mythix-cli generate migration add model User',
           'mythix-cli generate migration rename model User AdminUser',
-          'mythix-cli generate migration remove model User',
+          'mythix-cli generate migration drop model User',
           'mythix-cli generate migration add field User:age',
           'mythix-cli generate migration rename field User:age yearsLived',
-          'mythix-cli generate migration remove field User:age',
+          'mythix-cli generate migration drop field User:age',
         ],
         '-n={name} | -n {name} | --name={name} | --name {name}': 'Specify the name of the generated migration file',
         '-o={path} | -o {path} | --output={path} | --output {path}': 'Specify the name of the generated migration file',
@@ -60,9 +61,9 @@ class GenerateMigrationCommand extends CommandBase {
           || store('outputPath', Path.resolve(applicationOptions.migrationsPath));
 
         let result = $(
-          /[\w-]+/,
+          /^(add|rename|drop)$/i,
           ({ store }, parsedResult) => {
-            store({ operation: parsedResult.value });
+            store({ operation: parsedResult.value.toLowerCase() });
             return true;
           },
           { formatParsedResult: (result) => ({ value: result[0] }) },
@@ -72,18 +73,25 @@ class GenerateMigrationCommand extends CommandBase {
           return false;
 
         result = $(
-          /[\w-]+/,
+          /^(models?|fields?|blank)$/i,
           ({ store }, parsedResult) => {
-            store({ entity: parsedResult.value });
+            let entity = parsedResult.value.toLowerCase();
+            if (entity === 'models')
+              entity = 'model';
+
+            if (entity === 'fields')
+              entity = 'field';
+
+            store({ entity });
             return true;
           },
           { formatParsedResult: (result) => ({ value: result[0] }) },
         );
 
-        if (!result && fetch('operation') !== 'blank')
+        if (!result)
           return false;
 
-        if (fetch('operation') === 'blank' && Nife.isEmpty(fetch('name'))) {
+        if (fetch('entity') === 'blank' && Nife.isEmpty(fetch('name'))) {
           console.log('Error: Blank templates require a name. Use the "--name {name}" argument to specify a name.\n');
           return false;
         }
@@ -113,11 +121,15 @@ class GenerateMigrationCommand extends CommandBase {
 
     let name = [
       args.operation,
-      args.entity,
+      (args.remaining.length > 1) ? `${args.entity}s` : args.entity,
       ...args.remaining,
     ];
 
     return `${args.version}-${this.formatMigrationName(name.join('-'))}.js`;
+  }
+
+  generateMigration(migrationID, upCode, downCode) {
+    return generateMigration(migrationID, upCode, downCode);
   }
 
   async execute(args, fullArgs) {
@@ -172,12 +184,18 @@ class GenerateMigrationCommand extends CommandBase {
     return str.trim().replace(/^/gm, ws);
   }
 
-  operationAddModels(args) {
+  operationAddBlank(args) {
+    return this.generateMigration(
+      args.version,
+    );
+  }
+
+  addOrDropModels(args, reverseOperation) {
     if (Nife.isEmpty(args.remaining))
       throw new ValidationError('No model name(s) provided. Try this instead: \n\nmythix-cli generate migration add models \'{model name}\' ...');
 
     let application       = this.getApplication();
-    let connection        = application.getDBConnection();
+    let connection        = application.getConnection();
     let queryGenerator    = connection.getQueryGenerator();
     let statements        = [];
     let reverseStatements = [];
@@ -187,22 +205,97 @@ class GenerateMigrationCommand extends CommandBase {
       let modelName = modelNames[i];
       let Model     = connection.getModel(modelName);
 
-      let createTable = queryGenerator.generateCreateTableStatement(Model);
-      statements.push(`    // Create ${modelName} table\n    await connection.query(\`\n${this.tabIn(createTable, 3)}\`,\n      { logger: console },\n    );`);
+      // Create table
+      let createTable = queryGenerator.generateCreateTableStatement(Model, { ifNotExists: true });
+      statements.push(`    // Create "${Model.getTableName()}" table\n    await connection.query(\`\n${this.tabIn(createTable, 3)}\`,\n      { logger: console },\n    );`);
+
+      // Create indexes and constraints
+      let trailingStatements = Nife.toArray(queryGenerator.generateCreateTableStatementOuterTail(Model)).filter(Boolean);
+      if (Nife.isNotEmpty(trailingStatements)) {
+        for (let i = 0, il = trailingStatements.length; i < il; i++) {
+          let trailingStatement = trailingStatements[i];
+          statements.push(`    await connection.query(\n      \`${trailingStatement}\`,\n      { logger: console },\n    );`);
+        }
+      }
 
       let dropTable = queryGenerator.generateDropTableStatement(Model, { cascade: true });
-      reverseStatements.push(`    // Drop ${modelName} table\n    await connection.query(\n      \`${dropTable.trim()}\`,\n      { logger: console },\n    );`);
+      reverseStatements.push(`    // Drop "${Model.getTableName()}" table\n    await connection.query(\n      \`${dropTable.trim()}\`,\n      { logger: console },\n    );`);
     }
 
-    return generateMigration(
-      args.version,
-      statements.join('\n\n'),
-      reverseStatements.reverse().join('\n\n'),
-    );
+    if (reverseOperation) {
+      return this.generateMigration(
+        args.version,
+        reverseStatements.reverse().join('\n\n'),
+        statements.join('\n\n'),
+      );
+    } else {
+      return this.generateMigration(
+        args.version,
+        statements.join('\n\n'),
+        reverseStatements.reverse().join('\n\n'),
+      );
+    }
+  }
+
+  addOrDropFields(args, reverseOperation) {
+    if (Nife.isEmpty(args.remaining))
+      throw new ValidationError('No field name(s) provided. Try this instead: \n\nmythix-cli generate migration add fields \'{model name}:{field name}\' ...');
+
+    let application       = this.getApplication();
+    let connection        = application.getConnection();
+    let queryGenerator    = connection.getQueryGenerator();
+    let statements        = [];
+    let reverseStatements = [];
+
+    let fields = args.remaining.map((fieldName) => {
+      let field = connection.getField(fieldName);
+      if (!field)
+        throw new ValidationError(`Unable to find requested field: "${fieldName}"`);
+
+      return field;
+    });
+
+    for (let i = 0, il = fields.length; i < il; i++) {
+      let field = fields[i];
+      let Model = field.Model;
+
+      // Create table
+      let createColumn = queryGenerator.generateAddColumnStatement(field, { ifNotExists: true });
+      statements.push(`    // Add "${Model.getTableName()}"."${field.columnName}" column\n    await connection.query(\n      \`${createColumn}\`,\n      { logger: console },\n    );`);
+
+      let dropColumn = queryGenerator.generateDropColumnStatement(field, { cascade: true, ifExists: true });
+      reverseStatements.push(`    // Drop "${Model.getTableName()}"."${field.columnName}" column\n    await connection.query(\n      \`${dropColumn.trim()}\`,\n      { logger: console },\n    );`);
+    }
+
+    if (reverseOperation) {
+      return this.generateMigration(
+        args.version,
+        reverseStatements.reverse().join('\n\n'),
+        statements.join('\n\n'),
+      );
+    } else {
+      return this.generateMigration(
+        args.version,
+        statements.join('\n\n'),
+        reverseStatements.reverse().join('\n\n'),
+      );
+    }
   }
 
   operationAddModel(args) {
-    return this.operationAddModels(args);
+    return this.addOrDropModels(args, false);
+  }
+
+  operationDropModel(args) {
+    return this.addOrDropModels(args, true);
+  }
+
+  operationAddField(args) {
+    return this.addOrDropFields(args, false);
+  }
+
+  operationDropField(args) {
+    return this.addOrDropFields(args, true);
   }
 }
 

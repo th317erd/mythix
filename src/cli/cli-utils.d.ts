@@ -7,7 +7,7 @@ import { Logger } from '../logger';
 
 export declare type CommandClass = typeof CommandBase;
 
-export declare type CommandClasses = { [ key: string ]: CommandClass };
+export declare type CommandClasses = { [key: string]: CommandClass };
 
 export declare type FileFilterCallback = (fullFileName: string, fileName: string, stats?: Stats) => boolean;
 
@@ -16,7 +16,7 @@ export declare class CommandBase {
   declare public static commandName: string;
   declare public static applicationConfig?: GenericObject | (() => GenericObject);
   declare public static commandArguments?: () => { help: HelpInterface, runner: Runner };
-  declare public static runtimeArguments?: { [ key: string ]: Array<string> };
+  declare public static runtimeArguments?: { [key: string]: Array<string> };
   public static execute(): Promise<void>;
 
   declare public application: Application;
@@ -26,7 +26,10 @@ export declare class CommandBase {
   getOptions(): GenericObject;
   getApplication(): Application;
   getLogger(): Logger;
-  getDBConnection(): ConnectionBase;
+  getConnection(connection?: ConnectionBase): ConnectionBase;
+
+  // Deprecated
+  getDBConnection(connection?: ConnectionBase): ConnectionBase;
 
   spawnCommand(
     command: string,

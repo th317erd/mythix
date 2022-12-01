@@ -34,7 +34,7 @@ class Model extends _Model {
     return application.getLogger();
   }
 
-  getDBConnection(connection) {
+  getConnection(connection) {
     if (connection)
       return connection;
 
@@ -42,10 +42,15 @@ class Model extends _Model {
     if (!application)
       return null;
 
-    if (typeof application.getDBConnection === 'function')
-      return application.getDBConnection();
+    if (typeof application.getConnection === 'function')
+      return application.getConnection();
 
     return null;
+  }
+
+  // Deprecated
+  getDBConnection(connection) {
+    return this.getConnection(connection);
   }
 
   static _getConnection(_connection) {
@@ -53,7 +58,7 @@ class Model extends _Model {
     if (connection)
       return connection;
 
-    return this.getApplication().getDBConnection();
+    return this.getApplication().getConnection();
   }
 }
 

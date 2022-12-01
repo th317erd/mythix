@@ -416,7 +416,7 @@ class Application extends Mythix.Application {
 
 Tasks are cron-like tasks that run at a given frequency, delay, or scheduled time. They can be defined using the `Mythix.defineTask` method, and should be placed inside `./app/tasks`, in files with names that have a `-task.js` suffix.
 
-Like most `mythix` classes, you can call `this.getApplication()` to get the application instance, `this.getLogger()` to get the tasks logger, `this.getModel(name)` or `this.getModels()` to get application models, and `this.getDBConnection()` to get the database connection for the running application.
+Like most `mythix` classes, you can call `this.getApplication()` to get the application instance, `this.getLogger()` to get the tasks logger, `this.getModel(name)` or `this.getModels()` to get application models, and `this.getConnection()` to get the database connection for the running application.
 
 Example task:
 

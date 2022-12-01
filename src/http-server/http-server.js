@@ -308,7 +308,7 @@ class HTTPServer {
     };
 
     let application   = this.getApplication();
-    let dbConnection  = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : undefined;
+    let dbConnection  = (typeof application.getConnection === 'function') ? application.getConnection() : undefined;
 
     if (dbConnection && typeof dbConnection.createContext === 'function')
       return await dbConnection.createContext(executeRequest, dbConnection, dbConnection);
@@ -386,7 +386,7 @@ class HTTPServer {
           return await controllerInstance.handleOutgoingResponse(controllerResult, request, response, context);
         };
 
-        let dbConnection = (typeof application.getDBConnection === 'function') ? application.getDBConnection() : undefined;
+        let dbConnection = (typeof application.getConnection === 'function') ? application.getConnection() : undefined;
         if (dbConnection && typeof dbConnection.createContext === 'function')
           await dbConnection.createContext(handleOutgoing, dbConnection, dbConnection);
         else

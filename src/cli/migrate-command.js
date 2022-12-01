@@ -147,7 +147,7 @@ module.exports = defineCommand('migrate', ({ Parent }) => {
 
       let application         = this.getApplication();
       let applicationOptions  = application.getOptions();
-      let dbConnection        = application.getDBConnection();
+      let dbConnection        = application.getConnection();
       let migrationsPath      = applicationOptions.migrationsPath;
       let migrationFiles      = this.getMigrationFiles(migrationsPath);
       let useTransaction      = args.transaction;
