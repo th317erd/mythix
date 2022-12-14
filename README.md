@@ -1,5 +1,7 @@
 # mythix
 
+![Mythix](docs/mythix-logo-colored.png)
+
 Mythix is a NodeJS web-app framework. It is configured to have sane defaults so that you need not worry about configuration. However, it was designed such that any part of the default application can be overloaded to provide custom functionality for any components of the framework.
 
 ## Heads UP!

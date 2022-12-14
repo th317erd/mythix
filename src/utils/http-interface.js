@@ -92,6 +92,9 @@ class HTTPInterface {
         'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36',
       }, this.keysToLowerCase(this.defaultHeaders || {}), this.keysToLowerCase(requestOptions.headers || {}));
 
+      if (requestOptions.logger)
+        requestOptions.logger.log(`Making request: ${method} ${url}`);
+
       if (data) {
         if ((!method.match(/^(GET|HEAD)$/i) && requestOptions.data)) {
           if (data.constructor.name === 'FormData') {
