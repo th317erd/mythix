@@ -1,5 +1,7 @@
 'use strict';
 
+const { DateTime } = require('luxon');
+
 class TaskBase {
   static onTaskClassCreate(Klass) {
     return Klass;
@@ -23,18 +25,11 @@ class TaskBase {
     return startDelay;
   }
 
-  static shouldRun(taskIndex, lastTime, currentTime, diff) {
-    if (!lastTime) {
-      if (diff >= this.getStartDelay(taskIndex))
-        return true;
+  static nextRun(taskIndex, lastTime, currentTime, diff) {
+    if (!lastTime)
+      return DateTime.now().plus({ milliseconds: this.getStartDelay(taskIndex) }).toJSDate();
 
-      return false;
-    }
-
-    if (diff >= this.getFrequency(taskIndex))
-      return true;
-
-    return false;
+    return DateTime.now().plus({ milliseconds: Math.max(0, this.getFrequency(taskIndex) - diff) }).toJSDate();
   }
 
   constructor(application, logger, runID) {
