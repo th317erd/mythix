@@ -206,7 +206,7 @@ class TaskModule extends BaseModule {
       if (taskInfo.failedCount >= failAfterAttempts)
         return;
 
-      if (DateTime.fromJSDate(taskInfo.nextRunAt) > DateTime.now())
+      if (+taskInfo.nextRunAt >= DateTime.now().toMillis())
         return;
 
       taskInfo.lastTime = currentTime;
@@ -220,7 +220,7 @@ class TaskModule extends BaseModule {
       for (let taskIndex = 0; taskIndex < workers; taskIndex++) {
         let taskInfo = infoForTasks[taskIndex];
         if (!taskInfo)
-          taskInfo = infoForTasks[taskIndex] = { failedCount: 0, promise: null, stop: false, nextRunAt: taskKlass.nextRun(taskIndex, undefined, Date.now()) };
+          taskInfo = infoForTasks[taskIndex] = { failedCount: 0, promise: null, stop: false, nextRunAt: taskKlass.nextRun(taskIndex, undefined, DateTime.now()) };
 
         if (taskInfo.stop)
           continue;
