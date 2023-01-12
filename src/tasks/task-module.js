@@ -1,6 +1,6 @@
 'use strict';
 
-const { DateTime } = require('luxon');
+const { DateTime }    = require('luxon');
 const Nife            = require('nife');
 const { BaseModule }  = require('../modules/base-module');
 const {
