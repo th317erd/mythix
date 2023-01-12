@@ -114,7 +114,6 @@ class TaskModule extends BaseModule {
 
       const successResult = (value) => {
         taskInfo.failedCount = 0;
-        taskInfo.nextRunAt = TaskKlass.nextRun(taskIndex, lastTime, currentTime, diff);
         promise.resolve(value);
       };
 
@@ -134,6 +133,8 @@ class TaskModule extends BaseModule {
           successResult(result);
         } catch (error) {
           errorResult(error);
+        } finally {
+          taskInfo.nextRunAt = TaskKlass.nextRun(taskIndex, lastTime, currentTime, diff);
         }
       };
 

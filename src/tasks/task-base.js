@@ -27,9 +27,9 @@ class TaskBase {
 
   static nextRun(taskIndex, lastTime, currentTime, diff) {
     if (!lastTime)
-      return DateTime.now().plus({ milliseconds: this.getStartDelay(taskIndex) }).toJSDate();
+      return DateTime.now().plus({ milliseconds: this.getStartDelay(taskIndex) });
 
-    return DateTime.now().plus({ milliseconds: Math.max(0, this.getFrequency(taskIndex) - diff) }).toJSDate();
+    return DateTime.now().plus({ milliseconds: Math.max(0, this.getFrequency(taskIndex) - diff) });
   }
 
   constructor(application, logger, runID) {
