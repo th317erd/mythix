@@ -260,10 +260,17 @@ class GenerateMigrationCommand extends CommandBase {
       let field = fields[i];
       let Model = field.Model;
 
-      // Create table
+      // Create column
       let createColumn = queryGenerator.generateAddColumnStatement(field, { ifNotExists: true });
       statements.push(`    // Add "${Model.getTableName()}"."${field.columnName}" column\n    await connection.query(\n      \`${createColumn}\`,\n      { logger: console },\n    );`);
 
+      let createIndexes = queryGenerator.generateColumnIndexes(Model, field, { ifNotExists: true });
+      for (let j = 0, jl = createIndexes.length; j < jl; j++) {
+        let createIndexStatement = createIndexes[j];
+        statements.push(`    await connection.query(\n      \`${createIndexStatement.trim()}\`,\n      { logger: console },\n    );`);
+      }
+
+      // Drop column
       let dropColumn = queryGenerator.generateDropColumnStatement(field, { cascade: true, ifExists: true });
       reverseStatements.push(`    // Drop "${Model.getTableName()}"."${field.columnName}" column\n    await connection.query(\n      \`${dropColumn.trim()}\`,\n      { logger: console },\n    );`);
     }
