@@ -1,5 +1,6 @@
 'use strict';
 
+const { DateTime }    = require('luxon');
 const Nife            = require('nife');
 const { BaseModule }  = require('../modules/base-module');
 const {
@@ -132,6 +133,8 @@ class TaskModule extends BaseModule {
           successResult(result);
         } catch (error) {
           errorResult(error);
+        } finally {
+          taskInfo.nextRunAt = TaskKlass.nextRun(taskIndex, lastTime, currentTime, diff);
         }
       };
 
@@ -204,7 +207,7 @@ class TaskModule extends BaseModule {
       if (taskInfo.failedCount >= failAfterAttempts)
         return;
 
-      if (!taskKlass.shouldRun(taskIndex, lastTime, currentTime, diff))
+      if (+taskInfo.nextRunAt >= DateTime.now().toMillis())
         return;
 
       taskInfo.lastTime = currentTime;
@@ -218,7 +221,7 @@ class TaskModule extends BaseModule {
       for (let taskIndex = 0; taskIndex < workers; taskIndex++) {
         let taskInfo = infoForTasks[taskIndex];
         if (!taskInfo)
-          taskInfo = infoForTasks[taskIndex] = { failedCount: 0, promise: null, stop: false };
+          taskInfo = infoForTasks[taskIndex] = { failedCount: 0, promise: null, stop: false, nextRunAt: taskKlass.nextRun(taskIndex, undefined, DateTime.now()) };
 
         if (taskInfo.stop)
           continue;
