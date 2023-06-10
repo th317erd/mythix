@@ -4,16 +4,12 @@
 
 Mythix is a NodeJS web-app framework. It is configured to have sane defaults so that you need not worry about configuration. However, it was designed such that any part of the default application can be overloaded to provide custom functionality for any components of the framework.
 
-## Heads UP!
-
-Though mythix is currently quite useful, it is still in "beta" phase, and is missing some useful functionality. Don't let this deter you, just be aware that it is still heavily under development. Help via PRs is always welcome!
-
 ## Install
 
 To create a new empty mythix project:
 
 ```bash
-$ npx mythix-cli init my_project_name
+$ npx mythix-cli create my_project_name
 ```
 
 Or to install directly as a dependency:
@@ -35,16 +31,16 @@ projectRoot/ ->
 |---- models/         (all model definitions)
 |---- seeders/        (database seeders)
 |---- tasks/          (reoccuring/cron-type tasks)
+|---- routes/         (route definitions for your web-app)
 |---- application.js  (application class definition)
 |---- index.js        (entry point for your application)
-|---- routes.js       (route definitions for your web-app)
-| .mythix-config.js   (custom mythix RC)
-| package.json
+|-- .mythix-config.js   (custom mythix RC)
+|-- package.json
 ```
 
 ## Creating the application
 
-To create your own `mythix` application, you simply need to inherit from `Mythix.Application`:
+To create your own `mythix` application, you simply need to inherit from the `Mythix.Application` class:
 
 Example:
 
@@ -94,7 +90,7 @@ Or, you can simply invoke your own entry point:
 $ node app/index.js
 ```
 
-Your `index.js` simply needs to create an instance of your `Application` and call `appInstance.start()` to start your server.
+Your `index.js` simply needs to create an instance of your `Application` class and call `await appInstance.start()` on it to start your server.
 
 ## Application configuration
 
@@ -140,19 +136,41 @@ Now, all you need to do is add your new controller to the routes:
 Simply modify `./app/routes.js` to have the following content:
 
 ```
-module.exports = function getRoutes() {
-  return {
-    'api': {
-      'v1': {
-        'greet': [
-          {
-            'methods':    [ 'GET' ],
-            'controller': 'HelloWorld.greet',
-          },
-        ],
-      },
-    },
-  };
+module.exports = function getRoutes({ path }) {
+  path('api', ({ path }) => {
+    path('v1', ({ endpoint }) => {
+      endpoint('greet', {
+        name:       'greet', // Name of the API method in Javascript
+        methods:    [ 'GET', 'POST' ],
+        controller: 'UserController.showCurrentUser', // The controller to use
+        help:       {
+          'description': 'Greet the user (example).',
+          'data': [
+            {
+              'property':     'name',
+              'type':         'string',
+              'description':  'Name to use to greet the user',
+              'required':     true,
+            },
+          ],
+          'params': [
+            {
+              'property':     'userID',
+              'type':         'string',
+              'description':  'ID of user to greet',
+              'required':     true,
+            },
+          ],
+          'example': 'await API.greet({ data: { name: \'My Name\' }, params: { userID: \'some-user-id\' } });',
+          'notes': [
+            'This is just an example help section',
+            'We don\'t really need a userID for params...',
+            'This help can be shown simply by accessing `API.greet.help` from the development console',
+          ],
+        },
+      });
+    });
+  });
 };
 ```
 
@@ -160,112 +178,64 @@ That is it! Now you can goto `http://localhost:8001/api/v1/greet` and you will s
 
 ## Defining routes
 
-Routes are defined using a simple object structure. The method `getRoutes` is called on your application to get these routes. Routes can contain "captures" to capture path information that will be passed onto your controller. The syntax for these "captures" is simple: `<param:type>`, for example: `<id:integer>`. Params can also specify default values: `<enabled:boolean=true>`. Or, params can be optional: `<id?:integer>`.
+Routes are defined using methods. The method `getRoutes` is called on your application to build routes. When called, this method will be provided a `context` as a single argument, which contains `path`, `endpoint`, and `capture` methods used to build routes.
 
-*Note: If an optional param immediately follows a forward slash, i.e. `/somepath/<id?>` then the preceeding forward slash is also optional. So the previous example would match on `/somepath` and `/somepath/234`.*
-
-Params types are:
-
-* `string`
-* `integer`
-* `number`
-* `boolean`
-* `bigint`
-
-If no type is specified, then `mythix` will "guess" the type as best as it is able.
-
-Example 1:
+Example:
 
 ```javascript
-module.exports = function getRoutes() {
-  return {
-    'api': {
-      'v1': {
-        // CRUD routes for "users"
-        'users': [
-          // If there is a param of "/id", then capture
-          // it and pass it to the controller
-          '/<id:integer>': [
-            {
-              'methods':    [ 'GET' ],
-              'accept':     [ 'application/json' ],
-              'controller': 'User.show',
-            },
-            {
-              'methods':    [ 'PUT' ],
-              'accept':     [ 'application/json' ],
-              'controller': 'User.update',
-            },
-            {
-              'methods':    [ 'DELETE' ],
-              'accept':     [ 'application/json' ],
-              'controller': 'User.delete',
-            },
-          ],
-          {
-            'methods':    [ 'GET' ],
-            'accept':     [ 'application/json' ],
-            'controller': 'User.index',
-          },
-          {
-            'methods':    [ 'POST' ],
-            'accept':     [ 'application/json' ],
-            'controller': 'User.create',
-          },
-        ],
-      },
-    },
-  };
-};
-```
+module.exports = function({ path }) {
+  path('api', ({ path }) => {
+    path('v1', ({ endpoint, capture }) => {
+      path('user', ({ endpoint, capture }) => {
+        // Create a capture named "userID"
+        let userID = capture('userID', { type: 'integer' });
 
-Example 2:
+        // GET /api/v1/user/{userID}
+        // By default the `methods` property for each endpoint is `[ 'GET' ]`
+        endpoint(userID, {
+          name:       'getUser',
+          controller: 'UserController.show',
+        });
 
-You can also be more direct:
+        // PATCH /api/v1/user/{userID}
+        endpoint(userID, {
+          name:       'updateUser',
+          methods:    [ 'PATCH' ],
+          controller: 'UserController.update',
+        });
 
-```javascript
-module.exports = function getRoutes() {
-  return {
-    // The '?' makes this param optional
-    // either /api/v1/users
-    // or /api/v1/users/234
-    // will work
-    'api/v1/users/<id?:integer>': [
-        {
-          'methods':        [ 'GET' ],
-          'accept':         [ 'application/json' ],
-          'requireParams':  [ 'id' ],
-          'controller':     'User.show',
-        },
-        {
-          'methods':    [ 'PUT' ],
-          'accept':     [ 'application/json' ],
-          'controller': 'User.update',
-        },
-        {
-          'methods':    [ 'DELETE' ],
-          'accept':     [ 'application/json' ],
-          'controller': 'User.delete',
-        },
-        {
-          'methods':    [ 'GET' ],
-          'accept':     [ 'application/json' ],
-          'controller': 'User.index',
-        },
-        {
-          'methods':    [ 'POST' ],
-          'accept':     [ 'application/json' ],
-          'controller': 'User.create',
-        },
-      },
-    },
-  };
+        // PATCH /api/v1/user/{userID}
+        endpoint(userID, {
+          name:       'updateUser',
+          methods:    [ 'PATCH' ],
+          controller: 'UserController.update',
+        });
+
+        // /api/v1/user/{userID}/
+        path(userID, ({ endpoint }) => {
+          // PUT /api/v1/user/{userID}/tags
+          endpoint('tags', {
+            name:       'addUserTags',
+            methods:    [ 'PUT' ],
+            controller: 'UserController.addTags',
+          });
+
+          // DELETE /api/v1/user/{userID}/tags
+          endpoint('tags', {
+            name:       'removeUserTags',
+            methods:    [ 'DELETE' ],
+            controller: 'UserController.removeTags',
+          });
+        });
+      });
+    });
+  });
 };
 ```
 
 ## Defining models
 
-`mythix` uses [sequelize](https://www.npmjs.com/package/sequelize) under the hood for its ORM. Defining models in `mythix` is nearly identical to how they are defined in [sequelize](https://www.npmjs.com/package/sequelize), with a few bits of syntatic sugar mixed in.
+`mythix` uses [mythix-orm](https://www.npmjs.com/package/mythix-orm) under the hood for its ORM. See the [documentation](https://github.com/th317erd/mythix-orm/wiki) for `mythix-orm` for details.
 
 First, you need to start by defining your models with the `Mythix.defineModel` method. This method needs the name of your model as its first argument, a `definer` method that will return your model class, and optionally a parent model to inherit from.
 
@@ -278,33 +248,47 @@ Example:
 ```javascript
 const { defineModel } = require('mythix');
 
-module.exports = defineModel('Product', ({ Parent, Type, Relation }) => {
+module.exports = defineModel('Product', ({ Parent, Types }) => {
   return class Product extends Parent {
-    // Define the model fields, using Sequelize syntax (mostly)
+    // Define the model fields, using mythix-orm
     static fields = {
+      ...(Parent.fields || {}),
       id: {
-        type:         Type.UUID,
-        defaultValue: Type.UUIDV4,
+        type:         Types.UUIDV4,
+        defaultValue: Types.UUIDV4.Default.UUIDV4(),
         primaryKey:   true,
       },
       name: {
-        type:         Type.STRING(32),
+        type:         Types.STRING(32),
         allowNull:    false,
-        // "index" is not sequelize syntax... this is mythix sugar
-        // for a simple way to define that we want to index this column
         index:        true,
       },
       price: {
-        type:         Type.FLOAT,
+        type:         Types.NUMERIC(),
         allowNull:    false,
         index:        true,
       },
+      // Relationship to "Orders" table
+      orders: {
+        type:         Types.Models('Order', async ({ self }, { Order, LineItem }, userQuery) => {
+          // Pull distinct orders
+          return Order
+            .$.DISTINCT
+            // Joining the Order table with the LineItem table
+            // where LineItem.orderID equals Order.id
+            .id
+              .EQ(LineItem.where.orderID)
+            .AND
+            // And the line item contains this
+            // product id
+            .LineItem.productID
+              .EQ(self.id)
+            // Now tack on any extra query the
+            // user specified
+            .MERGE(userQuery);
+        }),
+      },
     };
-
-    // Define model relations
-    static relations = [
-      Relation.belongsTo('Order', { allowNull: false, onDelete: 'RESTRICT', name: 'order' }),
-    ];
 
     // Optionally define model methods
     // ...
@@ -370,15 +354,13 @@ $ mythix-cli deploy --target ssh://host/path/
 
 ## Migrations
 
-Unfortunately the migration commands in `mythix` are currently barely functional. The best you can do is create an "initial" migration from your model definitions. This means that (aside from creating custom migrations), you are left with nothing to do but drop your database, and re-create it every time model schemas change. I hope to have these scripts smarter and fixed in the near future. For now, you can create an "initial" migration by running the following command:
+Unfortunately the migration commands in `mythix` are currently being developed. Right now it is possible to add models and fields... soon I hope to have complete migration functionality built-in. For now, you can run the command below to add models. A similar `add fields` command can be ran to add specific fields to a model:
 
 ```bash
-$ mythix-cli makemigrations --name initial
+$ mythix-cli generate migration --name new-models add models Product Order LineItem
 ```
 
-This will create a migration in the `./app/migrations` folder to setup the initial schema of your database.
-
-If model schemas change, then you will need to drop and re-create your database, delete all the files in `./app/migrations`, and run `mythix-cli makemigrations --name initial` again to re-create your database schema.
+This will create a migration in the `./app/migrations` folder to add the models `Product`, `Order`, and `LineItem`. These specified models must already exist, and be able to be loaded by `mythix` for this to work.
 
 **To run migrations**: Simply invoke the following command:
 
@@ -429,7 +411,7 @@ const {
   TaskBase,
 } = require('mythix');
 
-module.exports = defineTask('CustomTask', ({ application, Parent, time, Sequelize }) => {
+module.exports = defineTask('CustomTask', ({ application, Parent, time }) => {
   const workerCount = application.getConfigValue('tasks.CustomTask.workers', 1, 'integer');
 
   return class CustomTask extends Parent {
@@ -459,20 +441,20 @@ module.exports = defineTask('CustomTask', ({ application, Parent, time, Sequeliz
       // ... do some task
     }
 
-    // Optionally, you can define your own "shouldRun" method
-    // you could use this, for example, to have your task
+    // Optionally, you can define your own "nextRun" method.
+    // You could use this, for example, to have your task
     // run at a scheduled time.
     // 'lastTime', 'currentTime', and 'diff' are in seconds
-    // 'taskIndex' is the index of this worker
-    // If this returns 'true', then the task will be ran
-    // otherwise, it won't be ran until this method returns true.
-    // This method is called every second.
-    static shouldRun(TaskClass, taskIndex, lastTime, currentTime, diff) {
+    // 'taskIndex' is the index of this worker.
+    // This should return a Luxon DateTime object
+    // specifying the exact time that the task should
+    // run next.
+    static nextRun(taskIndex, lastTime, currentTime, diff) {
       if (meetsScheduledTime())
         return true;
 
       // We don't pass TaskClass here because it is bound to the method
-      return TaskBase.shouldRun(taskIndex, lastTime, currentTime, diff);
+      return TaskBase.nextRun(taskIndex, lastTime, currentTime, diff);
     }
   };
 });
@@ -480,13 +462,13 @@ module.exports = defineTask('CustomTask', ({ application, Parent, time, Sequeliz
 
 ## Mythix RC
 
-This is the `mythix` RC file. The primary purpose of this file is to let the `mythix-cli` know how to fetch and instantiate your `Application` class. By default, `mythix-cli` will expect the application class to be exported from `./app/application.js`. If not found there, it will panic, unless you tell it how to load your mythix application.
+The primary purpose of the `mythix` RC file is to let the `mythix-cli` know how to fetch and instantiate your `Application` class. By default, `mythix-cli` will expect the application class to be exported from `./app/application.js`. If not found there, it will panic, unless you tell it how to load your mythix application.
 
 `{projectRoot}/.mythix-config.js` is the location searched for to load your `mythix` RC. You can also specify a `--mythixConfig` argument to any invocation of `mythix-cli` to tell `mythix-cli` where to load this configuration file.
 
 There is only one required method that needs to be exported from `.mythix-config.js`, and it is named `getApplicationClass`. This method is expected to return your own custom `Application` class that extends from `Mythix.application`. This is all you ever really need in the mythix RC.
 
-However, if you want to control how your application gets instantiated, you can also optionally define and export an `async createApplication` method that will create your application. This method SHOULD NOT start your application, but simply instantiate it. This method receives two arguments: `Application`, and `options`. `Application` is the application class itself, and `options` are any options that should be passed to your `Application.constructor`.
+However, if you want to control how your application gets instantiated, you can also optionally define and export an `async createApplication` method that will create your application. This method **SHOULD NOT** start your application, but simply instantiate it. This method receives two arguments: `Application`, and `options`. `Application` is the application class itself, and `options` are any options that should be passed to your `Application.constructor`.
 
 When the `mythix-cli` is invoked, it will always pass a `{ cli: true }` option to your Application class. You can use this to know if your application is running in "CLI mode".
 
@@ -581,10 +563,8 @@ Create a new model class, giving your model the name specified by the `modelName
   *  `context`:
       * **`Parent`** - The parent class your model should inherit from. If no parent model class was specified as the third argument `ParentModelClassToInheritFrom`, then this defaults to `Mythix.ModelBase`.
       * **`application`** - The `mythix` application instance of the currently running application.
-      * **`Type`** - A shortcut for `Sequelize.DataTypes`.
-      * **`Relation`** - Relationship helpers. This is an object that contains the following methods: `hasOne`, `belongsTo`, `hasMany`, and `belongsToMany`. These methods closely mirror the association methods in `sequelize`.
-      * **`Sequelize`** - `Sequelize` module that was loaded by `mythix`.
-      * **`connection`** - The database connection used by the currently running `mythix` application. This is an instance of `sequelize`.
+      * **`Types`** - A shortcut for `MythixORM.Types`.
+      * **`connection`** - The database connection used by the currently running `mythix` application. This is a `mythix-orm` connection.
       * **`modelName`** - The same `modelName` string given to the call to `defineModel`.
 * *(optional)* **ParentModelClassToInheritFrom** *`<class extends Mythix.ModelBase>`* - If specified, this this will be assigned to `context.Parent`, which your model class should always extend from.
 
@@ -597,33 +577,47 @@ The return value will be a model class, inherited from `Mythix.ModelBase`.
 ```javascript
 const { defineModel } = require('mythix');
 
-module.exports = defineModel('Product', ({ Parent, Type, Relation }) => {
+module.exports = defineModel('Product', ({ Parent, Types }) => {
   return class Product extends Parent {
-    // Define the model fields, using Sequelize syntax (mostly)
+    // Define the model fields, using mythix-orm
     static fields = {
+      ...(Parent.fields || {}),
       id: {
-        type:         Type.UUID,
-        defaultValue: Type.UUIDV4,
+        type:         Types.UUIDV4,
+        defaultValue: Types.UUIDV4.Default.UUIDV4(),
         primaryKey:   true,
       },
       name: {
-        type:         Type.STRING(32),
+        type:         Types.STRING(32),
         allowNull:    false,
-        // "index" is not sequelize syntax... this is mythix sugar
-        // for a simple way to define that we want to index this column
         index:        true,
       },
       price: {
-        type:         Type.FLOAT,
+        type:         Types.NUMERIC(),
         allowNull:    false,
         index:        true,
       },
+      // Relationship to "Orders" table
+      orders: {
+        type:         Types.Models('Order', async ({ self }, { Order, LineItem }, userQuery) => {
+          // Pull distinct orders
+          return Order
+            .$.DISTINCT
+            // Joining the Order table with the LineItem table
+            // where LineItem.orderID equals Order.id
+            .id
+              .EQ(LineItem.where.orderID)
+            .AND
+            // And the line item contains this
+            // product id
+            .LineItem.productID
+              .EQ(self.id)
+            // Now tack on any extra query the
+            // user specified
+            .MERGE(userQuery);
+        }),
+      },
     };
-
-    // Define model relations
-    static relations = [
-      Relation.belongsTo('Order', { allowNull: false, onDelete: 'RESTRICT', name: 'order' }),
-    ];
 
     // Optionally define model methods
     // ...
@@ -634,6 +628,8 @@ module.exports = defineModel('Product', ({ Parent, Type, Relation }) => {
 ### function **Mythix.defineCommand**(<br>`commandName <string>`,<br>`definer <function>(context <object>)`,<br> `[ ParentCommandClassNameToInheritFrom <string> ]`<br>)
 
 #### Description
+
+**Note: This section is outdated... command arguments have been changed to use the [cmded](https://www.npmjs.com/package/cmded) module. Refer to `mythix` [built-in commands](https://github.com/th317erd/mythix/blob/main/src/cli/deploy-command.js) for examples on the new command line argument interface.**
 
 Create a new command class, giving your command the name specified by the `commandName` argument (all lower-case). The `definer` method will be invoked immediately upon the call to `Mythix.defineCommand`, and is expected to return a new controller class that inherits from `context.Parent`. `context.Parent` by default (if no `ParentCommandClassNameToInheritFrom` argument is specified) will be `Mythix.CommandBase`.
 
