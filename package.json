@@ -1,6 +1,6 @@
 {
   "name": "mythix",
-  "version": "2.12.2",
+  "version": "3.0.0",
   "description": "Mythix is a NodeJS web-app framework",
   "main": "src/index",
   "scripts": {
