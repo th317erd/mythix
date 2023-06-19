@@ -2,7 +2,6 @@
 
 const Nife              = require('nife');
 const { RouteCapture }  = require('./route-capture');
-const { RouteEndpoint } = require('./route-endpoint');
 
 class RouteScopeBase {
   constructor(parentScope, pathParts, options) {
@@ -38,6 +37,12 @@ class RouteScopeBase {
         value:        new Map(),
       },
       'isDynamic': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        false,
+      },
+      'isEndpoint': {
         writable:     true,
         enumerable:   false,
         configurable: true,
@@ -101,7 +106,7 @@ class RouteScopeBase {
 
         let newPathParts = pathParts.concat(pathPart);
         for (let child of children) {
-          if (child instanceof RouteEndpoint)
+          if (child.isEndpoint)
             callback({ endpoint: child, pathParts: newPathParts, stop, scope: routeScope });
           else
             walk(child, newPathParts);
@@ -137,7 +142,7 @@ class RouteScopeBase {
     if (routeMatch)
       return routeMatch;
 
-    const matchesPathParts = (pathParts) => {
+    const matchesPathParts = (pathParts, endpoint) => {
       let params = {};
 
       for (let i = 0, il = pathParts.length; i < il; i++) {
@@ -159,6 +164,11 @@ class RouteScopeBase {
             return;
         }
       }
+
+      // If this is a wild endpoint, then grab the remaining path
+      // and store it as a param named "_relativePath"
+      if (endpoint.wild && pathParts[pathParts.length - 1] === incomingPathParts[pathParts.length - 1])
+        params['_relativePath'] = incomingPathParts.slice(pathParts.length).join('/');
 
       return params;
     };
@@ -188,7 +198,7 @@ class RouteScopeBase {
 
       // Because of optional capture groups, it is possible
       // that the length could deviate by one.
-      if (pathParts.length !== incomingPathParts.length) {
+      if (pathParts.length !== incomingPathParts.length && endpoint.wild !== true) {
         if (Math.abs(pathParts.length - incomingPathParts.length) > 1)
           return;
 
@@ -197,7 +207,7 @@ class RouteScopeBase {
           return;
       }
 
-      let params = matchesPathParts(pathParts);
+      let params = matchesPathParts(pathParts, endpoint);
       if (params) {
         // Does the contentType match?
         if ((method !== 'GET' && method !== 'HEAD') && !contentTypeMatches(endpoint.contentType)) {

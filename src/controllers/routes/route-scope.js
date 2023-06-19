@@ -7,6 +7,9 @@ const { RouteEndpoint }   = require('./route-endpoint');
 
 class RouteScope extends RouteScopeBase {
   path = (_pathPart, callback, options) => {
+    if (typeof callback !== 'function')
+      return this.endpoint(_pathPart, { ...(options || {}), wild: true });
+
     let pathPart = _pathPart;
     if (!Nife.instanceOf(pathPart, 'string') && !(pathPart instanceof RouteCapture))
       throw new TypeError('RouteScope::path: First argument must be a string or a capture.');
@@ -23,7 +26,8 @@ class RouteScope extends RouteScopeBase {
       routeScope.updateOptions(options);
     }
 
-    callback(routeScope);
+    if (typeof callback === 'function')
+      callback(routeScope);
   };
 
   endpoint = (pathPart, _options) => {

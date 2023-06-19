@@ -26,6 +26,12 @@ class RouteEndpoint {
         configurable: true,
         value:        false,
       },
+      'isEndpoint': {
+        writable:     true,
+        enumerable:   false,
+        configurable: true,
+        value:        true,
+      },
     });
 
     Object.assign(

@@ -24,7 +24,7 @@ module.exports = defineCommand('routes', ({ Parent }) => {
       console.log(`${application.getApplicationName()} routes:`);
 
       routes.walkRoutes(({ endpoint }) => {
-        let methods = endpoint.methods;
+        let methods = endpoint.methods || [];
         let flags   = [
           (endpoint.isDynamic) ? 'dynamic' : '',
           (endpoint.cors) ? 'COR' : '',
