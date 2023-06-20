@@ -6,6 +6,7 @@ import { GenericObject } from './interfaces/common';
 import { Logger, LoggerClass, LoggerOptions } from './logger';
 import { ModuleBase } from './modules/module-base';
 import { TaskBase } from './tasks/task-base';
+import { CommandClasses } from './cli/command-base';
 
 export declare type ApplicationClass = typeof Application;
 
@@ -27,6 +28,7 @@ export declare interface ApplicationOptions {
 
 export declare class Application {
   public static getName(): string;
+  public static getCommandList(): CommandClasses;
   public static getModules(): ModuleDictionary;
 
   public constructor(options?: ApplicationOptions);
