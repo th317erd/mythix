@@ -2,7 +2,7 @@ import * as Path          from 'node:path';
 import * as FileSystem    from 'node:fs';
 import { fileURLToPath }  from 'node:url';
 import * as jsDiff        from 'diff';
-import colors             from 'colors/safe.js';
+import colors             from 'colors/safe.mjs';
 
 // const __filename = fileURLToPath(import.meta.url);
 // const __dirname = Path.dirname(__filename);

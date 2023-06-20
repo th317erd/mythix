@@ -1,5 +1,5 @@
-export * from './application.js';
-export * from './logger.js';
+export * from './application.mjs';
+export * from './logger.mjs';
 export * as Utils from './utils';
 export * as Modules from './modules';
 export * as Tasks from './tasks';

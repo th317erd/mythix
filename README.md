@@ -47,8 +47,8 @@ Example:
 ```javascript
 import Path                 from 'node:path';
 import Mythix               from 'mythix';
-import getRoutes            from './routes/index.js';
-import { authMiddleware }   from './middleware.js';
+import getRoutes            from './routes/index.mjs';
+import { authMiddleware }   from './middleware.mjs';
 
 export class Application extends Mythix.Application {
   static getName() {

@@ -1,5 +1,5 @@
-import { createTestApplication }  from '../../lib/utils/test-utils.js';
-import { Application }            from '../../lib/application.js';
+import { createTestApplication }  from '../../lib/utils/test-utils.mjs';
+import { Application }            from '../../lib/application.mjs';
 
 class _TestApplicationShim extends Application {
   getRoutes() {
