@@ -45,17 +45,18 @@ To create your own `mythix` application, you simply need to inherit from the `My
 Example:
 
 ```javascript
-const Path                = require('path');
-const Mythix              = require('mythix');
-const getRoutes           = require('./routes');
-const { authMiddleware }  = require('./middleware');
+import Path                 from 'path';
+import Mythix               from 'mythix';
+import getRoutes            from './routes.js';
+import { authMiddleware }   from './middleware.js';
 
-class Application extends Mythix.Application {
-  static APP_NAME = 'my_app_name';
+export class Application extends Mythix.Application {
+  static getName() {
+    return 'my_app_name';
+  }
 
   constructor(_opts) {
     var opts = Object.assign({
-      rootPath: Path.resolve(__dirname),
       httpServer: {
         middleware: [
           authMiddleware,
@@ -70,10 +71,6 @@ class Application extends Mythix.Application {
     return getRoutes.apply(this, args);
   }
 }
-
-module.exports = {
-  Application,
-};
 ```
 
 ## Starting your server
@@ -120,9 +117,9 @@ Once you have your new controller file created, you simply need to define your c
 For example, a simple demo controller can be created by creating a new controller file named `./app/controllers/hello-world-controller.js` and placing the following contents in this file:
 
 ```javascript
-const { defineController } = require('mythix');
+import { defineController }  from 'mythix';
 
-module.exports = defineController('HelloWorld', ({ Parent }) => {
+export const HelloWorld = defineController('HelloWorld', ({ Parent }) => {
   return class HelloWorldController extends Parent {
     async greet(params, query, body, models) {
       return 'Hello World!';
@@ -136,7 +133,7 @@ Now, all you need to do is add your new controller to the routes:
 Simply modify `./app/routes.js` to have the following content:
 
 ```
-module.exports = function getRoutes({ path }) {
+export function getRoutes({ path }) {
   path('api', ({ path }) => {
     path('v1', ({ endpoint }) => {
       endpoint('greet', {
@@ -183,7 +180,7 @@ Routes are defined using methods. The method `getRoutes` is called on your appli
 Example:
 
 ```javascript
-module.exports = function({ path }) {
+export function getRoutes({ path }) {
   path('api', ({ path }) => {
     path('v1', ({ endpoint, capture }) => {
       path('user', ({ endpoint, capture }) => {
@@ -246,9 +243,9 @@ Model definition files need to be placed in `./app/models`, and need to have a `
 Example:
 
 ```javascript
-const { defineModel } = require('mythix');
+import { defineModel }  from 'mythix';
 
-module.exports = defineModel('Product', ({ Parent, Types }) => {
+export const Product = defineModel('Product', ({ Parent, Types }) => {
   return class Product extends Parent {
     // Define the model fields, using mythix-orm
     static fields = {
@@ -311,9 +308,9 @@ Any file placed in `./app/commands/` with a `-command.js` suffix will be loaded 
 Example:
 
 ```javascript
-const { defineCommand } = require('mythix');
+import { defineCommand }  from 'mythix';
 
-module.exports = defineCommand('deploy', ({ Parent }) => {
+export const Deploy = defineCommand('deploy', ({ Parent }) => {
   return class DeployCommand extends Parent {
     static runtimeArguments = {
       'node': [ '--inspect' ],
@@ -411,7 +408,7 @@ const {
   TaskBase,
 } = require('mythix');
 
-module.exports = defineTask('CustomTask', ({ application, Parent, time }) => {
+export const CustomTask = defineTask('CustomTask', ({ application, Parent, time }) => {
   const workerCount = application.getConfigValue('tasks.CustomTask.workers', 1, 'integer');
 
   return class CustomTask extends Parent {
@@ -519,9 +516,9 @@ The return value will be a controller class, inherited from `Mythix.ControllerBa
 #### Example
 
 ```javascript
-const { defineController } = require('mythix');
+import { defineController }  from 'mythix';
 
-module.exports = defineController(
+export const HelloWorld = defineController(
   'HelloWorld',
   ({ Parent, application }) => {
 
@@ -575,9 +572,9 @@ The return value will be a model class, inherited from `Mythix.ModelBase`.
 #### Example
 
 ```javascript
-const { defineModel } = require('mythix');
+import { defineModel }  from 'mythix';
 
-module.exports = defineModel('Product', ({ Parent, Types }) => {
+export const Product = defineModel('Product', ({ Parent, Types }) => {
   return class Product extends Parent {
     // Define the model fields, using mythix-orm
     static fields = {
@@ -629,7 +626,7 @@ module.exports = defineModel('Product', ({ Parent, Types }) => {
 
 #### Description
 
-**Note: This section is outdated... command arguments have been changed to use the [cmded](https://www.npmjs.com/package/cmded) module. Refer to `mythix` [built-in commands](https://github.com/th317erd/mythix/blob/main/src/cli/deploy-command.js) for examples on the new command line argument interface.**
+**Note: This section is outdated... command arguments have been changed to use the [cmded](https://www.npmjs.com/package/cmded) module. Refer to `mythix` [built-in commands](https://github.com/th317erd/mythix/blob/main/lib/cli/deploy-command.js) for examples on the new command line argument interface.**
 
 Create a new command class, giving your command the name specified by the `commandName` argument (all lower-case). The `definer` method will be invoked immediately upon the call to `Mythix.defineCommand`, and is expected to return a new controller class that inherits from `context.Parent`. `context.Parent` by default (if no `ParentCommandClassNameToInheritFrom` argument is specified) will be `Mythix.CommandBase`.
 
@@ -656,9 +653,9 @@ The return value will be a command class, inherited from `Mythix.CommandBase`.
 #### Example
 
 ```javascript
-const { defineCommand } = require('mythix');
+import { defineCommand }  from 'mythix';
 
-module.exports = defineCommand('deploy', ({ Parent }) => {
+export const Deploy = defineCommand('deploy', ({ Parent }) => {
   return class DeployCommand extends Parent {
     static definition = 'Deploy application to servers';
     static commandArguments = '<-target:string(Target server to deploy to)';
@@ -708,9 +705,9 @@ The return value will be a task class, inherited from `Mythix.TaskBase`.
 #### Example
 
 ```javascript
-const { defineTask } = require('mythix');
+import { defineTask }  from 'mythix';
 
-module.exports = defineTask('CustomTask', ({ Parent, time }) => {
+export const CustomTask = defineTask('CustomTask', ({ Parent, time }) => {
   return class CustomTask extends Parent {
     static workers    = 4;
     static frequency  = time.days(1);

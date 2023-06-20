@@ -1,9 +1,5 @@
-'use strict';
-
-/* global __dirname */
-
-const { createTestApplication } = require('../../src/utils/test-utils');
-const { Application }           = require('../../src/application');
+import { createTestApplication }  from '../../lib/utils/test-utils.js';
+import { Application }            from '../../lib/application.js';
 
 class _TestApplicationShim extends Application {
   getRoutes() {
@@ -16,7 +12,6 @@ const TestApplication = createTestApplication(_TestApplicationShim);
 async function newTestApplication() {
   let app = new TestApplication({
     environment:  'test',
-    rootPath:     __dirname,
     logger:       {
       level: 0,
     },
@@ -43,7 +38,7 @@ async function newTestApplication() {
 const UUID_REGEXP = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA512_REGEXP = /[a-f0-9]{64}/;
 
-module.exports = {
+export {
   newTestApplication,
   TestApplication,
   SHA512_REGEXP,

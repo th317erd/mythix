@@ -105,5 +105,6 @@ dist
 
 **/.vscode
 **/spec
-.eslintrc.js
+**/*-spec.js
+.eslintrc.cjs
 playground
