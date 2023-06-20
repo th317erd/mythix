@@ -396,7 +396,7 @@
             return;
           }
       
-          var HTTP  = (requestOptions.httpModule) ? requestOptions.httpModule : require('http');
+          var HTTP  = (requestOptions.httpModule) ? requestOptions.httpModule : require('node:http');
           var URL   = require('url');
       
           var method      = (requestOptions.method || 'GET').toUpperCase();

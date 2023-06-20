@@ -45,9 +45,9 @@ To create your own `mythix` application, you simply need to inherit from the `My
 Example:
 
 ```javascript
-import Path                 from 'path';
+import Path                 from 'node:path';
 import Mythix               from 'mythix';
-import getRoutes            from './routes.js';
+import getRoutes            from './routes/index.js';
 import { authMiddleware }   from './middleware.js';
 
 export class Application extends Mythix.Application {
