@@ -108,3 +108,4 @@ dist
 **/*-spec.js
 .eslintrc.cjs
 playground
+**/__snapshots__
