@@ -19,7 +19,6 @@ export declare interface ApplicationOptions {
   environment: string;
   exitOnShutdown: number | null;
   logger: LoggerOptions;
-  controllers: { [key: string]: ControllerClass } | Array<ControllerClass>;
   database: boolean | GenericObject;
   httpServer: boolean | GenericObject;
   tasks: boolean | { [key: string]: TaskBase } | Array<TaskBase>;
@@ -60,8 +59,10 @@ export declare class Application {
   // From ModelModule
   public getModel(modelName?: string): ModelClass | undefined;
   public getModels(): Models;
+  public getAppModelClasses(connection: ConnectionBase): { [key: string]: ModelClass };
 
   // From ControllerModule
+  public getAppControllerClasses(): { [key: string]: ControllerClass };
   public getController(name: string): { controller: ControllerClass, controllerMethod: string | undefined };
 
   // From HTTPServerModule
