@@ -8,6 +8,7 @@ export declare interface GenerateClientInterfaceOptions {
   mode?: string;
   domain?: string;
   routeFilter?: ((value: any, index?: number) => boolean) | RegExp | string;
+  type?: 'module' | 'commonjs';
 }
 
 export declare function generateClientAPIInterface(application: Application, options?: GenerateClientInterfaceOptions): string;

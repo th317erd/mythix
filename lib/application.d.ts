@@ -15,14 +15,15 @@ export declare interface ModuleDictionary {
 }
 
 export declare interface ApplicationOptions {
-  cli: boolean;
-  environment: string;
-  exitOnShutdown: number | null;
-  logger: LoggerOptions;
-  database: boolean | GenericObject;
-  httpServer: boolean | GenericObject;
-  tasks: boolean | { [key: string]: TaskBase } | Array<TaskBase>;
-  tempPath: string;
+  bindToProcessSignals?: boolean;
+  cli?: boolean;
+  database?: boolean | GenericObject;
+  environment?: string;
+  exitOnShutdown?: number | null;
+  httpServer?: boolean | GenericObject;
+  logger?: LoggerOptions;
+  tasks?: boolean | { [key: string]: TaskBase } | Array<TaskBase>;
+  tempPath?: string;
 }
 
 export declare class Application {
@@ -60,6 +61,7 @@ export declare class Application {
   public getModel(modelName?: string): ModelClass | undefined;
   public getModels(): Models;
   public getAppModelClasses(connection: ConnectionBase): { [key: string]: ModelClass };
+  public bindModels(connection: ConnectionBase, models: { [key: string]: ModelClass }): { [key: string]: ModelClass };
 
   // From ControllerModule
   public getAppControllerClasses(): { [key: string]: ControllerClass };
