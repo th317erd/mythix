@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
 /* global jasmine */
 
-import { Logger } from './logger.mjs';
+import { Logger } from '../lib/logger.mjs';
 
 describe('Logger', () => {
   let fakeConsole;

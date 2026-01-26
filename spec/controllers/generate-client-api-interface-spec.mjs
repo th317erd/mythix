@@ -1,6 +1,6 @@
-import { generateClientAPIInterface } from './generate-client-api-interface.mjs';
-import { newTestApplication }         from '../../spec/support/application.mjs';
-import { matchesSnapshot }            from '../../spec/support/snapshots.mjs';
+import { generateClientAPIInterface } from '../../lib/controllers/generate-client-api-interface.mjs';
+import { newTestApplication }         from '../support/application.mjs';
+import { matchesSnapshot }            from '../support/snapshots.mjs';
 
 function getRoutes() {
 }

@@ -1,4 +1,4 @@
-import * as MimeUtils from './mime-utils.mjs';
+import * as MimeUtils from '../../lib/utils/mime-utils.mjs';
 
 describe('mime-utils', function() {
   describe('getFilenameExtension', function() {

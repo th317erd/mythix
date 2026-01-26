@@ -2,7 +2,7 @@ import * as Path          from 'node:path';
 import * as FileSystem    from 'node:fs';
 import { fileURLToPath }  from 'node:url';
 import * as jsDiff        from 'diff';
-import colors             from 'colors/safe.mjs';
+import colors             from 'colors/safe.js';
 
 // const __filename = fileURLToPath(import.meta.url);
 // const __dirname = Path.dirname(__filename);
@@ -83,7 +83,7 @@ function getSnapshotNameAndPath() {
       return false;
     };
 
-    let specFilePatterns  = [ /-spec\.js/ ];
+    let specFilePatterns  = [ /-spec\.m?js/ ];
     let stack             = (new Error()).stack.split(/\s+at\s+|\s+\(/g).slice(1).map((part) => part.trim());
     let file;
 
